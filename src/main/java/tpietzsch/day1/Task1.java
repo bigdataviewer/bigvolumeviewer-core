@@ -14,16 +14,13 @@ import java.nio.IntBuffer;
 
 import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_FLOAT;
-import static com.jogamp.opengl.GL.GL_FRONT_AND_BACK;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
-import static com.jogamp.opengl.GL2GL3.GL_FILL;
-import static com.jogamp.opengl.GL2GL3.GL_LINE;
 
 /**
- * Paint a rectangle using EBO
+ * Try to draw 2 triangles next to each other using glDrawArrays by adding more vertices to your data.
  */
-public class Example2 implements GLEventListener
+public class Task1 implements GLEventListener
 {
 	private int vao;
 
@@ -38,14 +35,17 @@ public class Example2 implements GLEventListener
 		// ..:: VERTEX BUFFER ::..
 
 		float vertices[] = {
-				0.5f,  0.5f, 0.0f,  // top right
-				0.5f, -0.5f, 0.0f,  // bottom right
-				-0.5f, -0.5f, 0.0f,  // bottom left
-				-0.5f,  0.5f, 0.0f   // top left
+				-1.0f, -0.5f, 0.0f,
+				0.0f, -0.5f, 0.0f,
+				-0.5f, 0.5f, 0.0f,
+
+				0.0f, -0.5f, 0.0f,
+				1.0f, -0.5f, 0.0f,
+				0.5f, 0.5f, 0.0f
 		};
 		int indices[] = {  // note that we start from 0!
-			0, 1, 3,   // first triangle
-			1, 2, 3    // second triangle
+			0, 1, 2,   // first triangle
+			3, 4, 5    // second triangle
 		};
 
 		/*
@@ -86,8 +86,8 @@ public class Example2 implements GLEventListener
 
 		// ..:: SHADERS ::..
 
-		ShaderCode vs = ShaderCode.create( gl3, GL2.GL_VERTEX_SHADER, Example2.class, "", null, "ex1", true );
-		ShaderCode fs = ShaderCode.create( gl3, GL2.GL_FRAGMENT_SHADER, Example2.class, "", null, "ex1", true );
+		ShaderCode vs = ShaderCode.create( gl3, GL2.GL_VERTEX_SHADER, Task1.class, "", null, "ex1", true );
+		ShaderCode fs = ShaderCode.create( gl3, GL2.GL_FRAGMENT_SHADER, Task1.class, "", null, "ex1", true );
 		vs.defaultShaderCustomization( gl3, true, false );
 		fs.defaultShaderCustomization( gl3, true, false );
 
@@ -131,11 +131,8 @@ public class Example2 implements GLEventListener
 		final GL3 gl3 = drawable.getGL().getGL3();
 
 		prog.useProgram( gl3, true );
-//		gl3.glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-		gl3.glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 		gl3.glBindVertexArray( vao );
 		gl3.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
-		gl3.glBindVertexArray( 0 );
 	}
 
 	@Override
@@ -146,6 +143,6 @@ public class Example2 implements GLEventListener
 
 	public static void main( String[] args )
 	{
-		new SimpleFrame( "Example2", 640, 480, new Example2() );
+		new SimpleFrame( "Example2", 640, 480, new Task1() );
 	}
 }
