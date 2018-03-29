@@ -26,7 +26,7 @@ public class Shader
 		final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 		try
 		{
-			final Class< ? > klass = Shader.class.getClassLoader().loadClass( stackTrace[ stackTrace.length - 3 ].getClassName() );
+			final Class< ? > klass = Shader.class.getClassLoader().loadClass( stackTrace[ 3 ].getClassName() );
 			System.out.println( "klass = " + klass );
 			return klass;
 		}
