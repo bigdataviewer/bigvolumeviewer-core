@@ -18,7 +18,7 @@ public class SimpleFrame
 
 	private final GLEventListener glEventListener;
 
-	private final PainterThread painterThread;
+	public final PainterThread painterThread;
 
 	private final GLCanvas canvas;
 
@@ -53,6 +53,13 @@ public class SimpleFrame
 		}
 	};
 
+	private final long t0;
+
+	public long dTimeMillis()
+	{
+		return System.currentTimeMillis() - t0;
+	}
+
 	public SimpleFrame(
 			String title,
 			int width,
@@ -85,6 +92,7 @@ public class SimpleFrame
 				painterThread.interrupt();
 			}
 		} );
+		t0 = System.currentTimeMillis();
 		frame.setVisible( true );
 		painterThread.start();
 	}
