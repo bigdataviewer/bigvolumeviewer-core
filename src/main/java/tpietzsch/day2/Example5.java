@@ -1,6 +1,6 @@
 package tpietzsch.day2;
 
-// https://learnopengl.com/Getting-started/Hello-Triangle
+// https://learnopengl.com/Getting-started/Shaders
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;

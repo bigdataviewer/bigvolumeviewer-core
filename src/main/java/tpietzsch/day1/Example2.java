@@ -74,7 +74,7 @@ public class Example2 implements GLEventListener
 
 
 
-		// ..:: EleBO ::..
+		// ..:: ELEMENT BUFFER ::..
 
 		gl.glGenBuffers( 1, tmp, 0 );
 		final int ebo = tmp[ 0 ];
