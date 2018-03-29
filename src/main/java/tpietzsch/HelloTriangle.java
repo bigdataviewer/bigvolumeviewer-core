@@ -27,8 +27,7 @@ import com.jogamp.opengl.util.glsl.ShaderProgram;
 import tpietzsch.util.GuiUtil;
 import tpietzsch.util.PainterThread;
 
-@SuppressWarnings( "serial" )
-public class HelloTriangle extends GLCanvas implements GLEventListener, PainterThread.Paintable
+public class HelloTriangle extends GLCanvas implements GLEventListener
 {
 	private static String TITLE = "JOGL Setup (GLCanvas)";
 
@@ -44,38 +43,6 @@ public class HelloTriangle extends GLCanvas implements GLEventListener, PainterT
 	 * Thread that triggers repainting of the display.
 	 */
 	private static PainterThread painterThread;
-
-	public static void main( final String[] args )
-	{
-		final GLProfile profile = GLProfile.getGL2GL3();
-		final GLCapabilities caps = new GLCapabilities( profile );
-		caps.setSampleBuffers( true );
-		caps.setNumSamples( 8 );
-		canvas = new HelloTriangle( caps );
-		canvas.setPreferredSize( new Dimension( CANVAS_WIDTH, CANVAS_HEIGHT ) );
-
-		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.ARGB_COLOR_MODEL );
-//		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.RGB_COLOR_MODEL );
-		frame = new JFrame( TITLE, gc );
-		frame.getRootPane().setDoubleBuffered( true );
-		final Container content = frame.getContentPane();
-		content.add( canvas, BorderLayout.CENTER );
-		frame.pack();
-		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
-		frame.addWindowListener( new WindowAdapter()
-		{
-			@Override
-			public void windowClosing( final WindowEvent e )
-			{
-				System.out.println( "closing" );
-				painterThread.interrupt();
-			}
-		} );
-		frame.setVisible( true );
-
-		painterThread = new PainterThread( canvas );
-		painterThread.start();
-	}
 
 	public HelloTriangle( final GLCapabilities caps )
 	{
@@ -216,10 +183,39 @@ public class HelloTriangle extends GLCanvas implements GLEventListener, PainterT
 		gl.glViewport( 0, 0, width, height );
 	}
 
-	@Override
-	public void paint()
+	public static void main( final String[] args )
 	{
-		System.out.println( "paint" );
-		canvas.repaint();
+		final GLProfile profile = GLProfile.getGL2GL3();
+		final GLCapabilities caps = new GLCapabilities( profile );
+		caps.setSampleBuffers( true );
+		caps.setNumSamples( 8 );
+		canvas = new HelloTriangle( caps );
+		canvas.setPreferredSize( new Dimension( CANVAS_WIDTH, CANVAS_HEIGHT ) );
+
+		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.ARGB_COLOR_MODEL );
+//		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.RGB_COLOR_MODEL );
+		frame = new JFrame( TITLE, gc );
+		frame.getRootPane().setDoubleBuffered( true );
+		final Container content = frame.getContentPane();
+		content.add( canvas, BorderLayout.CENTER );
+		frame.pack();
+		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
+		frame.addWindowListener( new WindowAdapter()
+		{
+			@Override
+			public void windowClosing( final WindowEvent e )
+			{
+				System.out.println( "closing" );
+				painterThread.interrupt();
+			}
+		} );
+		frame.setVisible( true );
+
+		painterThread = new PainterThread( () ->
+		{
+			System.out.println( "paint" );
+			canvas.repaint();
+		});
+		painterThread.start();
 	}
 }

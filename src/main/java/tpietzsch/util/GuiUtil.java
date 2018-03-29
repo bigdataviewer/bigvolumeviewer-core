@@ -40,6 +40,8 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DirectColorModel;
 
+// adapted from imglib2-ui
+
 /**
  * Static helper methods for setting up {@link GraphicsConfiguration} and
  * {@link BufferedImage BufferedImages}.

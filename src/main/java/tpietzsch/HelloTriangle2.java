@@ -23,12 +23,11 @@ import com.jogamp.opengl.util.glsl.ShaderProgram;
 import tpietzsch.util.GuiUtil;
 import tpietzsch.util.PainterThread;
 
-public class HelloTriangle2 extends GLCanvas implements GLEventListener, PainterThread.Paintable
+public class HelloTriangle2 extends GLCanvas implements GLEventListener
 {
 	private static final long serialVersionUID = 1L;
 
-	private static final String vsrc =
-			"#version 330\n" +
+	private static final String vsrc = "#version 330\n" +
 			"\n" +
 			"layout(location = 0) in vec4 position;\n" +
 			"void main()\n" +
@@ -79,34 +78,6 @@ public class HelloTriangle2 extends GLCanvas implements GLEventListener, Painter
 		return positionBufferObject;
 	}
 
-	public static void main( final String[] args )
-	{
-		final HelloTriangle2 canvas = new HelloTriangle2();
-		canvas.setPreferredSize( new Dimension( 640, 480 ) );
-
-		final PainterThread painterThread = new PainterThread( canvas );
-
-//		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.ARGB_COLOR_MODEL );
-		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.RGB_COLOR_MODEL );
-		final JFrame frame = new JFrame( "Hello Triangle 2", gc );
-		frame.getRootPane().setDoubleBuffered( true );
-		frame.getContentPane().add( canvas, BorderLayout.CENTER );
-		frame.pack();
-		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
-		frame.addWindowListener( new WindowAdapter()
-		{
-			@Override
-			public void windowClosing( final WindowEvent e )
-			{
-				System.out.println( "stopping painterThread..." );
-				painterThread.interrupt();
-			}
-		} );
-
-		frame.setVisible( true );
-		painterThread.start();
-	}
-
 	private ShaderProgram prog;
 
 	private int vb;
@@ -117,13 +88,6 @@ public class HelloTriangle2 extends GLCanvas implements GLEventListener, Painter
 	{
 		super( new GLCapabilities( GLProfile.getGL2GL3() ) );
 		addGLEventListener( this );
-	}
-
-	@Override
-	public void paint()
-	{
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
@@ -171,8 +135,36 @@ public class HelloTriangle2 extends GLCanvas implements GLEventListener, Painter
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 	{
+		System.out.println( "reshape" );
 		final GL3 gl = drawable.getGL().getGL3();
 		gl.glViewport( 0, 0, width, height );
 	}
 
+	public static void main( final String[] args )
+	{
+		final HelloTriangle2 canvas = new HelloTriangle2();
+		canvas.setPreferredSize( new Dimension( 640, 480 ) );
+
+		final PainterThread painterThread = new PainterThread( canvas::repaint );
+
+//		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.ARGB_COLOR_MODEL );
+		final GraphicsConfiguration gc = GuiUtil.getSuitableGraphicsConfiguration( GuiUtil.RGB_COLOR_MODEL );
+		final JFrame frame = new JFrame( "Hello Triangle 2", gc );
+		frame.getRootPane().setDoubleBuffered( true );
+		frame.getContentPane().add( canvas, BorderLayout.CENTER );
+		frame.pack();
+		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
+		frame.addWindowListener( new WindowAdapter()
+		{
+			@Override
+			public void windowClosing( final WindowEvent e )
+			{
+				System.out.println( "stopping painterThread..." );
+				painterThread.interrupt();
+			}
+		} );
+
+		frame.setVisible( true );
+		painterThread.start();
+	}
 }
