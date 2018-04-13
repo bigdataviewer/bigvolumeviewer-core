@@ -1,57 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.scijava</groupId>
-        <artifactId>pom-scijava</artifactId>
-        <version>19.2.0</version>
-    </parent>
+	<parent>
+		<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
+		<version>20.0.0</version>
+	</parent>
 
-    <artifactId>jogl-minimal</artifactId>
-    <version>1.0-SNAPSHOT</version>
+	<artifactId>jogl-minimal</artifactId>
+	<version>1.0-SNAPSHOT</version>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.jogamp.gluegen</groupId>
-            <artifactId>gluegen-rt-main</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jogamp.jogl</groupId>
-            <artifactId>jogl-all-main</artifactId>
-        </dependency>
+	<dependencies>
+		<dependency>
+			<groupId>org.jogamp.gluegen</groupId>
+			<artifactId>gluegen-rt-main</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.jogamp.jogl</groupId>
+			<artifactId>jogl-all-main</artifactId>
+		</dependency>
+		<!--		<dependency>
+			<groupId>org.joml</groupId>
+			<artifactId>joml</artifactId>
+			<version>1.9.9</version>
+		</dependency> -->
 
-        <!-- Test dependencies -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+		<!-- Test dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 
-    <repositories>
-        <repository>
-            <id>imagej.public</id>
-            <url>http://maven.imagej.net/content/groups/public</url>
-        </repository>
-    </repositories>
+	<repositories>
+		<repository>
+			<id>imagej.public</id>
+			<url>http://maven.imagej.net/content/groups/public</url>
+		</repository>
+	</repositories>
 
-    <name>none</name>
-    <description>none</description>
-    <url>none</url>
-    <inceptionYear>none</inceptionYear>
-    <organization><name>none</name></organization>
-    <licenses><license><name>none</name></license></licenses>
-    <mailingLists><mailingList><name>none</name></mailingList></mailingLists>
-    <scm><tag>none</tag></scm>
-    <issueManagement><system>none</system></issueManagement>
-    <ciManagement><system>none</system></ciManagement>
-    <properties>
-        <license.licenseName>bsd_2</license.licenseName>
-        <license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
-    </properties>
-    <developers><developer><id>tpietzsch</id></developer></developers>
-    <contributors><contributor><name>none</name></contributor></contributors>
+	<name>none</name>
+	<description>none</description>
+	<url>none</url>
+	<inceptionYear>none</inceptionYear>
+	<organization><name>none</name></organization>
+	<licenses><license><name>none</name></license></licenses>
+	<mailingLists><mailingList><name>none</name></mailingList></mailingLists>
+	<scm><tag>none</tag></scm>
+	<issueManagement><system>none</system></issueManagement>
+	<ciManagement><system>none</system></ciManagement>
+	<properties>
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
+	</properties>
+	<developers><developer><id>tpietzsch</id></developer></developers>
+	<contributors><contributor><name>none</name></contributor></contributors>
 </project>
