@@ -1,5 +1,7 @@
 package tpietzsch.day3;
 
+//https://learnopengl.com/Getting-started/Coordinate-Systems
+
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_FLOAT;
@@ -17,7 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
-// https://learnopengl.com/Getting-started/Textures
+import org.joml.Matrix4f;
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
@@ -29,7 +31,7 @@ import tpietzsch.day2.Shader;
 import tpietzsch.util.Images;
 
 /**
- * Textured rectangle using texture coords in VBO
+ * Textured rectangle with <em>projection * view * model</em> in vertex shader
  */
 public class Example1 implements GLEventListener
 {
@@ -137,9 +139,22 @@ public class Example1 implements GLEventListener
 		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 		gl.glClear( GL_COLOR_BUFFER_BIT );
 
+
+		final Matrix4f model = new Matrix4f();
+		model.rotate( (float) Math.toRadians( -55.0 ), 1.0f, 0.0f, 0.0f );
+
+		final Matrix4f view = new Matrix4f();
+		view.translate( 0.0f, 0.0f, -3.0f );
+
+		final Matrix4f projection = new Matrix4f();
+		projection.perspective( (float) Math.toRadians( 45.0 ), width / height, 0.1f, 100.0f );
+
 		prog.use( gl3 );
 		prog.setUniform( gl3, "texture1", 0 );
 		prog.setUniform( gl3, "texture2", 1 );
+		prog.setUniform( gl3, "model", model );
+		prog.setUniform( gl3, "view", view );
+		prog.setUniform( gl3, "projection", projection );
 		gl3.glActiveTexture( GL_TEXTURE0 );
 		gl3.glBindTexture( GL_TEXTURE_2D, texture1 );
 		gl3.glActiveTexture( GL_TEXTURE1 );
@@ -149,10 +164,14 @@ public class Example1 implements GLEventListener
 		gl3.glBindVertexArray( 0 );
 	}
 
+	int width = 1;
+	int height = 1;
+
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 	{
-		drawable.getGL().glViewport(0, 0, width, height );
+		this.width = width;
+		this.height = height;
 	}
 
 	public static void main( final String[] args )
