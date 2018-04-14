@@ -28,6 +28,14 @@
 			<version>1.9.9</version>
 		</dependency>
 
+
+		<!-- ImgLib2/BDV dependencies -->
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>bigdataviewer-core</artifactId>
+		</dependency>
+
+
 		<!-- Test dependencies -->
 		<dependency>
 			<groupId>junit</groupId>
