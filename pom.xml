@@ -22,11 +22,11 @@
 			<groupId>org.jogamp.jogl</groupId>
 			<artifactId>jogl-all-main</artifactId>
 		</dependency>
-		<!--		<dependency>
+		<dependency>
 			<groupId>org.joml</groupId>
 			<artifactId>joml</artifactId>
 			<version>1.9.9</version>
-		</dependency> -->
+		</dependency>
 
 		<!-- Test dependencies -->
 		<dependency>
