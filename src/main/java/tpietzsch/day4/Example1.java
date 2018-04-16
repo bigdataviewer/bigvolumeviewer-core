@@ -12,6 +12,7 @@ import org.joml.Matrix4f;
 import tpietzsch.day1.SimpleFrame;
 import tpietzsch.day2.Shader;
 import tpietzsch.util.Images;
+import tpietzsch.util.MatrixMath;
 
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
@@ -115,34 +116,7 @@ public class Example1 implements GLEventListener
 
 		double screenPadding = 100;
 
-
-		double l0 = -screenPadding;
-		double t0 = -screenPadding;
-		double r0 = screenWidth + screenPadding;
-		double b0 = screenHeight + screenPadding;
-
-		double p = ( dCam - d ) / dCam;
-		double l = l0 * p;
-		double t = t0 * p;
-		double r = r0 * p;
-		double b = b0 * p;
-
-		double n = dCam - d;
-		double f = dCam + d;
-
-		float m00 = ( float ) ( 2 * n / ( r - l ) );
-		float m11 = ( float ) ( 2 * n / ( t - b ) );
-		float m02 = ( float ) ( ( r + l ) / ( r - l ) );
-		float m12 = ( float ) ( ( t + b ) / ( t - b ) );
-		float m22 = ( float ) ( -( f + n ) / ( f - n ) );
-		float m23 = ( float ) ( -2 * f * n / ( f - n ) );
-
-		projection.set(
-				m00, 0, 0, 0,
-				0, m11, 0, 0,
-				m02, m12, m22, -1,
-				0,0,m23,0
-		);
+		MatrixMath.screenPerspective( dCam, d, screenWidth, screenHeight, screenPadding, projection.identity() );
 	}
 
 	@Override

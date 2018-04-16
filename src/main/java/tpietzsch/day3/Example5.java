@@ -29,6 +29,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import tpietzsch.day1.SimpleFrame;
 import tpietzsch.day2.Shader;
 import tpietzsch.util.Images;
+import tpietzsch.util.MatrixMath;
 
 /**
  * Textured rectangle with <em>projection * view * model</em> in vertex shader
@@ -158,19 +159,6 @@ public class Example5 implements GLEventListener
 
 	}
 
-	public static void setMatrix4f( final AffineTransform3D transform, final Matrix4f matrix )
-	{
-		final float[] m = new float[ 16 ];
-		for ( int c = 0; c < 4; ++c )
-			for ( int r = 0; r < 3; ++r )
-				m[ c * 4 + r ] = ( float ) transform.get( r, c );
-		m[ 3 ] = 0f;
-		m[ 7 ] = 0f;
-		m[ 11 ] = 0f;
-		m[ 15 ] = 1f;
-		matrix.set( m );
-	}
-
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
@@ -182,7 +170,7 @@ public class Example5 implements GLEventListener
 
 		final AffineTransform3D transform = new AffineTransform3D();
 		final Matrix4f model = new Matrix4f();
-		setMatrix4f( transform, model );
+		MatrixMath.affine( transform, model );
 
 		final Matrix4f view = new Matrix4f();
 		view.translate( 0.0f, 0.0f, -3.0f );

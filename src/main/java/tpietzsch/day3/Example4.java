@@ -33,6 +33,7 @@ import com.jogamp.opengl.GLEventListener;
 import net.imglib2.realtransform.AffineTransform3D;
 import tpietzsch.day2.Shader;
 import tpietzsch.util.Images;
+import tpietzsch.util.MatrixMath;
 
 /**
  * Textured rectangle with <em>projection * view * model</em> in vertex shader
@@ -188,19 +189,6 @@ public class Example4 implements GLEventListener
 
 	}
 
-	public static void setMatrix4f( final AffineTransform3D transform, final Matrix4f matrix )
-	{
-		final float[] m = new float[ 16 ];
-		for ( int c = 0; c < 4; ++c )
-			for ( int r = 0; r < 3; ++r )
-				m[ c * 4 + r ] = ( float ) transform.get( r, c );
-		m[ 3 ] = 0f;
-		m[ 7 ] = 0f;
-		m[ 11 ] = 0f;
-		m[ 15 ] = 1f;
-		matrix.set( m );
-	}
-
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
@@ -213,7 +201,7 @@ public class Example4 implements GLEventListener
 		final Matrix4f tf = new Matrix4f();
 		synchronized ( transform )
 		{
-			setMatrix4f( transform, tf );
+			MatrixMath.affine( transform, tf.identity() );
 		}
 
 		final float s = 100;
