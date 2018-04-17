@@ -11,29 +11,30 @@ public class MatrixMath
 	 * Apply a perspective projection frustum transformation such that a camera looks at (the center of) the (BDV) screen plane.
 	 *
 	 * @param dCam distance camera to z=0 plane
-	 * @param dCLip visible depth away from z=0 in both directions
+	 * @param dClip visible depth away from z=0 in both directions
 	 * @param screenWidth the width of the screen
 	 * @param screenHeight the height of the screen
 	 * @param screenPadding additional padding on all sides of the screen plane
 	 * @param matrix perspective projection frustum transformation is applied to this matrix
 	 */
-	public static void screenPerspective( double dCam, final double dCLip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
+	public static Matrix4f screenPerspective( double dCam, final double dClip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
 	{
 		double l0 = -screenPadding;
 		double t0 = -screenPadding;
 		double r0 = screenWidth + screenPadding;
 		double b0 = screenHeight + screenPadding;
 
-		double p = ( dCam - dCLip ) / dCam;
+		double p = ( dCam - dClip ) / dCam;
 		double l = l0 * p;
 		double t = t0 * p;
 		double r = r0 * p;
 		double b = b0 * p;
 
-		double n = dCam - dCLip;
-		double f = dCam + dCLip;
+		double n = dCam - dClip;
+		double f = dCam + dClip;
 
 		matrix.frustum( ( float ) l, ( float ) r, ( float ) b, ( float ) t, ( float ) n, ( float ) f );
+		return matrix;
 
 		// by hand...
 		/*
@@ -59,7 +60,7 @@ public class MatrixMath
 	 * @param affine the affine transformation
 	 * @param matrix affine transformation is applied to this matrix
 	 */
-	public static void affine( final AffineTransform3D affine, final Matrix4f matrix )
+	public static Matrix4f affine( final AffineTransform3D affine, final Matrix4f matrix )
 	{
 		final float[] m = new float[ 16 ];
 		for ( int c = 0; c < 4; ++c )
@@ -76,6 +77,8 @@ public class MatrixMath
 			matrix.mulAffine( new Matrix4f().set( m ) );
 		else
 			matrix.mul( new Matrix4f().set( m ) );
+
+		return matrix;
 	}
 
 
