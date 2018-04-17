@@ -108,8 +108,8 @@ public class Example2 implements GLEventListener
 		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		final Matrix4f model = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
-		final Matrix4f view = new Matrix4f().translate( 0.0f, 0.0f, ( float ) ( -dCam ) );
+		final Matrix4f model = new Matrix4f();
+		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
 		final Matrix4f pvm = new Matrix4f( projection ).mul( view ).mul( model );

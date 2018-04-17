@@ -8,7 +8,7 @@ public class MatrixMath
 {
 
 	/**
-	 * Apply a perspective projection frustum transformation such that a camera looks at (the center of) the (BDV) screen plane.
+	 * Setup view and projection frustum transformation such that a camera looks at (the center of) the (BDV) screen plane.
 	 *
 	 * @param dCam distance camera to z=0 plane
 	 * @param dClip visible depth away from z=0 in both directions
@@ -19,10 +19,10 @@ public class MatrixMath
 	 */
 	public static Matrix4f screenPerspective( double dCam, final double dClip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
 	{
-		double l0 = -screenPadding;
-		double t0 = -screenPadding;
-		double r0 = screenWidth + screenPadding;
-		double b0 = screenHeight + screenPadding;
+		double r0 = ( screenWidth + screenPadding ) / 2;
+		double l0 = -r0;
+		double t0 = ( screenHeight + screenPadding ) / 2;
+		double b0 = -t0;
 
 		double p = ( dCam - dClip ) / dCam;
 		double l = l0 * p;
@@ -33,10 +33,13 @@ public class MatrixMath
 		double n = dCam - dClip;
 		double f = dCam + dClip;
 
-		matrix.frustum( ( float ) l, ( float ) r, ( float ) b, ( float ) t, ( float ) n, ( float ) f );
+		matrix
+				.frustum( ( float ) l, ( float ) r, ( float ) b, ( float ) t, ( float ) n, ( float ) f )
+				.scale( 1.0f, -1.0f, -1.0f )
+				.translate( ( float ) ( -screenWidth / 2 ), ( float ) ( -screenHeight / 2 ), ( float ) dCam );
 		return matrix;
 
-		// by hand...
+		// frustum by hand...
 		/*
 		float m00 = ( float ) ( 2 * n / ( r - l ) );
 		float m11 = ( float ) ( 2 * n / ( t - b ) );

@@ -129,10 +129,7 @@ public class Example1 implements GLEventListener
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 		final Matrix4f model = new Matrix4f();
-
 		final Matrix4f view = new Matrix4f();
-		view.translate( 0.0f, 0.0f, -300.0f );
-
 		final Matrix4f projection = new Matrix4f();
 		projection( projection );
 
