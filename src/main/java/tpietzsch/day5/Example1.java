@@ -7,6 +7,7 @@ import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -31,6 +32,7 @@ import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_MAX_TEXTURE_SIZE;
 import static com.jogamp.opengl.GL.GL_NEAREST;
+import static com.jogamp.opengl.GL.GL_R16F;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
@@ -80,10 +82,12 @@ public class Example1 implements GLEventListener
 		int h = ( int ) img.dimension( 1 );
 		int d = ( int ) img.dimension( 2 );
 		final ByteBuffer data = imgToBuffer( img );
-		for ( int i = 0; i < w * h * d * 2; ++i )
-			data.put( i, ( byte ) ( i & 0x00ff ) );
+//		for ( int i = 0; i < w * h * d * 2; ++i )
+//			data.put( i, ( byte ) ( i & 0x00ff ) );
 
-		gl.glTexImage3D( GL_TEXTURE_3D, 0, GL_R16UI, w, h, d, 0, GL_RED, GL_UNSIGNED_SHORT, data );
+		gl.glTexImage3D( GL_TEXTURE_3D, 0, GL_R16F, w, h, d, 0, GL_RED, GL_UNSIGNED_SHORT, data );
+		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 //		gl.glTexStorage3D();
 //		gl.glTexImage3DMultisample();
 
@@ -106,6 +110,7 @@ public class Example1 implements GLEventListener
 	{
 		assert img.numDimensions() == 3;
 
+		buffer.order( ByteOrder.LITTLE_ENDIAN );
 		final ShortBuffer sbuffer = buffer.asShortBuffer();
 		Cursor< UnsignedShortType > c = Views.iterable( img ).localizingCursor();
 		while( c.hasNext() )
@@ -133,8 +138,6 @@ public class Example1 implements GLEventListener
 		// ..:: TEXTURES ::..
 
 		tryLoadImage( gl );
-		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 
 		// ..:: VERTEX BUFFER ::..
 
@@ -200,6 +203,14 @@ public class Example1 implements GLEventListener
 		{
 			prog.use( gl );
 			prog.setUniform( gl, "ourTexture", 0 );
+			double min = 962;
+			double max = 4101;
+			double fmin = min / 0xffff;
+			double fmax = max / 0xffff;
+			double s = 1.0 / ( fmax - fmin );
+			double o = -fmin * s;
+			prog.setUniform( gl, "offset", ( float ) o );
+			prog.setUniform( gl, "scale", ( float ) s );
 			gl.glActiveTexture( GL_TEXTURE0 );
 			gl.glBindTexture( GL_TEXTURE_3D, texture );
 			gl.glBindVertexArray( vao );
