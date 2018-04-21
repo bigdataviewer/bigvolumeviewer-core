@@ -24,7 +24,7 @@ public class WireframeBox1
 
 	private int vao;
 
-	WireframeBox1()
+	public WireframeBox1()
 	{
 		vertices = new float[ 24 ];
 		indices = new int[] { 0, 1, 0, 2, 0, 4, 1, 3, 3, 2, 1, 5, 2, 6, 3, 7, 4, 5, 5, 7, 7, 6, 6, 4 };

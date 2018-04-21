@@ -25,7 +25,7 @@ public class ScreenPlane1
 
 	private int vao;
 
-	ScreenPlane1()
+	public ScreenPlane1()
 	{
 		vertices = new float[ 12 ];
 		indices = new int[] {
