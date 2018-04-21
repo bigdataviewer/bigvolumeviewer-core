@@ -90,6 +90,12 @@ public class Example7 implements GLEventListener
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
+//		System.out.println( printSetter( view, "view" ) );
+//		System.out.println( printSetter( projection, "projection" ) );
+//		System.out.println();
+//		view.set( new float[] {0.56280f, -0.13956f, 0.23033f, 0.00000f, 0.00395f, 0.53783f, 0.31621f, 0.00000f, -0.26928f, -0.28378f, 0.48603f, 0.00000f, 96.02715f, 211.68768f, -186.46806f, 1.00000f } );
+//		projection.set( new float[] {5.40541f, 0.00000f, 0.00000f, 0.00000f, -0.00000f, -6.89655f, -0.00000f, -0.00000f, -0.00000f, -0.00000f, 2.00000f, 1.00000f, -1729.72974f, 1655.17236f, 1000.00000f, 2000.00000f } );
+
 		prog.use( gl3 );
 		prog.setUniform( gl3, "model", model );
 		prog.setUniform( gl3, "view", view );
@@ -115,6 +121,20 @@ public class Example7 implements GLEventListener
 		screenPlane.updateVertices( gl3, new FinalInterval( ( int ) screenWidth, ( int ) screenHeight ) );
 		screenPlane.draw( gl3 );
 		gl3.glDisable( GL_BLEND );
+	}
+
+	public static String printSetter( final Matrix4f matrix, String name )
+	{
+		String out = name + ".set( new float[] {";
+		final float[] value = matrix.get( new float[ 16 ] );
+		for ( int i = 0; i < value.length; i++ )
+		{
+			out += String.format( "%.5ff", value[ i ] );
+			if ( i < value.length - 1 )
+				out += ", ";
+		}
+		out += " } );";
+		return out;
 	}
 
 	@Override
