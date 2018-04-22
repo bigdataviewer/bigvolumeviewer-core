@@ -78,6 +78,11 @@ public class Shader
 		gl.glProgramUniform1f( prog.program(), gl.glGetUniformLocation( prog.program(), name ), value );
 	}
 
+	public void setUniform( final GL2ES2 gl, final String name, final float v0, final float v1, final float v2 )
+	{
+		gl.glProgramUniform3f( prog.program(), gl.glGetUniformLocation( prog.program(), name ), v0, v1, v2 );
+	}
+
 	public void setUniform( final GL2ES2 gl, final String name, final float v0, final float v1, final float v2, final float v3 )
 	{
 		gl.glProgramUniform4f( prog.program(), gl.glGetUniformLocation( prog.program(), name ), v0, v1, v2, v3 );

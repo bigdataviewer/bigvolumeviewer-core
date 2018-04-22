@@ -7,12 +7,19 @@ import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
 import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
+import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.util.IntervalIndexer;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.joml.Matrix4f;
 import tpietzsch.day2.Shader;
 import tpietzsch.day4.InputFrame;
@@ -26,8 +33,16 @@ import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
+import static com.jogamp.opengl.GL.GL_LINEAR;
+import static com.jogamp.opengl.GL.GL_NEAREST;
 import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
+import static com.jogamp.opengl.GL.GL_R16F;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
+import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
+import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
+import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
+import static com.jogamp.opengl.GL2ES2.GL_RED;
+import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 
 /**
  * Draw bounding box of source 0 timepoint 0.
@@ -42,6 +57,8 @@ public class Example1 implements GLEventListener
 
 	private Shader prog;
 
+	private Shader progvol;
+
 	private WireframeBox1 box;
 
 	private ScreenPlane1 screenPlane;
@@ -55,16 +72,17 @@ public class Example1 implements GLEventListener
 	@Override
 	public void init( final GLAutoDrawable drawable )
 	{
-		final GL gl = drawable.getGL();
-		final GL3 gl3 = drawable.getGL().getGL3();
+		final GL3 gl = drawable.getGL().getGL3();
 
 		box = new WireframeBox1();
-		box.updateVertices( gl3, rai );
+		box.updateVertices( gl, rai );
 		screenPlane = new ScreenPlane1();
-		screenPlane.updateVertices( gl3, new FinalInterval( 640, 480 ) );
+		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
 
-		prog = new Shader( gl3, "ex1", "ex1" );
-		gl3.glEnable( GL_DEPTH_TEST );
+		prog = new Shader( gl, "ex1", "ex1" );
+		progvol = new Shader( gl, "ex1", "ex1vol" );
+
+		gl.glEnable( GL_DEPTH_TEST );
 	}
 
 	@Override
@@ -81,8 +99,7 @@ public class Example1 implements GLEventListener
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
-		final GL gl = drawable.getGL();
-		final GL3 gl3 = drawable.getGL().getGL3();
+		final GL3 gl = drawable.getGL().getGL3();
 
 		gl.glClearColor( 0f, 0f, 0f, 1f );
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -93,24 +110,29 @@ public class Example1 implements GLEventListener
 		MatrixMath.affine( sourceTransform, model );
 		view.set( new float[] {0.56280f, -0.13956f, 0.23033f, 0.00000f, 0.00395f, 0.53783f, 0.31621f, 0.00000f, -0.26928f, -0.28378f, 0.48603f, 0.00000f, 96.02715f, 211.68768f, -186.46806f, 1.00000f } );
 		projection.set( new float[] {5.40541f, 0.00000f, 0.00000f, 0.00000f, -0.00000f, -6.89655f, -0.00000f, -0.00000f, -0.00000f, -0.00000f, 2.00000f, 1.00000f, -1729.72974f, 1655.17236f, 1000.00000f, 2000.00000f } );
+		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
 
-		prog.use( gl3 );
-		prog.setUniform( gl3, "model", model );
-		prog.setUniform( gl3, "view", view );
-		prog.setUniform( gl3, "projection", projection );
+		prog.use( gl );
+		prog.setUniform( gl, "model", model );
+		prog.setUniform( gl, "view", view );
+		prog.setUniform( gl, "projection", projection );
 
-		prog.setUniform( gl3, "color", 1.0f, 0.5f, 0.2f, 1.0f );
-		box.draw( gl3 );
+		prog.setUniform( gl, "color", 1.0f, 0.5f, 0.2f, 1.0f );
+		box.draw( gl );
 
 		model.identity();
 		view.identity();
-		prog.setUniform( gl3, "model", model );
-		prog.setUniform( gl3, "view", view );
-		prog.setUniform( gl3, "color", 0.2f, 0.3f, 0.3f, 0.6f );
-		gl3.glEnable( GL_BLEND );
-		gl3.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-		screenPlane.draw( gl3 );
-		gl3.glDisable( GL_BLEND );
+		progvol.use( gl );
+		progvol.setUniform( gl, "model", model );
+		progvol.setUniform( gl, "view", view );
+		progvol.setUniform( gl, "projection", projection );
+		progvol.setUniform( gl, "ipvm", ipvm );
+		progvol.setUniform( gl, "sourcemin", rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) );
+		progvol.setUniform( gl, "sourcemax", rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) );
+		gl.glEnable( GL_BLEND );
+		gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+		screenPlane.draw( gl );
+		gl.glDisable( GL_BLEND );
 	}
 
 	@Override
@@ -126,7 +148,7 @@ public class Example1 implements GLEventListener
 		final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( 1, level );
 		final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( 1, 0 ).getModel();
 
-		final InputFrame frame = new InputFrame( "Example5", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example1", 640, 480 );
 		InputFrame.DEBUG = false;
 		Example1 glPainter = new Example1( rai, sourceTransform );
 		frame.setGlEventListener( glPainter );
