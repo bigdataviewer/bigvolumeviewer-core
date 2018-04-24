@@ -1,5 +1,7 @@
 out vec4 FragColor;
 
+uniform vec2 viewportSize;
+
 uniform mat4 ipvm;
 
 uniform vec3 sourcemin;
@@ -31,8 +33,6 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 
 void main()
 {
-    const vec2 viewportSize = vec2( 640 * 2, 480 * 2 );
-
     // frag coord in NDC
     vec2 uv = 2 * gl_FragCoord.xy / viewportSize - 1;
 
@@ -50,26 +50,20 @@ void main()
     // find intersection with box
     float tnear, tfar;
     intersectBox( mfront.xyz, step, sourcemin, sourcemax, tnear, tfar );
+    const float sub = 1;
     if ( tnear < tfar )
     {
         vec3 pos = mfront.xyz + tnear * step + 0.5;
         vec3 tpos = pos * invVolumeSize;
-        vec3 tstep = step * invVolumeSize;
-        int numSteps = int( trunc( tfar - tnear ) + 1 );
+        vec3 tstep = ( 1 / sub ) * step * invVolumeSize;
+        int numSteps = int( sub * trunc( tfar - tnear ) + 1 );
         float v = 0;
         for ( int i = 0; i < numSteps; ++i, tpos += tstep )
         {
             v = max( v, texture( volume, tpos ).r );
         }
-        FragColor = vec4( vec3( intensity_offset + intensity_scale * v ), 0.5 );
+        FragColor = vec4( vec3( intensity_offset + intensity_scale * v ), 1 );
     }
     else
-        FragColor = vec4( 0.5, 0.5, 0.5, 0.5 );
-//        discard;
-
-
-
-
-//    fragColor = vec4( intensity_offset + intensity_scale * texture( volume, texCoord ).rrr, 1 );
-
+        discard;
 }
