@@ -13,6 +13,8 @@ import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
@@ -43,7 +45,7 @@ import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 /**
  * Draw bounding box of source 0 timepoint 0.
  */
-public class Example2 implements GLEventListener
+public class Example3 implements GLEventListener
 {
 	private final RandomAccessibleInterval< UnsignedShortType > rai;
 
@@ -61,7 +63,7 @@ public class Example2 implements GLEventListener
 
 	private int texture;
 
-	public Example2( final RandomAccessibleInterval< UnsignedShortType > rai, final AffineTransform3D sourceTransform )
+	public Example3( final RandomAccessibleInterval< UnsignedShortType > rai, final AffineTransform3D sourceTransform )
 	{
 		this.rai = rai;
 		this.sourceTransform = sourceTransform;
@@ -78,7 +80,7 @@ public class Example2 implements GLEventListener
 		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
 
 		prog = new Shader( gl, "ex1", "ex1" );
-		progvol = new Shader( gl, "ex1", "ex2vol" );
+		progvol = new Shader( gl, "ex1", "ex3slice" );
 
 		loadTexture( gl );
 
@@ -98,16 +100,8 @@ public class Example2 implements GLEventListener
 		int w = ( int ) rai.dimension( 0 );
 		int h = ( int ) rai.dimension( 1 );
 		int d = ( int ) rai.dimension( 2 );
-		final ByteBuffer data = imgToBuffer( rai );
 
-//		create volume black with white border:
-//		Img< UnsignedShortType > img = ArrayImgs.unsignedShorts( w, h, d );
-//		for ( int dim = 0; dim < 3; ++dim )
-//		{
-//			Views.iterable( Views.hyperSlice( img, dim, img.min( dim ) ) ).forEach( t -> t.set( 0xffff ) );
-//			Views.iterable( Views.hyperSlice( img, dim, img.max( dim ) ) ).forEach( t -> t.set( 0xffff ) );
-//		}
-//		final ByteBuffer data = imgToBuffer( img );
+		final ByteBuffer data = imgToBuffer( rai );
 
 		gl.glTexImage3D( GL_TEXTURE_3D, 0, GL_R16F, w, h, d, 0, GL_RED, GL_UNSIGNED_SHORT, data );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
@@ -169,10 +163,8 @@ public class Example2 implements GLEventListener
 		MatrixMath.affine( sourceTransform, model );
 		view.set( new float[] {0.56280f, -0.13956f, 0.23033f, 0.00000f, 0.00395f, 0.53783f, 0.31621f, 0.00000f, -0.26928f, -0.28378f, 0.48603f, 0.00000f, 96.02715f, 211.68768f, -186.46806f, 1.00000f } );
 		projection.set( new float[] {5.40541f, 0.00000f, 0.00000f, 0.00000f, -0.00000f, -6.89655f, -0.00000f, -0.00000f, -0.00000f, -0.00000f, 2.00000f, 1.00000f, -1729.72974f, 1655.17236f, 1000.00000f, 2000.00000f } );
-		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
-
-		System.out.println( "projection = " + projection );
-		System.out.println( "ipvm = " + ipvm );
+		final Matrix4f ip = new Matrix4f( projection ).invert();
+		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
 
 		prog.use( gl );
 		prog.setUniform( gl, "model", model );
@@ -188,7 +180,8 @@ public class Example2 implements GLEventListener
 		progvol.setUniform( gl, "model", model );
 		progvol.setUniform( gl, "view", view );
 		progvol.setUniform( gl, "projection", projection );
-		progvol.setUniform( gl, "ipvm", ipvm );
+		progvol.setUniform( gl, "ip", ip );
+		progvol.setUniform( gl, "ivm", ivm );
 		progvol.setUniform( gl, "sourcemin", rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) );
 		progvol.setUniform( gl, "sourcemax", rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) );
 		progvol.setUniform( gl, "volume", 0 );
@@ -226,9 +219,9 @@ public class Example2 implements GLEventListener
 		final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( 1, level );
 		final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( 1, 0 ).getModel();
 
-		final InputFrame frame = new InputFrame( "Example2", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example3", 640, 480 );
 		InputFrame.DEBUG = false;
-		Example2 glPainter = new Example2( rai, sourceTransform );
+		Example3 glPainter = new Example3( rai, sourceTransform );
 		frame.setGlEventListener( glPainter );
 		frame.show();
 	}
