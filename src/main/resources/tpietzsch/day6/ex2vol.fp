@@ -52,7 +52,7 @@ void main()
     intersectBox( mfront.xyz, step, sourcemin, sourcemax, tnear, tfar );
     if ( tnear < tfar )
     {
-        vec3 pos = mfront.xyz + tnear * step;
+        vec3 pos = mfront.xyz + tnear * step + 0.5;
         vec3 tpos = pos * invVolumeSize;
         vec3 tstep = step * invVolumeSize;
         int numSteps = int( trunc( tfar - tnear ) + 1 );
