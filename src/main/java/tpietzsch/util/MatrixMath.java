@@ -20,23 +20,20 @@ public class MatrixMath
 	public static Matrix4f screenPerspective( double dCam, final double dClip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
 	{
 		double r0 = ( screenWidth + screenPadding ) / 2;
-		double l0 = -r0;
 		double t0 = ( screenHeight + screenPadding ) / 2;
-		double b0 = -t0;
 
 		double p = ( dCam - dClip ) / dCam;
-		double l = l0 * p;
-		double t = t0 * p;
-		double r = r0 * p;
-		double b = b0 * p;
-
-		double n = dCam - dClip;
-		double f = dCam + dClip;
+		float t = ( float ) ( t0 * p );
+		float r = ( float ) ( r0 * p );
+		float b = -t;
+		float l = -r;
+		float n = ( float ) ( dCam - dClip );
+		float f = ( float ) ( dCam + dClip );
 
 		matrix
-				.frustum( ( float ) l, ( float ) r, ( float ) b, ( float ) t, ( float ) n, ( float ) f )
-				.scale( 1.0f, -1.0f, -1.0f )
-				.translate( ( float ) ( -screenWidth / 2 ), ( float ) ( -screenHeight / 2 ), ( float ) dCam );
+				.frustum( l, r, b, t, n, f )
+				.scale( 1f, -1f, -1f )
+				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
 		return matrix;
 
 		// frustum by hand...
@@ -52,7 +49,7 @@ public class MatrixMath
 				m00, 0, 0, 0,
 				0, m11, 0, 0,
 				m02, m12, m22, -1,
-				0,0,m23,0
+				0, 0, m23, 0
 		);
 		*/
 	}
