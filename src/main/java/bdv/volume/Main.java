@@ -2,6 +2,7 @@ package bdv.volume;
 
 import static bdv.volume.FindRequiredBlocks.getRequiredBlocksParallelProjection;
 
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 
@@ -49,7 +50,7 @@ public class Main
 		state.getViewerTransform( globalToViewer );
 
 		@SuppressWarnings( "unchecked" )
-		final Source< UnsignedByteType > source = ( Source< UnsignedByteType > )
+		final Source< UnsignedShortType > source = ( Source< UnsignedShortType > )
 				state.getSources().get( si ).getSpimSource();
 
 		final AffineTransform3D sourceToScreen = new AffineTransform3D();
