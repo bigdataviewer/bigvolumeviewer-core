@@ -15,6 +15,12 @@ public class BlockKey
 	 */
 	private final int[] cellPos;
 
+	private final int timepoint;
+
+	private final int setup;
+
+	private final int level;
+
 	private final int hashcode;
 
 	public BlockKey(
@@ -24,6 +30,9 @@ public class BlockKey
 			final int level )
 	{
 		this.cellPos = cellGridPos.clone();
+		this.timepoint = timepoint;
+		this.setup = setup;
+		this.level = level;
 
 		int value = 17;
 		value = 31 * value + cellGridPos[ 0 ];
@@ -41,7 +50,10 @@ public class BlockKey
 		if ( obj instanceof BlockKey )
 		{
 			final BlockKey b = ( BlockKey ) obj;
-			return Arrays.equals( cellPos, b.cellPos );
+			return Arrays.equals( cellPos, b.cellPos )
+					&& timepoint == b.timepoint
+					&& setup == b.setup
+					&& level == b.level;
 		}
 		return false;
 	}
