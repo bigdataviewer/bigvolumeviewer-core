@@ -22,14 +22,18 @@ import net.imglib2.util.Intervals;
  * @param <B>
  *            block type
  *
- * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Tobias Pietzsch
  */
 public class LRUBlockCache< K, B >
 {
 	@FunctionalInterface
 	public static interface BlockFactory< B >
 	{
-		B createBlock( int[] gridPos );
+		/**
+		 * @param gridPos block position
+		 * @param pos block min ({@code gridPos * blockSize})
+		 */
+		B createBlock( int[] gridPos, int[] pos );
 	}
 
 	private final BlockFactory< B > blockFactory;
@@ -89,9 +93,12 @@ public class LRUBlockCache< K, B >
 		}
 		else
 		{
+			final int[] gridPos = new int[ 3 ];
 			final int[] pos = new int[ 3 ];
-			IntervalIndexer.indexToPosition( size, gridSize, pos );
-			block = blockFactory.createBlock( pos );
+			IntervalIndexer.indexToPosition( size, gridSize, gridPos );
+			for ( int d = 0; d < 3; ++d )
+				pos[ d ] = blockSize[ d ] * gridPos[ d ];
+			block = blockFactory.createBlock( gridPos, pos );
 		}
 		return map.put( key, block );
 	}
