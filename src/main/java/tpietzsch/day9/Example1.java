@@ -10,14 +10,13 @@ import java.nio.FloatBuffer;
 import java.util.Arrays;
 import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
-import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
@@ -295,18 +294,20 @@ public class Example1 implements GLEventListener
 		}
 	}
 
+	final int[] padSize = { 1, 1, 1 };
+
 	private void buildLookupTexture( final GL3 gl )
 	{
 		final int[] lutSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
-			lutSize[ d ] = imgGridSize[ d ]; //Math.max( 64, imgGridSize[ d ] );
+			lutSize[ d ] = Math.max( 64, imgGridSize[ d ] );
 		lookupTexture = new LookupTexture( lutSize );
 
-		final int[] padSize = new int[ 3 ];
+		final int[] padOffset = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
-			padSize[ d ] = 0;
+			padOffset[ d ] = -padSize[ d ];
 
-		int[] cacheSize = new int[ 3 ];
+		final int[] cacheSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
 			cacheSize[ d ] = textureCache.gridSize[ d ] * textureCache.blockSize[ d ];
 
@@ -314,42 +315,28 @@ public class Example1 implements GLEventListener
 		for ( int d = 0; d < 3; ++d )
 			scale[ d ] = 1.0f;
 
-		float[] qsData = new float[ 3 * ( int ) Intervals.numElements( lutSize ) ];
-		float[] qs = new float[ 3 ];
-		for ( int d = 0; d < 3; ++d )
-			qs[ d ] = scale[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
-		final Cursor< FloatType > qsCursor = ArrayImgs.floats( qsData, 3, lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] ).cursor();
-		while( qsCursor.hasNext())
-		{
-			qsCursor.next().set( qs[ 0 ] );
-			qsCursor.next().set( qs[ 1 ] );
-			qsCursor.next().set( qs[ 2 ] );
-		}
+		final float[] qsData = new float[ 3 * ( int ) Intervals.numElements( lutSize ) ];
+		final float[] qdData = new float[ 3 * ( int ) Intervals.numElements( lutSize ) ];
 
-		float[] qdData = new float[ 3 * ( int ) Intervals.numElements( lutSize ) ];
-		final Cursor< FloatType > qdCursor = ArrayImgs.floats( qdData, 3, lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] ).cursor();
-		while( qdCursor.hasNext())
+		final IntervalIterator imgGridIter = new IntervalIterator( imgGridSize );
+		final int[] imgGridPos = new int[ 3 ];
+		while ( imgGridIter.hasNext() )
 		{
-			qdCursor.fwd();
-			int[] gridpos = new int[ 3 ];
-			int[] imgpos = new int[ 3 ];
+			imgGridIter.fwd();
+			imgGridIter.localize( imgGridPos );
+			final int i = IntervalIndexer.positionWithOffsetToIndex( imgGridPos, lutSize, padOffset );
+
+			final TextureBlock textureBlock = lruBlockCache.get( new BlockKey( imgGridPos ) );
+			final int[] texpos = textureBlock.getPos();
+
 			for ( int d = 0; d < 3; ++d )
 			{
-				gridpos[ d ] = qdCursor.getIntPosition( 1 + d );
-				imgpos[ d ] = gridpos[ d ] * blockSize[ d ];
+				float qs = scale[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
+				int imgpos = imgGridPos[ d ] * blockSize[ d ];
+				float qd = ( texpos[ d ] - scale[ d ] * ( padSize[ d ] * blockSize[ d ] + imgpos ) + 0.5f ) / cacheSize[ d ];
+				qsData[ 3 * i + d ] = qs;
+				qdData[ 3 * i + d ] = qd;
 			}
-			final TextureBlock textureBlock = lruBlockCache.get( new BlockKey( gridpos ) );
-			int[] texpos = textureBlock.getPos();
-
-			float[] qd = new float[ 3 ];
-			for ( int d = 0; d < 3; ++d )
-			{
-//				qd[ d ] = ( ( texpos[ d ] - imgpos[ d ] ) + 0.5f - 0f * 1f ) / cacheSize[ d ];
-				qd[ d ] = ( texpos[ d ] + scale[ d ] * ( padSize[ d ] * blockSize[ d ] - imgpos[ d ] ) + 0.5f ) / cacheSize[ d ];
-			}
-			qdCursor.get().set( qd[ 0 ] );
-			qdCursor.next().set( qd[ 1 ] );
-			qdCursor.next().set( qd[ 2 ] );
 		}
 
 		lookupTexture.set( gl, qsData, qdData );
@@ -410,7 +397,7 @@ public class Example1 implements GLEventListener
 
 		progvol.setUniform( gl, "blockSize", blockSize[ 0 ], blockSize[ 1 ], blockSize[ 2 ] );
 		progvol.setUniform( gl, "lutSize", lookupTexture.size[ 0 ], lookupTexture.size[ 1 ], lookupTexture.size[ 2 ] );
-		progvol.setUniform( gl, "padSize", 0f,0f,0f );
+		progvol.setUniform( gl, "padSize", padSize[ 0 ], padSize[ 1 ], padSize[ 2 ] );
 
 		double min = 962;
 		double max = 6201;
