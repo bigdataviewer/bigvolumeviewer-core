@@ -16,6 +16,9 @@ public class LookupTexture
 {
 	private final int[] size;
 
+	//
+	private final int internalFormat;
+
 	private int textureOffset;
 
 	private int textureScale;
@@ -24,7 +27,13 @@ public class LookupTexture
 
 	public LookupTexture( final int[] size )
 	{
+		this( size, GL_RGB32F );
+	}
+
+	public LookupTexture( final int[] size, int internalFormat )
+	{
 		this.size = size.clone();
+		this.internalFormat = internalFormat;
 	}
 
 	private void init( GL3 gl )
@@ -43,12 +52,12 @@ public class LookupTexture
 		final int d = size[ 2 ];
 
 		gl.glBindTexture( GL_TEXTURE_3D, textureOffset );
-		gl.glTexStorage3D( GL_TEXTURE_3D, 1, GL_RGB32F, w, h, d );
+		gl.glTexStorage3D( GL_TEXTURE_3D, 1, internalFormat, w, h, d );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
 		gl.glBindTexture( GL_TEXTURE_3D, textureScale );
-		gl.glTexStorage3D( GL_TEXTURE_3D, 1, GL_RGB32F, w, h, d );
+		gl.glTexStorage3D( GL_TEXTURE_3D, 1, internalFormat, w, h, d );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 	}

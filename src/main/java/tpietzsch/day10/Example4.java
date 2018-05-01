@@ -38,11 +38,13 @@ import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
+import static com.jogamp.opengl.GL.GL_RGB16F;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE1;
 import static com.jogamp.opengl.GL.GL_TEXTURE2;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
+import static com.jogamp.opengl.GL2GL3.GL_RGB16;
 
 /**
  * Rendering slices and volume with BlockTexture and TextureCache.
@@ -165,7 +167,7 @@ public class Example4 implements GLEventListener
 		final int[] lutSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
 			lutSize[ d ] = Math.max( 64, imgGridSize[ d ] );
-		lookupTexture = new LookupTexture( lutSize );
+		lookupTexture = new LookupTexture( lutSize, GL_RGB16F );
 
 		final int[] padOffset = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
