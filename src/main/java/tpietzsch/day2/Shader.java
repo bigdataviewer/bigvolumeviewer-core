@@ -93,6 +93,27 @@ public class Shader
 		gl.glProgramUniform4f( prog.program(), gl.glGetUniformLocation( prog.program(), name ), v0, v1, v2, v3 );
 	}
 
+	public void setUniform( final GL2ES2 gl, final String name, final float[] v )
+	{
+		switch ( v.length )
+		{
+		case 1:
+			setUniform( gl, name, v[ 0 ] );
+			break;
+		case 2:
+			setUniform( gl, name, v[ 0 ], v[ 1 ] );
+			break;
+		case 3:
+			setUniform( gl, name, v[ 0 ], v[ 1 ], v[ 2 ] );
+			break;
+		case 4:
+			setUniform( gl, name, v[ 0 ], v[ 1 ], v[ 2 ], v[ 3 ] );
+			break;
+		default:
+			throw new IllegalArgumentException();
+		}
+	}
+
 	public void setUniform( final GL2ES2 gl, final String name, final Matrix4f value )
 	{
 		final FloatBuffer fb = Buffers.newDirectFloatBuffer(16);
