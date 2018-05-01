@@ -100,7 +100,8 @@ public class LRUBlockCache< K, B >
 				pos[ d ] = blockSize[ d ] * gridPos[ d ];
 			block = blockFactory.createBlock( gridPos, pos );
 		}
-		return map.put( key, block );
+		map.put( key, block );
+		return block;
 	}
 
 	/**
