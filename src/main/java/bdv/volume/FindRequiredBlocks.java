@@ -9,6 +9,10 @@ import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.iterator.LocalizingZeroMinIntervalIterator;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Vector4f;
+import tpietzsch.util.MatrixMath;
 
 public class FindRequiredBlocks
 {
@@ -124,6 +128,54 @@ public class FindRequiredBlocks
 
 		return required;
 	}
+
+	private static HyperPlane sourceHyperPlane( Matrix4fc sourceToNDCTransposed, double nx, double ny, double nz, double d )
+	{
+		return MatrixMath.hyperPlane( new Vector4f( ( float ) nx, ( float ) ny, ( float ) nz, ( float ) -d ).mul( sourceToNDCTransposed ).normalize3() );
+	}
+
+	/**
+	 * Backproject NDC {@code (-1,-1,-1) ... (1,1,1)} to source image and find overlapping blocks.
+	 *
+	 * @param sourceToNDC
+	 * 		Projection * View * Model matrix
+	 * @param blockSize
+	 * @param levelSize
+	 * 		size of the img at the requested resolution level
+	 * @param levelScaleFactors
+	 * 		scale factors from requested resolution level to full resolution
+	 *
+	 * @return
+	 */
+	public static RequiredBlocks getRequiredBlocksFrustum(
+			final Matrix4fc sourceToNDC,
+			final int[] blockSize,
+			final long[] levelSize,
+			final int[] levelScaleFactors )
+	{
+		final int x = levelScaleFactors[ 0 ];
+		final int y = levelScaleFactors[ 1 ];
+		final int z = levelScaleFactors[ 2 ];
+		final Matrix4f upscaleT = new Matrix4f(
+				x, 0, 0, 0.5f * ( x - 1 ),
+				0, y, 0, 0.5f * ( y - 1 ),
+				0, 0, z, 0.5f * ( z - 1 ),
+				0, 0, 0, 1 );
+		final Matrix4f T = upscaleT.mul( sourceToNDC.transpose( new Matrix4f() ) );
+
+		// planes bounding the view frustum, normals facing inwards, transformed to source coordinates
+		final ConvexPolytope sourceRegion = new ConvexPolytope(
+				sourceHyperPlane( T,  1,  0,  0, -1 ),
+				sourceHyperPlane( T, -1,  0,  0, -1 ),
+				sourceHyperPlane( T,  0,  1,  0, -1 ),
+				sourceHyperPlane( T,  0, -1,  0, -1 ),
+				sourceHyperPlane( T,  0,  0,  1, -1 ),
+				sourceHyperPlane( T,  0,  0, -1, -1 ) );
+
+		return getRequiredBlocks( sourceRegion, blockSize, levelSize );
+	}
+
+
 
 	/**
 	 *

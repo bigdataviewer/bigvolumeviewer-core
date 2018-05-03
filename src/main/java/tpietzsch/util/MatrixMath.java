@@ -1,11 +1,27 @@
 package tpietzsch.util;
 
+import net.imglib2.algorithm.kdtree.HyperPlane;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector4f;
 
 public class MatrixMath
 {
+	public static Vector4f homogPlane( HyperPlane plane )
+	{
+		assert plane.numDimensions() == 3;
+		float x = ( float ) plane.getNormal()[ 0 ];
+		float y = ( float ) plane.getNormal()[ 1 ];
+		float z = ( float ) plane.getNormal()[ 2 ];
+		float w = ( float ) -plane.getDistance();
+		return new Vector4f( x, y, z, w );
+	}
+
+	public static HyperPlane hyperPlane( Vector4f plane )
+	{
+		return new HyperPlane( plane.x(), plane.y(), plane.z(), -plane.w() );
+	}
 
 	/**
 	 * Setup view and projection frustum transformation such that a camera looks at (the center of) the (BDV) screen plane.
