@@ -50,6 +50,11 @@ public class RequiredBlocks
 		add( p );
 	}
 
+	public ArrayList< int[] > getGridPositions()
+	{
+		return gridPositions;
+	}
+
 	@Override
 	public String toString()
 	{
