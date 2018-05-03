@@ -95,6 +95,8 @@ public class Example2 implements GLEventListener
 
 	private Mode mode = Mode.VOLUME;
 
+	private boolean freezeRequiredBlocks = false;
+
 	public Example2( List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
 	{
 		this.raiLevels = raiLevels;
@@ -242,8 +244,11 @@ public class Example2 implements GLEventListener
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
-		final RequiredBlocks requiredBlocks = computeRequiredBlocks( model, view, projection, 0 );
-		updateLookupTexture( gl, requiredBlocks );
+		if ( !freezeRequiredBlocks )
+		{
+			final RequiredBlocks requiredBlocks = computeRequiredBlocks( model, view, projection, 0 );
+			updateLookupTexture( gl, requiredBlocks );
+		}
 
 		final Matrix4f ip = new Matrix4f( projection ).invert();
 		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
@@ -319,6 +324,11 @@ public class Example2 implements GLEventListener
 			mode = Mode.VOLUME;
 	}
 
+	private void toggleFreezeRequiredBlocks()
+	{
+		freezeRequiredBlocks = !freezeRequiredBlocks;
+	}
+
 	public static class RaiLevel
 	{
 		final int level;
@@ -392,6 +402,10 @@ public class Example2 implements GLEventListener
 			glPainter.toggleVolumeSliceMode();
 			frame.requestRepaint();
 		}, "volume/slice mode", "M" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.toggleFreezeRequiredBlocks();
+			frame.requestRepaint();
+		}, "freeze/unfreeze required block computation", "F" );
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
 			@Override
