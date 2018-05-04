@@ -9,6 +9,8 @@ import com.jogamp.opengl.GLEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -103,6 +105,31 @@ public class Example2 implements GLEventListener
 		this.sourceTransform = sourceTransform;
 		imgGridSize = raiLevels.get( 0 ).imgGridSize( blockSize );
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
+
+		printSourceGridSizes( raiLevels, blockSize );
+		printTextureCacheSize( paddedBlockSize, 100 );
+	}
+
+	public static void printSourceGridSizes(final List< RaiLevel> raiLevels, final int[] blockSize )
+	{
+		int totalNumBlocks = 0;
+		for ( RaiLevel raiLevel : raiLevels )
+		{
+			final int[] gs = raiLevel.imgGridSize( blockSize );
+			final int numBlocks = ( int ) Intervals.numElements( gs );
+			totalNumBlocks += numBlocks;
+
+			System.out.println( "l" + raiLevel.level + ": " + numBlocks + " blocks" );
+		}
+		System.out.println("-------------------------------");
+		System.out.println( "   " + totalNumBlocks + " blocks" );
+	}
+
+	public static void printTextureCacheSize( final int[] paddedBlockSize, final int maxMemoryInMB )
+	{
+		final int[] gs = LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, maxMemoryInMB );
+		final int numBlocks = ( int ) Intervals.numElements( gs );
+		System.out.println( "cache texture: " + numBlocks + " blocks" );
 	}
 
 	@Override
@@ -141,10 +168,17 @@ public class Example2 implements GLEventListener
 
 	private void loadTexture( final GL3 gl )
 	{
-		lruBlockCache = new LRUBlockCache<>( paddedBlockSize, LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, 100 ) );
+		lruBlockCache = new LRUBlockCache<>( paddedBlockSize, LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, 100 ), 1 );
 		textureCache = new TextureCache( paddedBlockSize, lruBlockCache.getGridSize() );
 
 		final ByteBuffer buffer = BlockTextureUtils.allocateBlockBuffer( paddedBlockSize );
+		buffer.order( ByteOrder.LITTLE_ENDIAN );
+		final ShortBuffer sbuffer = buffer.asShortBuffer();
+		final int cap = sbuffer.capacity();
+		for ( int i = 0; i < cap; i++ )
+			sbuffer.put( i, ( short ) 0x0fff );
+		final TextureBlock oobBlock = new TextureBlock( new int[] { 0, 0, 0 }, new int[] { 0, 0, 0 } );
+		textureCache.putBlockData( gl, oobBlock, buffer );
 
 		final RandomAccessibleInterval< UnsignedShortType > rai0 = raiLevels.get( 0 ).rai;
 		final long sx = rai0.dimension( 0 );
@@ -163,7 +197,6 @@ public class Example2 implements GLEventListener
 						final TextureBlock block = lruBlockCache.add( key );
 						getBlockData( buffer, rai, x, y, z );
 						textureCache.putBlockData( gl, block, buffer );
-
 					}
 		}
 
@@ -226,8 +259,8 @@ public class Example2 implements GLEventListener
 
 	private final double screenPadding = 0;
 
-	private double dCam = 2000;
-	private double dClip = 1000;
+	private double dCam = 1000;
+	private double dClip = 900;
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 

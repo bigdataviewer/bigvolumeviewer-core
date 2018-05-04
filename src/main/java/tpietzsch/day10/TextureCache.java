@@ -3,13 +3,17 @@ package tpietzsch.day10;
 import com.jogamp.opengl.GL3;
 import java.nio.ByteBuffer;
 
+import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_R16F;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
+import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_WRAP_R;
 
 public class TextureCache
 {
@@ -88,5 +92,8 @@ public class TextureCache
 		gl.glTexStorage3D( GL_TEXTURE_3D, 1, GL_R16F, w, h, d );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE );
 	}
 }

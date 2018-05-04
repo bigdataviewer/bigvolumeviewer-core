@@ -59,15 +59,23 @@ public class LRUBlockCache< K >
 
 	private final int[] blockSize;
 
+	private final int numReservedBlocks;
+
 	private final int capacity;
 
 	private final LinkedHashMap< K, TextureBlock > map;
 
 	public LRUBlockCache( final int[] blockSize, final int[] gridSize )
 	{
+		this( blockSize, gridSize, 0 );
+	}
+
+	public LRUBlockCache( final int[] blockSize, final int[] gridSize, final int numReservedBlocks )
+	{
 		this.blockSize = blockSize.clone();
 		this.gridSize = gridSize.clone();
-		this.capacity = ( int ) Intervals.numElements( gridSize );
+		this.numReservedBlocks = numReservedBlocks;
+		this.capacity = ( int ) Intervals.numElements( gridSize ) - numReservedBlocks;
 		map = new LinkedHashMap<>( ( int ) ( capacity * 1.75f ), 0.75f, true );
 	}
 
@@ -111,7 +119,7 @@ public class LRUBlockCache< K >
 		{
 			final int[] gridPos = new int[ 3 ];
 			final int[] pos = new int[ 3 ];
-			IntervalIndexer.indexToPosition( size, gridSize, gridPos );
+			IntervalIndexer.indexToPosition( size + numReservedBlocks, gridSize, gridPos );
 			for ( int d = 0; d < 3; ++d )
 				pos[ d ] = blockSize[ d ] * gridPos[ d ];
 			block = new TextureBlock( gridPos, pos );
