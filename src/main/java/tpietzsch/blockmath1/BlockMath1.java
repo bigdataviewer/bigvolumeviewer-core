@@ -50,13 +50,13 @@ public class BlockMath1
 		projection.set( new float[] { 5.40541f, 0.00000f, 0.00000f, 0.00000f, -0.00000f, -6.89655f, -0.00000f, -0.00000f, -0.00000f, -0.00000f, 2.00000f, 1.00000f, -1729.72974f, 1655.17236f, 1000.00000f, 2000.00000f } );
 		final Matrix4f pvm = new Matrix4f( projection ).mul( view ).mul( model );
 
-		ArrayList< Example2.RaiLevel > raiLevels = new ArrayList<>();
+		ArrayList< RaiLevel > raiLevels = new ArrayList<>();
 		final int numMipmapLevels = sil.numMipmapLevels();
 		for ( int level = 0; level < numMipmapLevels; level++ )
 		{
 			final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( 1, level );
 			final double[] resolution = sil.getMipmapResolutions()[ level ];
-			final Example2.RaiLevel raiLevel = new Example2.RaiLevel( level, resolution, rai );
+			final RaiLevel raiLevel = new RaiLevel( level, resolution, rai );
 			raiLevels.add( raiLevel );
 			System.out.println( raiLevel );
 			mipmapStuff( pvm, new int[] { 0, 0, 640, 480 }, raiLevel.r );
