@@ -1,5 +1,6 @@
 package tpietzsch.blockmath1;
 
+import java.util.List;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -7,8 +8,8 @@ import org.joml.Vector3fc;
 
 public class MipmapSizes
 {
-	private final Vector3f pNear = new Vector3f();
-	private final Vector3f pFarMinusNear = new Vector3f();
+	final Vector3f pNear = new Vector3f();
+	final Vector3f pFarMinusNear = new Vector3f();
 
 	private float sn;
 	private float sf;
@@ -29,7 +30,7 @@ public class MipmapSizes
 		sn = NDCtoSource.transformProject( w, 0, -1, new Vector3f() ).sub( NDCtoSource.transformProject( 0, 0, -1, new Vector3f() ) ).length();
 		sf = NDCtoSource.transformProject( w, 0, 1, new Vector3f() ).sub( NDCtoSource.transformProject( 0, 0, 1, new Vector3f() ) ).length();
 
-		sourceToNDC.unprojectRay( 0.5f, 0.5f, new int[] { 0, 0, 1, 1 }, pNear, pFarMinusNear );
+		NDCtoSource.unprojectInvRay( 0.5f, 0.5f, new int[] { 0, 0, 1, 1 }, pNear, pFarMinusNear );
 		Vector3f dir = pFarMinusNear.normalize( new Vector3f() );
 		drels = 1f / pFarMinusNear.lengthSquared();
 		v0x = ( float ) Math.sqrt( 1.0 - dir.dot( 1, 0, 0 ) );
@@ -49,9 +50,19 @@ public class MipmapSizes
 		return Math.max( x * v0x, Math.max( y * v0y, z * v0z ) );
 	}
 
+	public float[] sls( final List< RaiLevel > raiLevels )
+	{
+		float[] sls = new float[ raiLevels.size() ];
+		for ( int i = 0; i < raiLevels.size(); i++ )
+		{
+			RaiLevel raiLevel = raiLevels.get( i );
+			sls[ i ] = sl( raiLevel.r );
+		}
+		return sls;
+	}
+
 	public int bestLevel( float[] sls, Vector3fc x, Vector3f temp )
 	{
-
 		final float drel = x.sub( pNear, temp ).dot( pFarMinusNear ) * drels;
 		final float sd = drel * sf + ( 1 - drel ) * sn;
 
@@ -65,6 +76,12 @@ public class MipmapSizes
 			}
 		}
 		return sls.length - 1;
+	}
+
+	public float getDrel( float[] sls, Vector3fc x, Vector3f temp )
+	{
+		final float drel = x.sub( pNear, temp ).dot( pFarMinusNear ) * drels;
+		return drel;
 	}
 
 	public float getSn()

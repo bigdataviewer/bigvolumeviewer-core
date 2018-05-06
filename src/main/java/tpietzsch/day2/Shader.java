@@ -1,16 +1,14 @@
 package tpietzsch.day2;
 
-import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
-import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
-
-import java.nio.FloatBuffer;
-
-import org.joml.Matrix4f;
-
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL2ES2;
 import com.jogamp.opengl.util.glsl.ShaderCode;
 import com.jogamp.opengl.util.glsl.ShaderProgram;
+import java.nio.FloatBuffer;
+import org.joml.Matrix4fc;
+
+import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
+import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
 
 public class Shader
 {
@@ -114,7 +112,7 @@ public class Shader
 		}
 	}
 
-	public void setUniform( final GL2ES2 gl, final String name, final Matrix4f value )
+	public void setUniform( final GL2ES2 gl, final String name, final Matrix4fc value )
 	{
 		final FloatBuffer fb = Buffers.newDirectFloatBuffer(16);
 		value.get( fb );
