@@ -6,6 +6,7 @@ import com.jogamp.opengl.util.glsl.ShaderCode;
 import com.jogamp.opengl.util.glsl.ShaderProgram;
 import java.nio.FloatBuffer;
 import org.joml.Matrix4fc;
+import org.joml.Vector3fc;
 
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
 import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
@@ -117,5 +118,10 @@ public class Shader
 		final FloatBuffer fb = Buffers.newDirectFloatBuffer(16);
 		value.get( fb );
 		gl.glProgramUniformMatrix4fv( prog.program(), gl.glGetUniformLocation( prog.program(), name ), 1, false, fb );
+	}
+
+	public void setUniform( final GL2ES2 gl, final String name, final Vector3fc value )
+	{
+		gl.glProgramUniform3f( prog.program(), gl.glGetUniformLocation( prog.program(), name ), value.x(), value.y(), value.z() );
 	}
 }

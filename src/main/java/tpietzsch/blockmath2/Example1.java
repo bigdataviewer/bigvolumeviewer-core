@@ -25,6 +25,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import tpietzsch.day10.BlockKey;
 import tpietzsch.day10.LRUBlockCache;
 import tpietzsch.day10.LRUBlockCache.TextureBlock;
@@ -89,6 +90,8 @@ public class Example1 implements GLEventListener
 	private int viewportWidth = 100;
 
 	private int viewportHeight = 100;
+
+	private int baseLevel;
 
 	enum Mode { VOLUME, SLICE };
 
@@ -204,10 +207,6 @@ public class Example1 implements GLEventListener
 			updateBlocks( gl, pvm );
 		}
 
-		final Matrix4f ip = new Matrix4f( projection ).invert();
-		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
-		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
-
 		prog.use( gl );
 		prog.setUniform( gl, "model", model );
 		prog.setUniform( gl, "view", view );
@@ -216,6 +215,26 @@ public class Example1 implements GLEventListener
 		prog.setUniform( gl, "color", 1.0f, 0.5f, 0.2f, 1.0f );
 		box.draw( gl );
 
+
+
+		final int[] baseScale = raiLevels.get( baseLevel ).r;
+		final int x = baseScale[ 0 ];
+		final int y = baseScale[ 1 ];
+		final int z = baseScale[ 2 ];
+		final Matrix4f upscale = new Matrix4f(
+				x, 0, 0, 0,
+				0, y, 0, 0,
+				0, 0, z, 0,
+				0.5f * ( x - 1 ), 0.5f * ( y - 1 ), 0.5f * ( z - 1 ), 1 );
+		model.mul( upscale );
+
+		final RandomAccessibleInterval< UnsignedShortType > rai = raiLevels.get( baseLevel ).rai;
+		Vector3f sourcemin = new Vector3f( rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) );
+		Vector3f sourcemax = new Vector3f( rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) );
+
+		final Matrix4f ip = new Matrix4f( projection ).invert();
+		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
+		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
 
 		Shader modeprog = mode == Mode.SLICE ? progslice : progvol;
 
@@ -227,9 +246,8 @@ public class Example1 implements GLEventListener
 		progslice.setUniform( gl, "ip", ip );
 		progslice.setUniform( gl, "ivm", ivm );
 		progvol.setUniform( gl, "ipvm", ipvm );
-		final RandomAccessibleInterval< UnsignedShortType > rai = raiLevels.get( 0 ).rai;
-		modeprog.setUniform( gl, "sourcemin", rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) );
-		modeprog.setUniform( gl, "sourcemax", rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) );
+		modeprog.setUniform( gl, "sourcemin", sourcemin );
+		modeprog.setUniform( gl, "sourcemax", sourcemax );
 
 		modeprog.setUniform( gl, "scaleLut", 0 );
 		modeprog.setUniform( gl, "offsetLut", 1 );
@@ -262,16 +280,15 @@ public class Example1 implements GLEventListener
 
 	private void updateBlocks( final GL3 gl, final Matrix4f pvm )
 	{
-		final int level = 0;
-		final RequiredBlocks requiredBlocks = computeRequiredBlocks( pvm, level );
-
 		final int vw = offscreen.getWidth();
 //		final int vw = viewportWidth;
 		final MipmapSizes sizes = new MipmapSizes();
 		sizes.init( pvm, vw, raiLevels );
-		System.out.println( "sizes.getBaseLevel() = " + sizes.getBaseLevel() );
+		baseLevel = sizes.getBaseLevel();
+		System.out.println( "baseLevel = " + baseLevel );
 
-		updateLookupTexture( gl, requiredBlocks, level, sizes );
+		final RequiredBlocks requiredBlocks = computeRequiredBlocks( pvm, baseLevel );
+		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
 	}
 
 	private RequiredBlocks computeRequiredBlocks( final Matrix4f pvm, final int level )
@@ -308,11 +325,12 @@ public class Example1 implements GLEventListener
 		{
 			for ( int d = 0; d < 3; ++d )
 				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
-			final int level = sizes.bestLevel( blockCenter, tmp );
+			final int level = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
 
 			final double[] sj = raiLevels.get( level ).s;
+			final double[] sij = new double[] { sj[ 0 ] * r[ 0 ], sj[ 1 ] * r[ 1 ], sj[ 2 ] * r[ 2 ] };
 			for ( int d = 0; d < 3; ++d )
-				gj[ d ] = ( int ) ( g0[ d ] * sj[ d ] );
+				gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
 
 			final TextureBlock textureBlock = lruBlockCache.get( new BlockKey( gj, level ) );
 			if ( textureBlock == null )
@@ -325,11 +343,11 @@ public class Example1 implements GLEventListener
 			final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
 			for ( int d = 0; d < 3; ++d )
 			{
-				double qs = sj[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
+				double qs = sij[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
 				double p = g0[ d ] * blockSize[ d ];
-				double hj = 0.5 * ( sj[ d ] - 1 );
-				double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sj[ d ] - gj[ d ] * blockSize[ d ] + hj;
-				double qd = ( c0 - sj[ d ] * ( padSize[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
+				double hj = 0.5 * ( sij[ d ] - 1 );
+				double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sij[ d ] - gj[ d ] * blockSize[ d ] + hj;
+				double qd = ( c0 - sij[ d ] * ( padSize[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
 				qsData[ 3 * i + d ] = ( float ) qs;
 				qdData[ 3 * i + d ] = ( float ) qd;
 			}
