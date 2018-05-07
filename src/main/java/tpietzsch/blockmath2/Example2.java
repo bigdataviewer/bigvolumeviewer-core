@@ -29,7 +29,6 @@ import org.joml.Vector3f;
 import tpietzsch.day10.BlockKey;
 import tpietzsch.day10.LRUBlockCache;
 import tpietzsch.day10.LRUBlockCache.TextureBlock;
-import tpietzsch.day10.LookupTexture;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day10.TextureCache;
 import tpietzsch.day2.Shader;
@@ -255,7 +254,7 @@ public class Example2 implements GLEventListener
 		modeprog.setUniform( gl, "blockSize", blockSize[ 0 ], blockSize[ 1 ], blockSize[ 2 ] );
 		final int[] lutSize = lookupTexture.getSize();
 		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
-		modeprog.setUniform( gl, "padSize", padSize[ 0 ], padSize[ 1 ], padSize[ 2 ] );
+		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
 
 		double min = 962;
 		double max = 6201;
@@ -342,10 +341,17 @@ public class Example2 implements GLEventListener
 
 	final int[] padSize = { 1, 1, 1 };
 
+	final int[] pad = { 1, 1, 1 };
+
 	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, MipmapSizes sizes )
 	{
 		final long t0 = System.currentTimeMillis();
-		final int[] lutSize = lookupTexture.getSize();
+		final int[] lutSize = new int[ 3 ];
+		final int[] rmin = requiredBlocks.getMin();
+		final int[] rmax = requiredBlocks.getMax();
+		lutSize[ 0 ] = rmax[ 0 ] - rmin[ 0 ] + 1 + 2 * padSize[ 0 ];
+		lutSize[ 1 ] = rmax[ 1 ] - rmin[ 1 ] + 1 + 2 * padSize[ 1 ];
+		lutSize[ 2 ] = rmax[ 2 ] - rmin[ 2 ] + 1 + 2 * padSize[ 2 ];
 		final int[] cacheSize = textureCache.getSize();
 
 		final int dataSize = 3 * ( int ) Intervals.numElements( lutSize );
@@ -357,7 +363,10 @@ public class Example2 implements GLEventListener
 		final Vector3f tmp = new Vector3f();
 
 		// offset for IntervalIndexer
-		final int[] padOffset = new int[] { -padSize[ 0 ], -padSize[ 1 ], -padSize[ 2 ] };
+		pad[ 0 ] = padSize[ 0 ] - rmin[ 0 ];
+		pad[ 1 ] = padSize[ 1 ] - rmin[ 1 ];
+		pad[ 2 ] = padSize[ 2 ] - rmin[ 2 ];
+		final int[] padOffset = new int[] { -pad[ 0 ], -pad[ 1 ], -pad[ 2 ] };
 
 		final ArrayList< int[] > gridPositions = requiredBlocks.getGridPositions();
 		final int[] gj = new int[ 3 ];
@@ -388,15 +397,16 @@ public class Example2 implements GLEventListener
 				double p = g0[ d ] * blockSize[ d ];
 				double hj = 0.5 * ( sij[ d ] - 1 );
 				double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sij[ d ] - gj[ d ] * blockSize[ d ] + hj;
-				double qd = ( c0 - sij[ d ] * ( padSize[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
+				double qd = ( c0 - sij[ d ] * ( pad[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
 				qsData[ 3 * i + d ] = ( float ) qs;
 				qdData[ 3 * i + d ] = ( float ) qd;
 			}
 		}
 		final long t1 = System.currentTimeMillis();
+		lookupTexture.resize( gl, lutSize );
 		lookupTexture.set( gl, qsData, qdData );
 		final long t2 = System.currentTimeMillis();
-//		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
+		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
 	}
 
 	@Override
@@ -438,7 +448,7 @@ public class Example2 implements GLEventListener
 
 		final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( 1, 0 ).getModel();
 
-		final InputFrame frame = new InputFrame( "Example1", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example3", 640, 480 );
 		InputFrame.DEBUG = false;
 		Example2 glPainter = new Example2( raiLevels, sourceTransform );
 		frame.setGlEventListener( glPainter );

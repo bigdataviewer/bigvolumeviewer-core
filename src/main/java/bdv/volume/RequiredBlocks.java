@@ -59,4 +59,14 @@ public class RequiredBlocks
 		sb.append( gridPositions.size() );
 		return sb.toString();
 	}
+
+	public int[] getMin()
+	{
+		return min;
+	}
+
+	public int[] getMax()
+	{
+		return max;
+	}
 }
