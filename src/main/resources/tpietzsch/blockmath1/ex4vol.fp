@@ -60,6 +60,7 @@ void main()
     tnear = max( 0, tnear );
     tfar = min( length( frontToBack ), tfar );
     const float sub = 1;
+    const vec3 oobcol = vec3( 1, 1, 1 );
     const vec3 l0col = vec3( 0.7, 1, 0.7 );
     const vec3 l1col = vec3( 1, 0.7, 0.7 );
     const vec3 l2col = vec3( 0.7, 0.7, 1 );
@@ -85,8 +86,10 @@ void main()
             lcol = l0col;
         else if ( qv > 2 )
             lcol = l1col;
-        else
+        else if ( qv > 0.1 )
             lcol = l2col;
+        else
+            lcol = oobcol;
         FragColor = vec4( lcol * vec3( intensity_offset + intensity_scale * v ), 1 );
     }
     else
