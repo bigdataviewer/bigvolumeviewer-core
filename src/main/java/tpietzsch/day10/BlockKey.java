@@ -25,6 +25,16 @@ public class BlockKey
 		this( gridPos[ 0 ], gridPos[ 1 ], gridPos[ 2 ], level );
 	}
 
+	public int[] getGridPos()
+	{
+		return gridPos;
+	}
+
+	public int getLevel()
+	{
+		return level;
+	}
+
 	@Override
 	public boolean equals( final Object obj )
 	{
