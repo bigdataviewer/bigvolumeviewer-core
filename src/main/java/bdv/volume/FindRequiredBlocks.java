@@ -6,6 +6,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.kdtree.ConvexPolytope;
 import net.imglib2.algorithm.kdtree.HyperPlane;
 import net.imglib2.iterator.IntervalIterator;
+import net.imglib2.iterator.LocalizingIntervalIterator;
 import net.imglib2.iterator.LocalizingZeroMinIntervalIterator;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
@@ -129,6 +130,43 @@ public class FindRequiredBlocks
 		return required;
 	}
 
+	/**
+	 * Given an interval split into regular blocks of size {@code blockSize}.
+	 * Which blocks are contained in the specified clipping volume?
+	 *
+	 * @param clip in voxel coordinates
+	 * @param blockSize
+	 * @param gridMin
+	 * @param gridMax
+	 * @return
+	 */
+	public static RequiredBlocks getRequiredBlocks(
+			final ConvexPolytope clip,
+			final int[] blockSize,
+			final long[] gridMin,
+			final long[] gridMax )
+	{
+		final int n = clip.numDimensions();
+		final RequiredBlocks required = new RequiredBlocks( n );
+
+		final ConvexPolytope shrunkClip = shrinkClippingPolytope( clip, blockSize );
+//		System.out.println( "shrunkClip = " + GeomUtils.toString( shrunkClip ) );
+		final ConvexPolytope gridClip = scaleClippingPolytope( shrunkClip, blockSize );
+//		System.out.println( "gridClip = " + GeomUtils.toString( gridClip ) );
+
+		// stupid implementation for now: check all planes for all cells...
+		// TODO: make this more clever -- clip nTree
+		final IntervalIterator gridIter = new LocalizingIntervalIterator( gridMin, gridMax );
+		while( gridIter.hasNext() )
+		{
+			gridIter.fwd();
+			if ( GeomUtils.isInside( gridClip, gridIter ) )
+				required.add( gridIter );
+		}
+
+		return required;
+	}
+
 	private static HyperPlane sourceHyperPlane( Matrix4fc sourceToNDCTransposed, double nx, double ny, double nz, double d )
 	{
 		return MatrixMath.hyperPlane( new Vector4f( ( float ) nx, ( float ) ny, ( float ) nz, ( float ) -d ).mul( sourceToNDCTransposed ).normalize3() );
@@ -174,6 +212,38 @@ public class FindRequiredBlocks
 
 		return getRequiredBlocks( sourceRegion, blockSize, levelSize );
 	}
+
+	/**
+	 * Backproject NDC {@code (-1,-1,-1) ... (1,1,1)} to source image and find overlapping blocks.
+	 *
+	 * @param levelToNDC
+	 * 		Projection * View * Model * Upscale matrix
+	 * @param blockSize
+	 * @param gridMin
+	 * @param gridMax
+	 *
+	 * @return
+	 */
+	public static RequiredBlocks getRequiredLevelBlocksFrustum(
+			final Matrix4fc levelToNDC,
+			final int[] blockSize,
+			final long[] gridMin,
+			final long[] gridMax )
+	{
+		final Matrix4f T = levelToNDC.transpose( new Matrix4f() );
+
+		// planes bounding the view frustum, normals facing inwards, transformed to source coordinates
+		final ConvexPolytope sourceRegion = new ConvexPolytope(
+				sourceHyperPlane( T,  1,  0,  0, -1 ),
+				sourceHyperPlane( T, -1,  0,  0, -1 ),
+				sourceHyperPlane( T,  0,  1,  0, -1 ),
+				sourceHyperPlane( T,  0, -1,  0, -1 ),
+				sourceHyperPlane( T,  0,  0,  1, -1 ),
+				sourceHyperPlane( T,  0,  0, -1, -1 ) );
+
+		return getRequiredBlocks( sourceRegion, blockSize, gridMin, gridMax );
+	}
+
 
 
 

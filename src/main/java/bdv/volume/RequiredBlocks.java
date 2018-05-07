@@ -27,18 +27,10 @@ public class RequiredBlocks
 
 	public void add( final int[] pos )
 	{
-		if ( gridPositions.isEmpty() )
+		for ( int d = 0; d < n; ++d )
 		{
-			System.arraycopy( pos, 0, min, 0, n );
-			System.arraycopy( pos, 0, max, 0, n );
-		}
-		else
-		{
-			for ( int d = 0; d < n; ++d )
-				if ( pos[ d ] < min[ d ] )
-					min[ d ] = pos[ d ];
-				else if ( pos[ d ] > max[ d ] )
-					max[ d ] = pos[ d ];
+			min[ d ] = Math.min( min[ d ], pos[ d ] );
+			max[ d ] = Math.max( max[ d ], pos[ d ] );
 		}
 		gridPositions.add( pos );
 	}
