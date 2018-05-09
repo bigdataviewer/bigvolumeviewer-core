@@ -1,4 +1,4 @@
-package tpietzsch.blockmath2;
+package tpietzsch.blockmath3;
 
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
@@ -20,10 +20,11 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import tpietzsch.blockmath2.LookupTexture;
+import tpietzsch.blockmath2.TextureBlockCache;
 import tpietzsch.day10.BlockKey;
 import tpietzsch.day10.LRUBlockCache.TextureBlock;
 import tpietzsch.day10.OffScreenFrameBuffer;
@@ -32,7 +33,6 @@ import tpietzsch.day4.InputFrame;
 import tpietzsch.day4.ScreenPlane1;
 import tpietzsch.day4.TransformHandler;
 import tpietzsch.day4.WireframeBox1;
-import tpietzsch.day8.BlockTextureUtils;
 import tpietzsch.util.MatrixMath;
 import tpietzsch.util.Syncd;
 
@@ -51,9 +51,9 @@ import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 /**
  * Rendering slices and volume with BlockTexture and TextureCache.
  */
-public class Example4 implements GLEventListener
+public class Example2 implements GLEventListener
 {
-	private final List< RaiLevel> raiLevels;
+	private final List< RaiLevel > raiLevels;
 
 	private final AffineTransform3D sourceTransform;
 
@@ -93,7 +93,7 @@ public class Example4 implements GLEventListener
 
 	private boolean freezeRequiredBlocks = false;
 
-	public Example4( List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
+	public Example2( List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
 	{
 		this.raiLevels = raiLevels;
 		this.sourceTransform = sourceTransform;
@@ -121,18 +121,14 @@ public class Example4 implements GLEventListener
 		gl.glEnable( GL_DEPTH_TEST );
 	}
 
-	private void loadBlock( final BlockKey key, final ByteBuffer buffer )
+	public void loadBlock( final BlockKey key, final ByteBuffer buffer )
 	{
 		RandomAccessibleInterval< UnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
 		final int[] gridPos = key.getGridPos();
-		long[] min = new long[ 3 ];
-		long[] max = new long[ 3 ];
+		int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
-		{
 			min[ d ] = gridPos[ d ] * blockSize[ d ] - cachePadOffset[ d ];
-			max[ d ] = min[ d ] + paddedBlockSize[ d ] - 1;
-		}
-		BlockTextureUtils.imgToBuffer( Views.interval( Views.extendZero( rai ), min, max ), buffer );
+		new Benchmark1.Copier( rai, paddedBlockSize ).toBuffer( buffer, min );
 	}
 
 	@Override
@@ -401,9 +397,9 @@ public class Example4 implements GLEventListener
 
 		final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( 1, 0 ).getModel();
 
-		final InputFrame frame = new InputFrame( "Example4", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example2", 640, 480 );
 		InputFrame.DEBUG = false;
-		Example4 glPainter = new Example4( raiLevels, sourceTransform );
+		Example2 glPainter = new Example2( raiLevels, sourceTransform );
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
