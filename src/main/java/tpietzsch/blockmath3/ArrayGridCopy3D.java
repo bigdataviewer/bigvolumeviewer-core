@@ -1,5 +1,9 @@
 package tpietzsch.blockmath3;
 
+import net.imglib2.RandomAccess;
+import net.imglib2.img.basictypeaccess.array.AbstractShortArray;
+import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileShortArray;
+import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 
 public class ArrayGridCopy3D
@@ -69,8 +73,10 @@ public class ArrayGridCopy3D
 	 * @param srca
 	 * @param copy
 	 * @param <T>
+	 *
+	 * @return {@code true}, if this block was completely loaded
 	 */
-	public < T > void copy( final int[] min, final int[] dim, final CellGrid srcgrid, final T dst, final CellDataAccess< T > srca, final SubArrayCopy< T > copy )
+	public < T > boolean copy( final int[] min, final int[] dim, final CellGrid srcgrid, final T dst, final CellDataAccess< T > srca, final SubArrayCopy< T > copy )
 	{
 		for ( int d = 0; d < 3; ++d )
 		{
@@ -105,7 +111,7 @@ public class ArrayGridCopy3D
 			doo2[ d ] = doo[ d ];
 		}
 
-		copyNoOob( nmin, ndim, doo, dim, srcgrid, dst, srca, copy );
+		return copyNoOob( nmin, ndim, doo, dim, srcgrid, dst, srca, copy );
 	}
 
 	/**
@@ -119,8 +125,9 @@ public class ArrayGridCopy3D
 	 * @param copy functions to copy and clear subarrays
 	 * @param <T> source and destination array type
 	 */
-	private < T > void copyNoOob( final int[] min, final int[] dim, final int[] doff, final int[] ddim, final CellGrid srcgrid, final T dst, final CellDataAccess< T > srca, final SubArrayCopy< T > copy )
+	private < T > boolean copyNoOob( final int[] min, final int[] dim, final int[] doff, final int[] ddim, final CellGrid srcgrid, final T dst, final CellDataAccess< T > srca, final SubArrayCopy< T > copy )
 	{
+		boolean complete = true;
 		srcgrid.cellDimensions( cellsize );
 		for ( int d = 0; d < 3; ++d )
 		{
@@ -176,7 +183,10 @@ public class ArrayGridCopy3D
 					int sx = spanx[ 3 * gx + 1 ];
 					final int ssx = spanx[ 3 * gx + 2 ];
 					T src = srca.get();
-					copy.copysubarray3d( src, ox, oy, oz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, sx, sy, sz );
+					if ( src == null )
+						complete = false;
+					else
+						copy.copysubarray3d( src, ox, oy, oz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, sx, sy, sz );
 					dox += sx;
 					if ( gx < gsx - 1 )
 						srca.fwd( 0 );
@@ -192,6 +202,92 @@ public class ArrayGridCopy3D
 				srca.setPosition( gmin[ 1 ], 1 );
 			if ( gz < gsz - 1 )
 				srca.fwd( 2 );
+		}
+
+		return complete;
+	}
+
+	public static class ShortCellDataAccess implements CellDataAccess< short[] >
+	{
+		private final RandomAccess< ? extends Cell< ? extends AbstractShortArray< ? > > > cellAccess;
+
+		public ShortCellDataAccess( final RandomAccess< ? extends Cell< ? extends AbstractShortArray< ? > > > cellAccess )
+		{
+			this.cellAccess = cellAccess;
+		}
+
+		@Override
+		public void fwd( final int d )
+		{
+			cellAccess.fwd( d );
+		}
+
+		@Override
+		public void setPosition( final int position, final int d )
+		{
+			cellAccess.setPosition( position, d );
+		}
+
+		@Override
+		public void setPosition( final int[] position )
+		{
+			cellAccess.setPosition( position );
+		}
+
+		@Override
+		public short[] get()
+		{
+			return cellAccess.get().getData().getCurrentStorageArray();
+		}
+	}
+
+	public static class VolatileShortCellDataAccess implements CellDataAccess< short[] >
+	{
+		private final RandomAccess< ? extends Cell< ? extends AbstractVolatileShortArray< ? > > > cellAccess;
+
+		public VolatileShortCellDataAccess( final RandomAccess< ? extends Cell< ? extends AbstractVolatileShortArray< ? > > > cellAccess )
+		{
+			this.cellAccess = cellAccess;
+		}
+
+		@Override
+		public void fwd( final int d )
+		{
+			cellAccess.fwd( d );
+		}
+
+		@Override
+		public void setPosition( final int position, final int d )
+		{
+			cellAccess.setPosition( position, d );
+		}
+
+		@Override
+		public void setPosition( final int[] position )
+		{
+			cellAccess.setPosition( position );
+		}
+
+		@Override
+		public short[] get()
+		{
+			final AbstractVolatileShortArray< ? > data = cellAccess.get().getData();
+			return data.isValid() ? data.getCurrentStorageArray() : null;
+		}
+	}
+
+	public static class ShortSubArrayCopy implements SubArrayCopy< short[] >
+	{
+		@Override
+		public void clearsubarray3d( final short[] dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		{
+			SubArrays.fillsubarray3d( ( short ) 0, dst, dox, doy, doz, dsx, dsy, csx, csy, csz );
+		}
+
+		@Override
+		public void copysubarray3d( final short[] src, final int sox, final int soy, final int soz, final int ssx, final int ssy, final short[] dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		{
+			SubArrays.copysubarray3d( src, sox, soy, soz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, csx, csy, csz );
 		}
 	}
 }

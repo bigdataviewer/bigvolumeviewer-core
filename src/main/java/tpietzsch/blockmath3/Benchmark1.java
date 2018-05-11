@@ -16,7 +16,6 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.BenchmarkHelper;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import tpietzsch.day10.BlockKey;
 import tpietzsch.day8.BlockTextureUtils;
@@ -90,9 +89,9 @@ public class Benchmark1
 	{
 		private final ArrayGridCopy3D gcopy = new ArrayGridCopy3D();
 
-		private final Example1.ShortCellDataAccess dataAccess;
+		private final ArrayGridCopy3D.ShortCellDataAccess dataAccess;
 
-		private final Example1.ShortSubArrayCopy subArrayCopy = new Example1.ShortSubArrayCopy();
+		private final ArrayGridCopy3D.ShortSubArrayCopy subArrayCopy = new ArrayGridCopy3D.ShortSubArrayCopy();
 
 		private final CellGrid grid;
 
@@ -104,20 +103,25 @@ public class Benchmark1
 		{
 			final VolatileCachedCellImg< UnsignedShortType, ? > img = ( VolatileCachedCellImg< UnsignedShortType, ? > ) rai;
 			grid = img.getCellGrid();
-			dataAccess = new Example1.ShortCellDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
+			dataAccess = new ArrayGridCopy3D.ShortCellDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
 
 			data = new short[ ( int ) Intervals.numElements( blocksize ) ];
 
 			this.blocksize = blocksize;
 		}
 
-		public void toBuffer( final ByteBuffer buffer, final int[] min )
+		/**
+		 * @return {@code true}, if this block was completely loaded
+		 */
+		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
 		{
-			gcopy.copy( min, blocksize, grid, data, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, grid, data, dataAccess, subArrayCopy );
 
 			final ShortBuffer sbuffer = buffer.asShortBuffer();
 			for ( int i = 0; i < data.length; i++ )
 				sbuffer.put( i, data[ i ] );
+
+			return complete;
 		}
 	}
 

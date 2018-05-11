@@ -5,7 +5,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Util;
 
-public class RaiLevel
+public class RaiLevel< T >
 {
 	final int level;
 
@@ -13,9 +13,9 @@ public class RaiLevel
 
 	final double[] s;
 
-	final RandomAccessibleInterval< UnsignedShortType > rai;
+	final RandomAccessibleInterval< T > rai;
 
-	public RaiLevel( final int level, final double[] resolution, final RandomAccessibleInterval< UnsignedShortType > rai )
+	public RaiLevel( final int level, final double[] resolution, final RandomAccessibleInterval< T > rai )
 	{
 		this.level = level;
 		this.r = new int[] { (int) resolution[ 0 ], (int) resolution[ 1 ], (int) resolution[ 2 ]  };

@@ -21,54 +21,6 @@ import net.imglib2.util.Util;
 
 public class Example1
 {
-	public static class ShortCellDataAccess implements ArrayGridCopy3D.CellDataAccess< short[] >
-	{
-		private final RandomAccess< ? extends Cell< ? extends AbstractShortArray< ? > > > cellAccess;
-
-		public ShortCellDataAccess( final RandomAccess< ? extends Cell< ? extends AbstractShortArray< ? > > > cellAccess )
-		{
-			this.cellAccess = cellAccess;
-		}
-
-		@Override
-		public void fwd( final int d )
-		{
-			cellAccess.fwd( d );
-		}
-
-		@Override
-		public void setPosition( final int position, final int d )
-		{
-			cellAccess.setPosition( position, d );
-		}
-
-		@Override
-		public void setPosition( final int[] position )
-		{
-			cellAccess.setPosition( position );
-		}
-
-		@Override
-		public short[] get()
-		{
-			return cellAccess.get().getData().getCurrentStorageArray();
-		}
-	}
-
-	public static class ShortSubArrayCopy implements ArrayGridCopy3D.SubArrayCopy< short[] >
-	{
-		@Override
-		public void clearsubarray3d( final short[] dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
-		{
-			SubArrays.fillsubarray3d( ( short ) 3000, dst, dox, doy, doz, dsx, dsy, csx, csy, csz );
-		}
-
-		@Override
-		public void copysubarray3d( final short[] src, final int sox, final int soy, final int soz, final int ssx, final int ssy, final short[] dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
-		{
-			SubArrays.copysubarray3d( src, sox, soy, soz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, csx, csy, csz );
-		}
-	}
 
 	public static void main( String[] args ) throws SpimDataException
 	{
@@ -101,7 +53,7 @@ public class Example1
 
 		final ArrayGridCopy3D gcopy = new ArrayGridCopy3D();
 
-		gcopy.copy( dataMin, dataDim, grid, data, new ShortCellDataAccess( a ), new ShortSubArrayCopy() );
+		gcopy.copy( dataMin, dataDim, grid, data, new ArrayGridCopy3D.ShortCellDataAccess( a ), new ArrayGridCopy3D.ShortSubArrayCopy() );
 
 		new ImageJ();
 		ImageJFunctions.show( ArrayImgs.shorts( data, dataDim[ 0 ], dataDim[ 1 ], dataDim[ 2 ] ) );

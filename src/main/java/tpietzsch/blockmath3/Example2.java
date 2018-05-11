@@ -1,5 +1,7 @@
 package tpietzsch.blockmath3;
 
+import bdv.ViewerSetupImgLoader;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.volume.RequiredBlocks;
@@ -9,24 +11,25 @@ import com.jogamp.opengl.GLEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import mpicbg.spim.data.SpimDataException;
-import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import tpietzsch.blockmath2.LookupTexture;
-import tpietzsch.blockmath2.TextureBlockCache;
 import tpietzsch.day10.BlockKey;
-import tpietzsch.day10.LRUBlockCache.TextureBlock;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day2.Shader;
 import tpietzsch.day4.InputFrame;
@@ -36,7 +39,6 @@ import tpietzsch.day4.WireframeBox1;
 import tpietzsch.util.MatrixMath;
 import tpietzsch.util.Syncd;
 
-import static bdv.volume.FindRequiredBlocks.getRequiredBlocksFrustum;
 import static bdv.volume.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
@@ -121,14 +123,54 @@ public class Example2 implements GLEventListener
 		gl.glEnable( GL_DEPTH_TEST );
 	}
 
-	public void loadBlock( final BlockKey key, final ByteBuffer buffer )
+	public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
 	{
-		RandomAccessibleInterval< UnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
+		RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
 		final int[] gridPos = key.getGridPos();
 		int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
 			min[ d ] = gridPos[ d ] * blockSize[ d ] - cachePadOffset[ d ];
-		new Benchmark1.Copier( rai, paddedBlockSize ).toBuffer( buffer, min );
+		return new Copier( rai, paddedBlockSize ).toBuffer( buffer, min );
+	}
+
+	public static class Copier
+	{
+		private final ArrayGridCopy3D gcopy = new ArrayGridCopy3D();
+
+		private final ArrayGridCopy3D.VolatileShortCellDataAccess dataAccess;
+
+		private final ArrayGridCopy3D.ShortSubArrayCopy subArrayCopy = new ArrayGridCopy3D.ShortSubArrayCopy();
+
+		private final CellGrid grid;
+
+		private final int[] blocksize;
+
+		private final short[] data;
+
+		public Copier( RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
+		{
+			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
+			grid = img.getCellGrid();
+			dataAccess = new ArrayGridCopy3D.VolatileShortCellDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
+
+			data = new short[ ( int ) Intervals.numElements( blocksize ) ];
+
+			this.blocksize = blocksize;
+		}
+
+		/**
+		 * @return {@code true}, if this block was completely loaded
+		 */
+		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
+		{
+			final boolean complete = gcopy.copy( min, blocksize, grid, data, dataAccess, subArrayCopy );
+
+			final ShortBuffer sbuffer = buffer.asShortBuffer();
+			for ( int i = 0; i < data.length; i++ )
+				sbuffer.put( i, data[ i ] );
+
+			return complete;
+		}
 	}
 
 	@Override
@@ -253,7 +295,7 @@ public class Example2 implements GLEventListener
 		final Matrix4fc pvms = pvm.mul( upscale, new Matrix4f() );
 		final Matrix4fc ipvm =	pvm.invert( new Matrix4f() );
 
-		final RandomAccessibleInterval< UnsignedShortType > rai = raiLevel.rai;
+		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevel.rai;
 		sourceLevelMin.set( rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) ); // TODO -0.5 offset?
 		sourceLevelMax.set( rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) ); // TODO -0.5 offset?
 
@@ -283,14 +325,6 @@ public class Example2 implements GLEventListener
 		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, blockSize, gridMin, gridMax );
 		System.out.println( "requiredBlocks = " + requiredBlocks );
 		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
-	}
-
-	private RequiredBlocks computeRequiredBlocks( final Matrix4f pvm, final int level )
-	{
-		final RaiLevel raiLevel = raiLevels.get( level );
-		long[] sourceSize = new long[ 3 ];
-		raiLevel.rai.dimensions( sourceSize );
-		return getRequiredBlocksFrustum( pvm, blockSize, sourceSize, raiLevel.r );
 	}
 
 	final int[] padSize = { 1, 1, 1 };
@@ -382,13 +416,13 @@ public class Example2 implements GLEventListener
 	{
 		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
-		MultiResolutionSetupImgLoader< UnsignedShortType > sil = ( MultiResolutionSetupImgLoader< UnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( 0 );
+		ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > sil = ( ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( 0 );
 
 		ArrayList< RaiLevel > raiLevels = new ArrayList<>();
 		final int numMipmapLevels = sil.numMipmapLevels();
 		for ( int level = 0; level < numMipmapLevels; level++ )
 		{
-			final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( 1, level );
+			final RandomAccessibleInterval< VolatileUnsignedShortType > rai = sil.getVolatileImage( 1, level );
 			final double[] resolution = sil.getMipmapResolutions()[ level ];
 			final RaiLevel raiLevel = new RaiLevel( level, resolution, rai );
 			raiLevels.add( raiLevel );
