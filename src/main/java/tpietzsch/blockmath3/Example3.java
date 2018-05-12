@@ -60,10 +60,6 @@ import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
  */
 public class Example3 implements GLEventListener
 {
-	private final List< RaiLevel > raiLevels;
-
-	private final AffineTransform3D sourceTransform;
-
 	private OffScreenFrameBuffer offscreen;
 
 	private Shader prog;
@@ -88,6 +84,10 @@ public class Example3 implements GLEventListener
 
 	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
 
+	final Syncd< RaiLevels > raiLevelsSyncd = Syncd.raiLevels();
+
+	private RaiLevels raiLevels;
+
 	private int viewportWidth = 100;
 
 	private int viewportHeight = 100;
@@ -100,12 +100,11 @@ public class Example3 implements GLEventListener
 
 	private boolean freezeRequiredBlocks = false;
 
-	public Example3( List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
+	public Example3()
 	{
-		this.raiLevels = raiLevels;
-		this.sourceTransform = sourceTransform;
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
 		blockCache = new TextureBlockCache<>( paddedBlockSize, 100, this::loadBlock );
+		raiLevels = raiLevelsSyncd.get();
 	}
 
 	@Override
@@ -115,7 +114,6 @@ public class Example3 implements GLEventListener
 		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
 
 		box = new WireframeBox1();
-		box.updateVertices( gl, raiLevels.get( 0 ).rai );
 		screenPlane = new ScreenPlane1();
 		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
 
@@ -130,7 +128,8 @@ public class Example3 implements GLEventListener
 
 	public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
 	{
-		RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
+		// TODO: use timepoint/setup of the BlockKey
+		RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevels.getRaiLevels().get( key.getLevel() ).rai;
 		final int[] gridPos = key.getGridPos();
 		int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
@@ -197,8 +196,12 @@ public class Example3 implements GLEventListener
 		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
+		raiLevels = raiLevelsSyncd.get();
+		if ( raiLevels.getRaiLevels().isEmpty() )
+			return;
+
 		offscreen.bind( gl );
-		final Matrix4f model = MatrixMath.affine( sourceTransform, new Matrix4f() );
+		final Matrix4f model = MatrixMath.affine( raiLevels.getSourceTransform(), new Matrix4f() );
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
@@ -214,11 +217,12 @@ public class Example3 implements GLEventListener
 		prog.setUniform( gl, "projection", projection );
 
 		prog.setUniform( gl, "color", 1.0f, 0.5f, 0.2f, 1.0f );
+		box.updateVertices( gl, raiLevels.getRaiLevels().get( 0 ).rai );
 		box.draw( gl );
 
 
 
-		final int[] baseScale = raiLevels.get( baseLevel ).r;
+		final int[] baseScale = raiLevels.getRaiLevels().get( baseLevel ).r;
 		final int x = baseScale[ 0 ];
 		final int y = baseScale[ 1 ];
 		final int z = baseScale[ 2 ];
@@ -283,11 +287,11 @@ public class Example3 implements GLEventListener
 		final int vw = offscreen.getWidth();
 //		final int vw = viewportWidth;
 		final MipmapSizes sizes = new MipmapSizes();
-		sizes.init( pvm, vw, raiLevels );
+		sizes.init( pvm, vw, raiLevels.getRaiLevels() );
 		baseLevel = sizes.getBaseLevel();
 		System.out.println( "baseLevel = " + baseLevel );
 
-		final RaiLevel raiLevel = raiLevels.get( baseLevel );
+		final RaiLevel raiLevel = raiLevels.getRaiLevels().get( baseLevel );
 
 		final int bsx = raiLevel.r[ 0 ];
 		final int bsy = raiLevel.r[ 1 ];
@@ -339,6 +343,9 @@ public class Example3 implements GLEventListener
 	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, MipmapSizes sizes )
 	{
 		final long t0 = System.currentTimeMillis();
+		final int timepoint = raiLevels.getTimepoint();
+		final int setup = raiLevels.getSetup();
+
 		final int[] lutSize = new int[ 3 ];
 		final int[] rmin = requiredBlocks.getMin();
 		final int[] rmax = requiredBlocks.getMax();
@@ -351,7 +358,7 @@ public class Example3 implements GLEventListener
 		final float[] qsData = new float[ dataSize ];
 		final float[] qdData = new float[ dataSize ];
 
-		final int[] r = raiLevels.get( baseLevel ).r;
+		final int[] r = raiLevels.getRaiLevels().get( baseLevel ).r;
 		final Vector3f blockCenter = new Vector3f();
 		final Vector3f tmp = new Vector3f();
 
@@ -370,12 +377,12 @@ public class Example3 implements GLEventListener
 				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
 			final int level = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
 
-			final double[] sj = raiLevels.get( level ).s;
+			final double[] sj = raiLevels.getRaiLevels().get( level ).s;
 			final double[] sij = new double[] { sj[ 0 ] * r[ 0 ], sj[ 1 ] * r[ 1 ], sj[ 2 ] * r[ 2 ] };
 			for ( int d = 0; d < 3; ++d )
 				gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
 
-			final TextureBlock textureBlock = blockCache.get( gl, new BlockKey( gj, level, 0, 0 ) );
+			final TextureBlock textureBlock = blockCache.get( gl, new BlockKey( gj, level, timepoint, setup ) );
 			final int[] texpos = textureBlock.getPos();
 
 			final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
@@ -453,14 +460,16 @@ public class Example3 implements GLEventListener
 
 		public RaiLevels get( final int timepoint, final int setup )
 		{
-			final AffineTransform3D model = registrations.getViewRegistration( timepoints.get( timepoint ).getId(), setups.get( setup ).getId() ).getModel();
+			final int timepointId = timepoints.get( timepoint ).getId();
+			final int setupId = setups.get( setup ).getId();
+			final AffineTransform3D model = registrations.getViewRegistration( timepointId, setupId ).getModel();
 			ArrayList< RaiLevel > raiLevels = new ArrayList<>();
 
 			final ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > sil = setupImgLoaders.get( setup );
 			final int numMipmapLevels = sil.numMipmapLevels();
 			for ( int level = 0; level < numMipmapLevels; level++ )
 			{
-				final RandomAccessibleInterval< VolatileUnsignedShortType > rai = sil.getVolatileImage( 1, level );
+				final RandomAccessibleInterval< VolatileUnsignedShortType > rai = sil.getVolatileImage( timepointId, level );
 				final double[] resolution = sil.getMipmapResolutions()[ level ];
 				final RaiLevel raiLevel = new RaiLevel( level, resolution, rai );
 				raiLevels.add( raiLevel );
@@ -469,16 +478,19 @@ public class Example3 implements GLEventListener
 		}
 	}
 
+	int currentTimepoint = 0;
+
 	public static void main( final String[] args ) throws SpimDataException
 	{
 		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final RaiLevelsMaker raiLevelsMaker = new RaiLevelsMaker( spimData );
-		final RaiLevels raiLevels = raiLevelsMaker.get( 0, 0 );
+
+		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
 		final InputFrame frame = new InputFrame( "Example3", 640, 480 );
 		InputFrame.DEBUG = false;
-		Example3 glPainter = new Example3( raiLevels.getRaiLevels(), raiLevels.getSourceTransform() );
+		Example3 glPainter = new Example3();
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
@@ -492,6 +504,16 @@ public class Example3 implements GLEventListener
 			glPainter.toggleFreezeRequiredBlocks();
 			frame.requestRepaint();
 		}, "freeze/unfreeze required block computation", "F" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
+			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, 0 ) );
+			frame.requestRepaint();
+		}, "previous timepoint", "OPEN_BRACKET" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.currentTimepoint = Math.min( maxTimepoint, glPainter.currentTimepoint + 1 );
+			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, 0 ) );
+			frame.requestRepaint();
+		}, "next timepoint", "CLOSE_BRACKET" );
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
 			@Override
@@ -505,6 +527,7 @@ public class Example3 implements GLEventListener
 				frame.requestRepaint();
 			}
 		} );
+		glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( 0, 0 ) );
 		frame.show();
 
 //		// print fps

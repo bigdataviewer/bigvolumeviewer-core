@@ -51,6 +51,7 @@ public class RaiLevels
 	public void set( final RaiLevels o )
 	{
 		this.raiLevels = o.raiLevels;
+		this.sourceTransform.set( o.sourceTransform );
 		this.timepoint = o.timepoint;
 		this.setup = o.setup;
 	}
