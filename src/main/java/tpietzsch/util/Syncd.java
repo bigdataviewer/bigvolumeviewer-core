@@ -3,6 +3,7 @@ package tpietzsch.util;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import net.imglib2.realtransform.AffineTransform3D;
+import tpietzsch.blockmath3.RaiLevels;
 
 public class Syncd<T>
 {
@@ -43,5 +44,13 @@ public class Syncd<T>
 				new SourceIntervalAndTransform(),
 				SourceIntervalAndTransform::set,
 				SourceIntervalAndTransform::copy );
+	}
+
+	public static Syncd< RaiLevels > raiLevels()
+	{
+		return new Syncd<>(
+				new RaiLevels(),
+				RaiLevels::set,
+				RaiLevels::copy );
 	}
 }

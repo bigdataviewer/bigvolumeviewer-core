@@ -4,7 +4,6 @@ import com.jogamp.opengl.GL3;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import tpietzsch.day8.BlockTextureUtils;
 

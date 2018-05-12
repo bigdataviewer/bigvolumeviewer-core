@@ -29,7 +29,6 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import tpietzsch.blockmath2.LookupTexture;
-import tpietzsch.day10.BlockKey;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day2.Shader;
 import tpietzsch.day4.InputFrame;
@@ -370,7 +369,7 @@ public class Example2 implements GLEventListener
 			for ( int d = 0; d < 3; ++d )
 				gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
 
-			final TextureBlock textureBlock = blockCache.get( gl, new BlockKey( gj, level ) );
+			final TextureBlock textureBlock = blockCache.get( gl, new BlockKey( gj, level, 0, 0 ) );
 			final int[] texpos = textureBlock.getPos();
 
 			final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
