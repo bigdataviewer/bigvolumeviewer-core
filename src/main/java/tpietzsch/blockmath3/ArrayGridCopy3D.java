@@ -17,6 +17,8 @@ public class ArrayGridCopy3D
 
 		void setPosition( int[] position );
 
+		int[] getPosition();
+
 		// returns null if not valid, otherwise current storage array
 		T get();
 	}
@@ -235,6 +237,12 @@ public class ArrayGridCopy3D
 		}
 
 		@Override
+		public int[] getPosition()
+		{
+			return new int[] { cellAccess.getIntPosition( 0 ), cellAccess.getIntPosition( 1 ), cellAccess.getIntPosition( 2 ) };
+		}
+
+		@Override
 		public short[] get()
 		{
 			return cellAccess.get().getData().getCurrentStorageArray();
@@ -266,6 +274,12 @@ public class ArrayGridCopy3D
 		public void setPosition( final int[] position )
 		{
 			cellAccess.setPosition( position );
+		}
+
+		@Override
+		public int[] getPosition()
+		{
+			return new int[] { cellAccess.getIntPosition( 0 ), cellAccess.getIntPosition( 1 ), cellAccess.getIntPosition( 2 ) };
 		}
 
 		@Override
