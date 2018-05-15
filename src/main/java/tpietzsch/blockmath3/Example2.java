@@ -292,7 +292,7 @@ public class Example2 implements GLEventListener
 				0, 0, bsz, 0,
 				0.5f * ( bsx - 1 ), 0.5f * ( bsy - 1 ), 0.5f * ( bsz - 1 ), 1 );
 		final Matrix4fc pvms = pvm.mul( upscale, new Matrix4f() );
-		final Matrix4fc ipvm =	pvm.invert( new Matrix4f() );
+		final Matrix4fc ipvms =	pvms.invert( new Matrix4f() );
 
 		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevel.rai;
 		sourceLevelMin.set( rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) ); // TODO -0.5 offset?
@@ -300,7 +300,7 @@ public class Example2 implements GLEventListener
 
 		final Vector3f fbbmin = new Vector3f();
 		final Vector3f fbbmax = new Vector3f();
-		ipvm.frustumAabb( fbbmin, fbbmax );
+		ipvms.frustumAabb( fbbmin, fbbmax );
 		fbbmin.max( sourceLevelMin );
 		fbbmax.min( sourceLevelMax );
 		final long[] gridMin = {
