@@ -1,43 +1,5 @@
 package tpietzsch.blockmath3;
 
-import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.VolatileCachedCellImg;
-import bdv.spimdata.SpimDataMinimal;
-import bdv.spimdata.XmlIoSpimDataMinimal;
-import bdv.volume.RequiredBlocks;
-import com.jogamp.opengl.GL3;
-import com.jogamp.opengl.GLAutoDrawable;
-import com.jogamp.opengl.GLEventListener;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import mpicbg.spim.data.SpimDataException;
-import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import net.imglib2.util.IntervalIndexer;
-import net.imglib2.util.Intervals;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fc;
-import org.joml.Vector3f;
-import tpietzsch.blockmath2.LookupTexture;
-import tpietzsch.day10.OffScreenFrameBuffer;
-import tpietzsch.day2.Shader;
-import tpietzsch.day4.InputFrame;
-import tpietzsch.day4.ScreenPlane1;
-import tpietzsch.day4.TransformHandler;
-import tpietzsch.day4.WireframeBox1;
-import tpietzsch.util.MatrixMath;
-import tpietzsch.util.Syncd;
-
 import static bdv.volume.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
@@ -49,6 +11,48 @@ import static com.jogamp.opengl.GL.GL_TEXTURE1;
 import static com.jogamp.opengl.GL.GL_TEXTURE2;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 
+import com.jogamp.opengl.GL3;
+import com.jogamp.opengl.GLAutoDrawable;
+import com.jogamp.opengl.GLEventListener;
+
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.volatiles.VolatileUnsignedShortType;
+import net.imglib2.util.IntervalIndexer;
+import net.imglib2.util.Intervals;
+
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Vector3f;
+
+import bdv.ViewerSetupImgLoader;
+import bdv.img.cache.VolatileCachedCellImg;
+import bdv.spimdata.SpimDataMinimal;
+import bdv.spimdata.XmlIoSpimDataMinimal;
+import bdv.volume.RequiredBlocks;
+import mpicbg.spim.data.SpimDataException;
+import tpietzsch.blockmath2.LookupTexture;
+import tpietzsch.day10.OffScreenFrameBuffer;
+import tpietzsch.day2.Shader;
+import tpietzsch.day4.InputFrame;
+import tpietzsch.day4.ScreenPlane1;
+import tpietzsch.day4.TransformHandler;
+import tpietzsch.day4.WireframeBox1;
+import tpietzsch.util.MatrixMath;
+import tpietzsch.util.Syncd;
+
 /**
  * Rendering slices and volume with BlockTexture and TextureCache.
  */
@@ -58,7 +62,7 @@ public class Example2 implements GLEventListener
 
 	private final AffineTransform3D sourceTransform;
 
-	private OffScreenFrameBuffer offscreen;
+	private final OffScreenFrameBuffer offscreen;
 
 	private Shader prog;
 
@@ -94,7 +98,7 @@ public class Example2 implements GLEventListener
 
 	private boolean freezeRequiredBlocks = false;
 
-	public Example2( List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
+	public Example2( final List< RaiLevel > raiLevels, final AffineTransform3D sourceTransform )
 	{
 		this.raiLevels = raiLevels;
 		this.sourceTransform = sourceTransform;
@@ -124,9 +128,9 @@ public class Example2 implements GLEventListener
 
 	public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
 	{
-		RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
+		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = raiLevels.get( key.getLevel() ).rai;
 		final int[] gridPos = key.getGridPos();
-		int[] min = new int[ 3 ];
+		final int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
 			min[ d ] = gridPos[ d ] * blockSize[ d ] - cachePadOffset[ d ];
 		return new Copier( rai, paddedBlockSize ).toBuffer( buffer, min );
@@ -146,7 +150,7 @@ public class Example2 implements GLEventListener
 
 		private final short[] data;
 
-		public Copier( RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
+		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
 			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
 			grid = img.getCellGrid();
@@ -178,8 +182,8 @@ public class Example2 implements GLEventListener
 
 	private final double screenPadding = 0;
 
-	private double dCam = 2000;
-	private double dClip = 1000;
+	private final double dCam = 2000;
+	private final double dClip = 1000;
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 
@@ -227,7 +231,7 @@ public class Example2 implements GLEventListener
 		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
 		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
 
-		Shader modeprog = mode == Mode.SLICE ? progslice : progvol;
+		final Shader modeprog = mode == Mode.SLICE ? progslice : progvol;
 
 		modeprog.use( gl );
 		modeprog.setUniform( gl, "model", new Matrix4f() );
@@ -251,12 +255,12 @@ public class Example2 implements GLEventListener
 		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
 		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
 
-		double min = 962;
-		double max = 6201;
-		double fmin = min / 0xffff;
-		double fmax = max / 0xffff;
-		double s = 1.0 / ( fmax - fmin );
-		double o = -fmin * s;
+		final double min = 962;
+		final double max = 6201;
+		final double fmin = min / 0xffff;
+		final double fmax = max / 0xffff;
+		final double s = 1.0 / ( fmax - fmin );
+		final double o = -fmin * s;
 		modeprog.setUniform( gl, "intensity_offset", ( float ) o );
 		modeprog.setUniform( gl, "intensity_scale", ( float ) s );
 
@@ -330,7 +334,7 @@ public class Example2 implements GLEventListener
 
 	final int[] pad = { 1, 1, 1 };
 
-	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, MipmapSizes sizes )
+	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, final MipmapSizes sizes )
 	{
 		final long t0 = System.currentTimeMillis();
 		final int[] lutSize = new int[ 3 ];
@@ -358,7 +362,7 @@ public class Example2 implements GLEventListener
 		final ArrayList< int[] > gridPositions = requiredBlocks.getGridPositions();
 		final int[] gj = new int[ 3 ];
 
-		for ( int[] g0 : gridPositions )
+		for ( final int[] g0 : gridPositions )
 		{
 			for ( int d = 0; d < 3; ++d )
 				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
@@ -375,11 +379,11 @@ public class Example2 implements GLEventListener
 			final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
 			for ( int d = 0; d < 3; ++d )
 			{
-				double qs = sij[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
-				double p = g0[ d ] * blockSize[ d ];
-				double hj = 0.5 * ( sij[ d ] - 1 );
-				double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sij[ d ] - gj[ d ] * blockSize[ d ] + hj;
-				double qd = ( c0 - sij[ d ] * ( pad[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
+				final double qs = sij[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
+				final double p = g0[ d ] * blockSize[ d ];
+				final double hj = 0.5 * ( sij[ d ] - 1 );
+				final double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sij[ d ] - gj[ d ] * blockSize[ d ] + hj;
+				final double qd = ( c0 - sij[ d ] * ( pad[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
 				qsData[ 3 * i + d ] = ( float ) qs;
 				qdData[ 3 * i + d ] = ( float ) qd;
 			}
@@ -415,9 +419,9 @@ public class Example2 implements GLEventListener
 	{
 		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
-		ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > sil = ( ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( 0 );
+		final ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > sil = ( ViewerSetupImgLoader< UnsignedShortType, VolatileUnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( 0 );
 
-		ArrayList< RaiLevel > raiLevels = new ArrayList<>();
+		final ArrayList< RaiLevel > raiLevels = new ArrayList<>();
 		final int numMipmapLevels = sil.numMipmapLevels();
 		for ( int level = 0; level < numMipmapLevels; level++ )
 		{
@@ -432,7 +436,7 @@ public class Example2 implements GLEventListener
 
 		final InputFrame frame = new InputFrame( "Example2", 640, 480 );
 		InputFrame.DEBUG = false;
-		Example2 glPainter = new Example2( raiLevels, sourceTransform );
+		final Example2 glPainter = new Example2( raiLevels, sourceTransform );
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {

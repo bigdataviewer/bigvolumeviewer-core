@@ -1,5 +1,7 @@
 package tpietzsch.blockmath3;
 
+import java.util.Arrays;
+
 import net.imglib2.RandomAccess;
 import net.imglib2.img.basictypeaccess.array.AbstractShortArray;
 import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileShortArray;
@@ -17,6 +19,7 @@ public class ArrayGridCopy3D
 
 		void setPosition( int[] position );
 
+		// for debugging ...
 		int[] getPosition();
 
 		// returns null if not valid, otherwise current storage array
@@ -170,23 +173,25 @@ public class ArrayGridCopy3D
 		int doz = doff[ 2 ];
 		for ( int gz = 0; gz < gsz; ++gz )
 		{
-			int oz = spanz[ 3 * gz ];
-			int sz = spanz[ 3 * gz + 1 ];
+			final int oz = spanz[ 3 * gz ];
+			final int sz = spanz[ 3 * gz + 1 ];
 			int doy = doff[ 1 ];
 			for ( int gy = 0; gy < gsy; ++gy )
 			{
-				int oy = spany[ 3 * gy ];
-				int sy = spany[ 3 * gy + 1 ];
+				final int oy = spany[ 3 * gy ];
+				final int sy = spany[ 3 * gy + 1 ];
 				final int ssy = spany[ 3 * gy + 2 ];
 				int dox = doff[ 0 ];
 				for ( int gx = 0; gx < gsx; ++gx )
 				{
-					int ox = spanx[ 3 * gx ];
-					int sx = spanx[ 3 * gx + 1 ];
+					final int ox = spanx[ 3 * gx ];
+					final int sx = spanx[ 3 * gx + 1 ];
 					final int ssx = spanx[ 3 * gx + 2 ];
-					T src = srca.get();
+					final T src = srca.get();
 					if ( src == null )
+					{
 						complete = false;
+					}
 					else
 						copy.copysubarray3d( src, ox, oy, oz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, sx, sy, sz );
 					dox += sx;

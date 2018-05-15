@@ -1,10 +1,12 @@
 package tpietzsch.blockmath3;
 
 import com.jogamp.opengl.GL3;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.function.BiFunction;
+
 import tpietzsch.day8.BlockTextureUtils;
 
 /**
@@ -54,12 +56,12 @@ public class TextureBlockCache< K >
 		} );
 	}
 
-	public void bindTextures( GL3 gl, int textureUnit )
+	public void bindTextures( final GL3 gl, final int textureUnit )
 	{
 		cacheTexture.bindTextures( gl, textureUnit );
 	}
 
-	public TextureBlock get( GL3 gl, K key )
+	public TextureBlock get( final GL3 gl, final K key )
 	{
 		TextureBlock block = null;
 
@@ -76,7 +78,7 @@ public class TextureBlockCache< K >
 		if ( block.needsLoading() )
 		{
 			final ByteBuffer buffer = tlBuffer.get();
-			boolean complete = blockLoader.apply( key, buffer );
+			final boolean complete = blockLoader.apply( key, buffer );
 			cacheTexture.putBlockData( gl, block, buffer );
 			block.setNeedsLoading( !complete );
 		}
@@ -86,7 +88,7 @@ public class TextureBlockCache< K >
 
 	private boolean oobInitialized = false;
 
-	private void initOob( GL3 gl )
+	private void initOob( final GL3 gl )
 	{
 		if ( oobInitialized )
 			return;
