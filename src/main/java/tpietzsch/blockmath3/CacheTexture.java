@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
-import static com.jogamp.opengl.GL.GL_R16F;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
@@ -14,6 +13,7 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_WRAP_R;
+import static com.jogamp.opengl.GL2GL3.GL_R16_SNORM;
 
 public class CacheTexture
 {
@@ -91,7 +91,7 @@ public class CacheTexture
 		final int h = gridSize[ 1 ] * blockSize[ 1 ];
 		final int d = gridSize[ 2 ] * blockSize[ 2 ];
 
-		gl.glTexStorage3D( GL_TEXTURE_3D, 1, GL_R16F, w, h, d );
+		gl.glTexStorage3D( GL_TEXTURE_3D, 1, GL_R16_SNORM, w, h, d );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 		gl.glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
