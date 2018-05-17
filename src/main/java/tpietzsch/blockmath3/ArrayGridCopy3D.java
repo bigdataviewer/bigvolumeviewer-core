@@ -119,6 +119,70 @@ public class ArrayGridCopy3D
 		return copyNoOob( nmin, ndim, doo, dim, srcgrid, dst, srca, copy );
 	}
 
+	public boolean canLoadCompletely( final int[] min, final int[] dim, final CellGrid srcgrid, final CellDataAccess< ? > srca )
+	{
+		for ( int d = 0; d < 3; ++d )
+		{
+			srcsize[ d ] = ( int ) srcgrid.imgDimension( d );
+			nmin[ d ] = min[ d ];
+			ndim[ d ] = dim[ d ];
+			if ( min[ d ] < 0 )
+			{
+				nmin[ d ] = 0;
+				ndim[ d ] += min[ d ];
+			}
+			final int b = min[ d ] + dim[ d ] - srcsize[ d ];
+			if ( b > 0 )
+				ndim[ d ] -= b;
+		}
+		// TODO check whether dst is completely outside of src
+
+		return canLoadCompletelyNoOob( nmin, ndim, srcgrid, srca );
+	}
+
+	private boolean canLoadCompletelyNoOob( final int[] min, final int[] dim, final CellGrid srcgrid, final CellDataAccess< ? > srca )
+	{
+		boolean complete = true;
+		srcgrid.cellDimensions( cellsize );
+		for ( int d = 0; d < 3; ++d )
+		{
+			final int g0 = min[ d ] / cellsize[ d ];
+			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize[ d ];
+			gmin[ d ] = g0;
+			ls[ d ] = g1 - g0 + 1;
+		}
+
+		srca.setPosition( gmin );
+		final int gsx = ls[ 0 ];
+		final int gsy = ls[ 1 ];
+		final int gsz = ls[ 2 ];
+		for ( int gz = 0; gz < gsz; ++gz )
+		{
+			for ( int gy = 0; gy < gsy; ++gy )
+			{
+				for ( int gx = 0; gx < gsx; ++gx )
+				{
+					if ( srca.get() == null )
+						complete = false;
+//						return false;
+					if ( gx < gsx - 1 )
+						srca.fwd( 0 );
+				}
+				if ( gsx > 1 )
+					srca.setPosition( gmin[ 0 ], 0 );
+				if ( gy < gsy - 1 )
+					srca.fwd( 1 );
+			}
+			if ( gsy > 1 )
+				srca.setPosition( gmin[ 1 ], 1 );
+			if ( gz < gsz - 1 )
+				srca.fwd( 2 );
+		}
+
+		return complete;
+//		return true;
+	}
+
 	/**
 	 * @param min min coordinate of block to copy
 	 * @param dim dimensions of block to copy

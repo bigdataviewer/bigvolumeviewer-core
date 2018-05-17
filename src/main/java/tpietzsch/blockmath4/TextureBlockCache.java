@@ -1,0 +1,156 @@
+package tpietzsch.blockmath4;
+
+import com.jogamp.opengl.GL3;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
+import tpietzsch.blockmath3.BlockKey;
+import tpietzsch.blockmath3.CacheTexture;
+import tpietzsch.blockmath3.LRUBlockCache;
+import tpietzsch.blockmath3.TextureBlock;
+import tpietzsch.day8.BlockTextureUtils;
+
+/**
+ * A LRU cache associating keys to blocks. A key identifies a
+ * chunk of image data and a block identifies coordinates in a texture where the
+ * chunk is stored on the GPU.
+ * <p>
+ * When a key is added to the cache, a block with unused texture
+ * coordinates is created . If the cache is already full, least recently used
+ * key is removed and the associated block is re-used for the newly added key.
+ * <p>
+ * The block data is loaded through TODO
+ *
+ * @param <K>
+ *            key type
+ *
+ * @author Tobias Pietzsch
+ */
+public class TextureBlockCache< K >
+{
+	public interface BlockLoader< K >
+	{
+		boolean loadBlock( final K key, final ByteBuffer buffer );
+
+		boolean canLoadBlock( final K key );
+	}
+
+	private static final int bytesPerVoxel = 2; // always UnsignedShortType for now
+
+	private final CacheTexture cacheTexture;
+
+	private final LRUBlockCache< K > lruBlockCache;
+
+	private final ThreadLocal< ByteBuffer > tlBuffer;
+
+	private final BlockLoader blockLoader;
+
+	public TextureBlockCache(
+			final int[] blockSize,
+			final int maxMemoryInMB,
+			final BlockLoader blockLoader )
+	{
+		this.blockLoader = blockLoader;
+		final int[] gridSize = LRUBlockCache.findSuitableGridSize( blockSize, bytesPerVoxel, maxMemoryInMB );
+		// block (0,0,0) is reserved for out-of-bounds values
+		final int numReservedBlocks = 1;
+		lruBlockCache = new LRUBlockCache<>( blockSize, gridSize, numReservedBlocks );
+		cacheTexture = new CacheTexture( blockSize, gridSize );
+		tlBuffer = ThreadLocal.withInitial( () ->
+		{
+			final ByteBuffer buffer = BlockTextureUtils.allocateBlockBuffer( getBlockSize() );
+			buffer.order( ByteOrder.LITTLE_ENDIAN );
+			return buffer;
+		} );
+	}
+
+	public void bindTextures( final GL3 gl, final int textureUnit )
+	{
+		cacheTexture.bindTextures( gl, textureUnit );
+	}
+
+	public TextureBlock getIfPresentOrCompletable( final GL3 gl, final K key )
+	{
+		TextureBlock block = null;
+
+		synchronized ( this )
+		{
+			initOob( gl );
+			block = lruBlockCache.get( key );
+			if ( block == null )
+			{
+				if ( !blockLoader.canLoadBlock( key ) )
+					return null;
+				block = lruBlockCache.add( key );
+			}
+		}
+
+		if ( block.needsLoading() )
+		{
+			synchronized ( block )
+			{
+				if ( block.needsLoading() )
+				{
+					final ByteBuffer buffer = tlBuffer.get();
+					final boolean complete = blockLoader.loadBlock( key, buffer );
+					cacheTexture.putBlockData( gl, block, buffer );
+					block.setNeedsLoading( !complete );
+				}
+			}
+		}
+
+		return block;
+	}
+
+	public TextureBlock get( final GL3 gl, final K key )
+	{
+		TextureBlock block = null;
+
+		synchronized ( this )
+		{
+			initOob( gl );
+			block = lruBlockCache.get( key );
+			if ( block == null )
+			{
+				block = lruBlockCache.add( key );
+			}
+		}
+
+		if ( block.needsLoading() )
+		{
+			final ByteBuffer buffer = tlBuffer.get();
+			final boolean complete = blockLoader.loadBlock( key, buffer );
+			cacheTexture.putBlockData( gl, block, buffer );
+			block.setNeedsLoading( !complete );
+		}
+
+		return block;
+	}
+
+	private boolean oobInitialized = false;
+
+	private void initOob( final GL3 gl )
+	{
+		if ( oobInitialized )
+			return;
+		oobInitialized = true;
+
+		final ByteBuffer buffer = tlBuffer.get();
+		final ShortBuffer sbuffer = buffer.asShortBuffer();
+		final int cap = sbuffer.capacity();
+		for ( int i = 0; i < cap; i++ )
+			sbuffer.put( i, ( short ) 0x0fff );
+		final TextureBlock oobBlock = new TextureBlock( new int[] { 0, 0, 0 }, new int[] { 0, 0, 0 } );
+		cacheTexture.putBlockData( gl, oobBlock, buffer );
+	}
+
+	private int[] getBlockSize()
+	{
+		return cacheTexture.getBlockSize();
+	}
+
+	public int[] getCacheTextureSize()
+	{
+		return cacheTexture.getSize();
+	}
+}

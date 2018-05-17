@@ -26,7 +26,7 @@ public class TextureBlock
 
 	private final int[] pos;
 
-	private boolean needsLoading;
+	private volatile boolean needsLoading;
 
 	public TextureBlock( final int[] gridPos, final int[] pos )
 	{

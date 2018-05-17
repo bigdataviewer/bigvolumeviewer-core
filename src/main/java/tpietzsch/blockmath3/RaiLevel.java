@@ -15,6 +15,21 @@ public class RaiLevel< T >
 
 	final RandomAccessibleInterval< T > rai;
 
+	public int[] getR()
+	{
+		return r;
+	}
+
+	public double[] getS()
+	{
+		return s;
+	}
+
+	public RandomAccessibleInterval< T > getRai()
+	{
+		return rai;
+	}
+
 	public RaiLevel( final int level, final double[] resolution, final RandomAccessibleInterval< T > rai )
 	{
 		this.level = level;
