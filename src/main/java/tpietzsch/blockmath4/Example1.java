@@ -11,12 +11,18 @@ import bdv.volume.RequiredBlocks;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+import java.awt.BorderLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JFrame;
+import javax.swing.JSlider;
+import javax.swing.SwingConstants;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
 import mpicbg.spim.data.registration.ViewRegistrations;
@@ -60,6 +66,7 @@ import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE1;
 import static com.jogamp.opengl.GL.GL_TEXTURE2;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
+import static javax.swing.SwingConstants.HORIZONTAL;
 
 /**
  * Use blocks from all levels. Kind-of-ok fetching of hdf5 cache data.
@@ -129,7 +136,7 @@ public class Example1 implements GLEventListener
 				return Example1.this.canLoadBlock( key );
 			}
 		};
-		blockCache = new TextureBlockCache<>( paddedBlockSize, 100, blockLoader );
+		blockCache = new TextureBlockCache<>( paddedBlockSize, 500, blockLoader );
 		raiLevels = raiLevelsSyncd.get();
 	}
 
@@ -559,7 +566,27 @@ public class Example1 implements GLEventListener
 		}
 	}
 
+	int maxTimepoint;
+
 	int currentTimepoint = 0;
+
+	RaiLevelsMaker raiLevelsMaker;
+
+	JSlider stime;
+
+	void setCurrentTimepoint( int t )
+	{
+		if ( currentTimepoint != t )
+		{
+			currentTimepoint = Math.min( maxTimepoint, Math.max( 0, t ) );
+			System.out.println( "currentTimepoint = " + currentTimepoint );
+			raiLevelsSyncd.set( raiLevelsMaker.get( currentTimepoint, currentSetup ) );
+			stime.setValue( currentTimepoint );
+			requestRepaint.run();
+		}
+	}
+
+	int currentSetup = 0;
 
 	public static void main( final String[] args ) throws SpimDataException
 	{
@@ -567,11 +594,12 @@ public class Example1 implements GLEventListener
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final RaiLevelsMaker raiLevelsMaker = new RaiLevelsMaker( spimData );
 
-		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
 		final InputFrame frame = new InputFrame( "Example1", 640, 480 );
 		InputFrame.DEBUG = false;
 		final Example1 glPainter = new Example1( raiLevelsMaker.getCacheControl(), frame::requestRepaint );
+		glPainter.maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
+		glPainter.raiLevelsMaker = raiLevelsMaker;
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
@@ -586,17 +614,29 @@ public class Example1 implements GLEventListener
 			frame.requestRepaint();
 		}, "freeze/unfreeze required block computation", "F" );
 		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
-			System.out.println( "glPainter.currentTimepoint = " + glPainter.currentTimepoint );
-			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, 0 ) );
-			frame.requestRepaint();
+			glPainter.setCurrentTimepoint( glPainter.currentTimepoint - 1 );
 		}, "previous timepoint", "OPEN_BRACKET" );
 		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentTimepoint = Math.min( maxTimepoint, glPainter.currentTimepoint + 1 );
-			System.out.println( "glPainter.currentTimepoint = " + glPainter.currentTimepoint );
-			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, 0 ) );
-			frame.requestRepaint();
+			glPainter.setCurrentTimepoint( glPainter.currentTimepoint + 1 );
 		}, "next timepoint", "CLOSE_BRACKET" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.currentSetup = 0;
+			System.out.println( "currentSetup = " + glPainter.currentSetup );
+			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, glPainter.currentSetup ) );
+			frame.requestRepaint();
+		}, "setup 1", "1" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.currentSetup = 1;
+			System.out.println( "currentSetup = " + glPainter.currentSetup );
+			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, glPainter.currentSetup ) );
+			frame.requestRepaint();
+		}, "setup 2", "2" );
+		frame.getDefaultActions().runnableAction( () -> {
+			glPainter.currentSetup = 2;
+			System.out.println( "currentSetup = " + glPainter.currentSetup );
+			glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( glPainter.currentTimepoint, glPainter.currentSetup ) );
+			frame.requestRepaint();
+		}, "setup 3", "3" );
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
 			@Override
@@ -611,6 +651,22 @@ public class Example1 implements GLEventListener
 			}
 		} );
 		glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( 0, 0 ) );
+
+		JFrame jframe = frame.getFrame();
+		JSlider sliderTime = new JSlider( HORIZONTAL, 0, glPainter.maxTimepoint, 0 );
+		sliderTime.addChangeListener( new ChangeListener()
+		{
+			@Override
+			public void stateChanged( final ChangeEvent e )
+			{
+				if ( e.getSource().equals( sliderTime ) )
+					glPainter.setCurrentTimepoint( sliderTime.getValue() );
+			}
+		} );
+		glPainter.stime = sliderTime;
+		jframe.getContentPane().add( glPainter.stime, BorderLayout.SOUTH );
+		jframe.pack();
+
 		frame.show();
 
 //		// print fps

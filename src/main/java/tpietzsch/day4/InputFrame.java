@@ -197,6 +197,11 @@ public class InputFrame
 		return canvas;
 	}
 
+	public JFrame getFrame()
+	{
+		return frame;
+	}
+
 	/*
 	 *
 	 *
