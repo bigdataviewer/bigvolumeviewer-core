@@ -71,6 +71,37 @@ public class MatrixMath
 	}
 
 	/**
+	 * Setup view and projection frustum transformation such that a camera looks at (the center of) the (BDV) screen plane.
+	 *
+	 * @param dCam distance camera to z=0 plane
+	 * @param dClipNear visible depth away from z=0 towards camera
+	 * @param dClipFar visible depth away from z=0 away from camera
+	 * @param screenWidth the width of the screen
+	 * @param screenHeight the height of the screen
+	 * @param screenPadding additional padding on all sides of the screen plane
+	 * @param matrix perspective projection frustum transformation is applied to this matrix
+	 */
+	public static Matrix4f screenPerspective( double dCam, final double dClipNear, final double dClipFar, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
+	{
+		double r0 = ( screenWidth + screenPadding ) / 2;
+		double t0 = ( screenHeight + screenPadding ) / 2;
+
+		double p = ( dCam - dClipNear ) / dCam;
+		float t = ( float ) ( t0 * p );
+		float r = ( float ) ( r0 * p );
+		float b = -t;
+		float l = -r;
+		float n = ( float ) ( dCam - dClipNear );
+		float f = ( float ) ( dCam + dClipFar );
+
+		matrix
+				.frustum( l, r, b, t, n, f )
+				.scale( 1f, -1f, -1f )
+				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
+		return matrix;
+	}
+
+	/**
 	 * Apply a {@link AffineTransform3D} to the specified matrix.
 	 *
 	 * @param affine the affine transformation
