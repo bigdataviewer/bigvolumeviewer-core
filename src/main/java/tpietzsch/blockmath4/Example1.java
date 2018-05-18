@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JSlider;
-import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import mpicbg.spim.data.SpimDataException;
@@ -91,6 +90,8 @@ public class Example1 implements GLEventListener
 
 	private final int[] cachePadOffset = { 1, 1, 1 };
 
+	private final long thresholdUploadMillis = 10;
+
 	private final TextureBlockCache< BlockKey > blockCache;
 
 	private LookupTexture lookupTexture;
@@ -136,7 +137,7 @@ public class Example1 implements GLEventListener
 				return Example1.this.canLoadBlock( key );
 			}
 		};
-		blockCache = new TextureBlockCache<>( paddedBlockSize, 500, blockLoader );
+		blockCache = new TextureBlockCache<>( paddedBlockSize, 200, blockLoader );
 		raiLevels = raiLevelsSyncd.get();
 	}
 
@@ -313,8 +314,14 @@ public class Example1 implements GLEventListener
 		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
 		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
 
-		final double min = 962;
+		final double min = 962; // weber
 		final double max = 6201;
+//		final double min = 33.8; // tassos channel 0
+//		final double max = 1517.2;
+//		final double min = 10.0; // tassos channel 1
+//		final double max = 3753.0;
+//		final double min = 0; // mette channel 1
+//		final double max = 120;
 		final double fmin = min / 0xffff;
 		final double fmax = max / 0xffff;
 		final double s = 1.0 / ( fmax - fmin );
@@ -381,13 +388,6 @@ public class Example1 implements GLEventListener
 				( long ) ( fbbmax.z() / blockSize[ 2 ] )
 		};
 
-		final int[] requiredLutSize = new int[] {
-				( int ) ( gridMax[ 0 ] - gridMin[ 0 ] + 1 ),
-				( int ) ( gridMax[ 1 ] - gridMin[ 1 ] + 1 ),
-				( int ) ( gridMax[ 2 ] - gridMin[ 2 ] + 1 )
-		};
-//		System.out.println( "requiredLutSize = " + Arrays.toString( requiredLutSize ) );
-
 		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, blockSize, gridMin, gridMax );
 		System.out.println( "requiredBlocks = " + requiredBlocks );
 		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
@@ -400,6 +400,7 @@ public class Example1 implements GLEventListener
 	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, final MipmapSizes sizes )
 	{
 		final long t0 = System.currentTimeMillis();
+		blockCache.resetStats();
 		final int timepoint = raiLevels.getTimepoint();
 		final int setup = raiLevels.getSetup();
 		final int maxLevel = raiLevels.getRaiLevels().size() - 1;
@@ -437,7 +438,9 @@ public class Example1 implements GLEventListener
 				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
 			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
 
-			for ( int level = bestLevel; level <= maxLevel; ++level )
+//			final int startLevel = ( blockCache.currentUploadMillis() < thresholdUploadMillis ) ? bestLevel : maxLevel;
+			final int startLevel = bestLevel;
+			for ( int level = startLevel; level <= maxLevel; ++level )
 			{
 				final double[] sj = raiLevels.getRaiLevels().get( level ).getS();
 				for ( int d = 0; d < 3; ++d )
@@ -475,6 +478,7 @@ public class Example1 implements GLEventListener
 		lookupTexture.resize( gl, lutSize );
 		lookupTexture.set( gl, qsData, qdData );
 		final long t2 = System.currentTimeMillis();
+		blockCache.printStats();
 		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
 		if ( needsRepaint )
 			requestRepaint.run();
@@ -591,6 +595,8 @@ public class Example1 implements GLEventListener
 	public static void main( final String[] args ) throws SpimDataException
 	{
 		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final RaiLevelsMaker raiLevelsMaker = new RaiLevelsMaker( spimData );
 
