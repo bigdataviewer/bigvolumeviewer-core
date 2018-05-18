@@ -4,7 +4,9 @@ import com.jogamp.opengl.GL3;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
-import tpietzsch.blockmath3.BlockKey;
+
+import net.imglib2.util.StopWatch;
+
 import tpietzsch.blockmath3.CacheTexture;
 import tpietzsch.blockmath3.LRUBlockCache;
 import tpietzsch.blockmath3.TextureBlock;
@@ -69,6 +71,40 @@ public class TextureBlockCache< K >
 		cacheTexture.bindTextures( gl, textureUnit );
 	}
 
+	int numUploaded = 0;
+	StopWatch copyWatch = new StopWatch();
+	StopWatch uploadWatch = new StopWatch();
+	long copyStart = copyWatch.nanoTime();
+	long uploadStart = uploadWatch.nanoTime();
+
+	public void resetStats()
+	{
+		numUploaded = 0;
+		copyStart = copyWatch.nanoTime();
+		uploadStart = uploadWatch.nanoTime();
+	}
+
+	public long currentUploadMillis()
+	{
+		final double tcopy = ( copyWatch.nanoTime() - copyStart ) / 1_000_000.0;
+		final double tupload = ( uploadWatch.nanoTime() - uploadStart ) / 1_000_000.0;
+		return ( long ) ( tcopy + tupload );
+	}
+
+	public void printStats()
+	{
+		if ( numUploaded > 0 )
+		{
+			final double tcopy2 = ( copyWatch.nanoTime() - copyStart ) / ( 1_000_000.0 );
+			final double tupload2 = ( uploadWatch.nanoTime() - uploadStart ) / ( 1_000_000.0 );
+			System.out.println( "tcopy = " + tcopy2 + ",  tupload = " + tupload2 );
+			final double tcopy = ( copyWatch.nanoTime() - copyStart ) / ( numUploaded * 1_000_000.0 );
+			final double tupload = ( uploadWatch.nanoTime() - uploadStart ) / ( numUploaded * 1_000_000.0 );
+			System.out.println( "numUploaded = " + numUploaded + ",  tcopy/block = " + tcopy + ",  tupload/block = " + tupload );
+		}
+		resetStats();
+	}
+
 	public TextureBlock getIfPresentOrCompletable( final GL3 gl, final K key )
 	{
 		TextureBlock block = null;
@@ -91,10 +127,15 @@ public class TextureBlockCache< K >
 			{
 				if ( block.needsLoading() )
 				{
+					copyWatch.start();
 					final ByteBuffer buffer = tlBuffer.get();
 					final boolean complete = blockLoader.loadBlock( key, buffer );
+					copyWatch.stop();
+					uploadWatch.start();
 					cacheTexture.putBlockData( gl, block, buffer );
+					uploadWatch.stop();
 					block.setNeedsLoading( !complete );
+					++numUploaded;
 				}
 			}
 		}
@@ -118,10 +159,15 @@ public class TextureBlockCache< K >
 
 		if ( block.needsLoading() )
 		{
+			copyWatch.start();
 			final ByteBuffer buffer = tlBuffer.get();
 			final boolean complete = blockLoader.loadBlock( key, buffer );
+			copyWatch.stop();
+			uploadWatch.start();
 			cacheTexture.putBlockData( gl, block, buffer );
+			uploadWatch.stop();
 			block.setNeedsLoading( !complete );
+			++numUploaded;
 		}
 
 		return block;
