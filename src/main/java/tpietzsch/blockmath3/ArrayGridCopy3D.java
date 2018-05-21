@@ -64,11 +64,6 @@ public class ArrayGridCopy3D
 	private final int[] doo = new int[ 3 ];
 	private final int[] doo2 = new int[ 3 ];
 
-	// TODO: make getCellDimension( d, ... ) available directly in the CellGrid class
-	private final long[] cellGridPosition = new long[ 3 ];
-	private final long[] cellMin = new long[ 3 ];
-	private final int[] cellDims = new int[ 3 ];
-
 	/**
 	 *
 	 * @param min min coordinate of block to copy
@@ -219,10 +214,7 @@ public class ArrayGridCopy3D
 			}
 			span[ i++ ] = o;
 			span[ i++ ] = min[ d ] + dim[ d ] - g1 * cellsize[ d ] - o;
-			// TODO: make getCellDimension( d, ... ) available directly in the CellGrid class
-			cellGridPosition[ d ] = g1;
-			srcgrid.getCellDimensions( cellGridPosition, cellMin, cellDims );
-			span[ i ] = cellDims[ d ];
+			span[ i ] = srcgrid.getCellDimension( d, g1 );
 		}
 
 		srca.setPosition( gmin );
