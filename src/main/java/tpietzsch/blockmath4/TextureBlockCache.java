@@ -1,6 +1,7 @@
 package tpietzsch.blockmath4;
 
 import com.jogamp.opengl.GL3;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
@@ -45,12 +46,12 @@ public class TextureBlockCache< K >
 
 	private final ThreadLocal< ByteBuffer > tlBuffer;
 
-	private final BlockLoader blockLoader;
+	private final BlockLoader< K > blockLoader;
 
 	public TextureBlockCache(
 			final int[] blockSize,
 			final int maxMemoryInMB,
-			final BlockLoader blockLoader )
+			final BlockLoader< K > blockLoader )
 	{
 		this.blockLoader = blockLoader;
 		final int[] gridSize = LRUBlockCache.findSuitableGridSize( blockSize, bytesPerVoxel, maxMemoryInMB );
