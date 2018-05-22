@@ -1,16 +1,22 @@
 package tpietzsch.multires;
 
-import bdv.ViewerSetupImgLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import mpicbg.spim.data.generic.AbstractSpimData;
-import mpicbg.spim.data.generic.sequence.BasicMultiResolutionSetupImgLoader;
-import mpicbg.spim.data.generic.sequence.BasicSetupImgLoader;
-import mpicbg.spim.data.registration.ViewRegistrations;
+
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
+
+import bdv.ViewerImgLoader;
+import bdv.ViewerSetupImgLoader;
+import bdv.cache.CacheControl;
+import mpicbg.spim.data.generic.AbstractSpimData;
+import mpicbg.spim.data.generic.sequence.BasicMultiResolutionSetupImgLoader;
+import mpicbg.spim.data.generic.sequence.BasicSetupImgLoader;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
 
 public class SpimDataStacks
 {
@@ -18,10 +24,31 @@ public class SpimDataStacks
 
 	private final ViewRegistrations registrations;
 
+	private final CacheControl cacheControl;
+
+	private final List< ? extends BasicViewSetup > setups;
+
+	private final List< TimePoint > timepoints;
+
 	public SpimDataStacks( final AbstractSpimData< ? > spimData )
 	{
 		this.spimData = spimData;
 		registrations = spimData.getViewRegistrations();
+
+		setups = spimData.getSequenceDescription().getViewSetupsOrdered();
+		timepoints = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered();
+
+		cacheControl = ( ( ViewerImgLoader ) spimData.getSequenceDescription().getImgLoader() ).getCacheControl();
+	}
+
+	public int timepointId( final int timepointIndex )
+	{
+		return timepoints.get( timepointIndex ).getId();
+	}
+
+	public int setupId( final int setupIndex )
+	{
+		return setups.get( setupIndex ).getId();
 	}
 
 	public MultiResolutionStack3D< ? > getStack( final int timepointId, final int setupId, final boolean volatil )
@@ -42,7 +69,7 @@ public class SpimDataStacks
 		}
 
 		Object type;
-		RandomAccessibleInterval< ? >[] rais = new RandomAccessibleInterval[ numMipmapLevels ];
+		final RandomAccessibleInterval< ? >[] rais = new RandomAccessibleInterval[ numMipmapLevels ];
 		if ( sil instanceof ViewerSetupImgLoader )
 		{
 			final ViewerSetupImgLoader< ?, ? > vsil = ( ViewerSetupImgLoader< ?, ? > ) sil;
@@ -65,11 +92,16 @@ public class SpimDataStacks
 				rais[ 0 ] = sil.getImage( timepointId );
 		}
 
-		ResolutionLevel3DImp< ? >[] resolutionLevels = new ResolutionLevel3DImp[ numMipmapLevels ];
+		final ResolutionLevel3DImp< ? >[] resolutionLevels = new ResolutionLevel3DImp[ numMipmapLevels ];
 		for ( int level = 0; level < numMipmapLevels; level++ )
 			resolutionLevels[ level ] = new ResolutionLevel3DImp( level, timepointId, setupId, spimData, resolutions[ level ], rais[ level], type );
 
 		return new MultiResolutionStack3DImp( timepointId, setupId, spimData, model, resolutionLevels, type );
+	}
+
+	public CacheControl getCacheControl()
+	{
+		return cacheControl;
 	}
 
 	static class MultiResolutionStack3DImp< T > implements MultiResolutionStack3D< T >
@@ -173,7 +205,7 @@ public class SpimDataStacks
 				final int setupId,
 				final AbstractSpimData< ? > spimData,
 				final int[] resolution,
-				RandomAccessibleInterval< T > rai,
+				final RandomAccessibleInterval< T > rai,
 				final T type )
 		{
 			this.level = level;
