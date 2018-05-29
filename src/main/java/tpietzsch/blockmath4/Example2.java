@@ -17,6 +17,7 @@ import com.jogamp.opengl.GLEventListener;
 
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
@@ -45,6 +46,10 @@ import mpicbg.spim.data.SpimDataException;
 import tpietzsch.blockmath2.LookupTexture;
 import tpietzsch.blockmath3.ArrayGridCopy3D;
 import tpietzsch.blockmath3.TextureBlock;
+import tpietzsch.blocks.CopyGridBlock;
+import tpietzsch.blocks.CopySubArray;
+import tpietzsch.blocks.CopySubArrayImp;
+import tpietzsch.blocks.VolatileShortGridDataAccess;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day2.Shader;
 import tpietzsch.day4.InputFrame;
@@ -149,7 +154,6 @@ public class Example2 implements GLEventListener
 
 	public boolean canLoadBlock( final BlockKey key )
 	{
-		// TODO: use timepoint/setup of the BlockKey
 		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = ( ( ResolutionLevel3D< VolatileUnsignedShortType > ) key.getStack() ).getImage();
 		final int[] gridPos = key.getGridPos();
 		final int[] min = new int[ 3 ];
@@ -160,7 +164,6 @@ public class Example2 implements GLEventListener
 
 	public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
 	{
-		// TODO: use timepoint/setup of the BlockKey
 		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = ( ( ResolutionLevel3D< VolatileUnsignedShortType > ) key.getStack() ).getImage();
 		final int[] gridPos = key.getGridPos();
 		final int[] min = new int[ 3 ];
@@ -171,25 +174,21 @@ public class Example2 implements GLEventListener
 
 	public static class Copier
 	{
-		private final ArrayGridCopy3D gcopy = new ArrayGridCopy3D();
+		private final CopyGridBlock gcopy = new CopyGridBlock();
 
-		private final ArrayGridCopy3D.VolatileShortCellDataAccess dataAccess;
+		private final VolatileShortGridDataAccess dataAccess;
 
-		private final ArrayGridCopy3D.ShortSubArrayCopy subArrayCopy = new ArrayGridCopy3D.ShortSubArrayCopy();
+		private final CopySubArray< short[], Buffer > subArrayCopy = new CopySubArrayImp.ShortToBuffer();
 
 		private final CellGrid grid;
 
 		private final int[] blocksize;
 
-		private final short[] data;
-
 		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
 			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
 			grid = img.getCellGrid();
-			dataAccess = new ArrayGridCopy3D.VolatileShortCellDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
-
-			data = new short[ ( int ) Intervals.numElements( blocksize ) ];
+			dataAccess = new VolatileShortGridDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
 
 			this.blocksize = blocksize;
 		}
@@ -207,12 +206,7 @@ public class Example2 implements GLEventListener
 		 */
 		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
 		{
-			final boolean complete = gcopy.copy( min, blocksize, grid, data, dataAccess, subArrayCopy );
-
-			final ShortBuffer sbuffer = buffer.asShortBuffer();
-			for ( int i = 0; i < data.length; i++ )
-				sbuffer.put( i, data[ i ] );
-
+			final boolean complete = gcopy.copy( min, blocksize, grid, buffer, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}
@@ -224,7 +218,7 @@ public class Example2 implements GLEventListener
 	private final double screenPadding = 0;
 
 	private final double dCam = 2000;
-	private final double dClip = 100;
+	private final double dClip = 1000;
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 
@@ -305,14 +299,14 @@ public class Example2 implements GLEventListener
 		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
 		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
 
-//		final double min = 962; // weber
-//		final double max = 6201;
+		final double min = 962; // weber
+		final double max = 6201;
 //		final double min = 33.8; // tassos channel 0
 //		final double max = 1517.2;
 //		final double min = 10.0; // tassos channel 1
 //		final double max = 3753.0;
-		final double min = 0; // mette channel 1
-		final double max = 120;
+//		final double min = 0; // mette channel 1
+//		final double max = 120;
 		final double fmin = min / 0xffff;
 		final double fmax = max / 0xffff;
 		final double s = 1.0 / ( fmax - fmin );
@@ -512,8 +506,8 @@ public class Example2 implements GLEventListener
 
 	public static void main( final String[] args ) throws SpimDataException
 	{
-//		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
-		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
+		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
