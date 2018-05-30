@@ -164,6 +164,7 @@ public class CopyGridBlock
 					if ( src == null )
 					{
 						complete = false;
+						copy.clearsubarray3d( dst, dox, doy, doz, dsx, dsy, sx, sy, sz );
 					}
 					else
 						copy.copysubarray3d( src, ox, oy, oz, ssx, ssy, dst, dox, doy, doz, dsx, dsy, sx, sy, sz );
