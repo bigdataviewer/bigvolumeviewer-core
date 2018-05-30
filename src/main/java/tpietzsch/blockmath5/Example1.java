@@ -243,6 +243,7 @@ public class Example1 implements GLEventListener
 		{
 			final Matrix4f pvm = new Matrix4f( projection ).mul( view ).mul( model );
 			updateBlocks( gl, pvm );
+			blockCache.flush( gl );
 		}
 
 		prog.use( gl );
@@ -334,7 +335,7 @@ public class Example1 implements GLEventListener
 		final MipmapSizes sizes = new MipmapSizes();
 		sizes.init( pvm, vw, multiResolutionStack.resolutions() );
 		baseLevel = sizes.getBaseLevel();
-		System.out.println( "baseLevel = " + baseLevel );
+//		System.out.println( "baseLevel = " + baseLevel );
 
 		final ResolutionLevel3D< VolatileUnsignedShortType > baseResolution = multiResolutionStack.resolutions().get( baseLevel );
 
@@ -370,7 +371,7 @@ public class Example1 implements GLEventListener
 		};
 
 		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, blockSize, gridMin, gridMax );
-		System.out.println( "requiredBlocks = " + requiredBlocks );
+//		System.out.println( "requiredBlocks = " + requiredBlocks );
 		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
 	}
 
@@ -459,7 +460,7 @@ public class Example1 implements GLEventListener
 		lookupTexture.set( gl, qsData, qdData );
 		final long t2 = System.currentTimeMillis();
 		blockCache.printStats();
-		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
+//		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
 		if ( needsRepaint )
 			requestRepaint.run();
 	}

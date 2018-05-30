@@ -62,6 +62,11 @@ public class TextureBlockCache< K >
 		cacheTexture.bindTextures( gl, textureUnit );
 	}
 
+	public void flush( final GL3 gl )
+	{
+		cacheTexture.flush( gl );
+	}
+
 	int numUploaded = 0;
 	StopWatch copyWatch = new StopWatch();
 	StopWatch uploadWatch = new StopWatch();
