@@ -17,10 +17,10 @@ import static com.jogamp.opengl.GL2GL3.GL_R16;
 
 import com.jogamp.opengl.GL3;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import tpietzsch.blockmath3.TextureBlock;
-import tpietzsch.blocks.ByteUtils;
 
 public class CacheTexture
 {
@@ -29,6 +29,8 @@ public class CacheTexture
 	private final int[] gridSize;
 
 	private final int[] cacheSize;
+
+	private final int numBytesInBlock;
 
 	private int texture;
 
@@ -46,9 +48,45 @@ public class CacheTexture
 		cacheSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
 			cacheSize[ d ] = gridSize[ d ] * blockSize[ d ];
+
+		numBytesInBlock = blockSize[ 0 ] * blockSize[ 1 ] * blockSize[ 2 ] * 2;
 	}
 
-	public void putBlockData( final GL3 gl, final TextureBlock textureBlock, final ByteBuffer data )
+	public static class UploadBuffer
+	{
+		private final Buffer buffer;
+
+		private final int pbo;
+
+		public UploadBuffer( final Buffer buffer, final int pbo )
+		{
+			this.buffer = buffer;
+			this.pbo = pbo;
+		}
+
+		Buffer getBuffer()
+		{
+			return buffer;
+		}
+	}
+
+	public UploadBuffer getNextBuffer( final GL3 gl )
+	{
+		init( gl );
+
+		final int pbo = this.pbo[ pboi ];
+		pboi = ( pboi + 1 ) % numPbos;
+
+		gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo );
+		gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, numBytesInBlock, null, GL_STREAM_DRAW );
+		final ByteBuffer buffer = gl.glMapBuffer( GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY );
+		gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 );
+
+		return new UploadBuffer( buffer, pbo );
+	}
+
+
+	public void putBlockData( final GL3 gl, final TextureBlock textureBlock, final UploadBuffer data )
 	{
 		init( gl );
 
@@ -63,16 +101,11 @@ public class CacheTexture
 //		gl.glBindTexture( GL_TEXTURE_3D, texture );
 //		gl.glTexSubImage3D( GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL_RED, GL_UNSIGNED_SHORT, data );
 
-		gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo[ pboi ] );
-		final int numBytes = w * h * d * 2;
-		gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, numBytes, null, GL_STREAM_DRAW );
-		final ByteBuffer buffer = gl.glMapBuffer( GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY );
-		ByteUtils.copyShorts( ByteUtils.addressOf( data ), ByteUtils.addressOf( buffer ), w * h * d );
+		gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, data.pbo );
 		gl.glUnmapBuffer( GL_PIXEL_UNPACK_BUFFER );
 		gl.glBindTexture( GL_TEXTURE_3D, texture );
 		gl.glTexSubImage3D( GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL_RED, GL_UNSIGNED_SHORT, 0 );
 		gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 );
-		pboi = ( pboi + 1 ) % numPbos;
 	}
 
 	public void bindTextures( final GL3 gl, final int textureUnit )
@@ -130,8 +163,7 @@ public class CacheTexture
 		{
 			pbo[ i ] = tmpPbo[ i ];
 			gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo[ i ] );
-			final int numBytes = blockSize[ 0 ] * blockSize[ 1 ] * blockSize[ 2 ] * 2;
-			gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, numBytes, null, GL_STREAM_DRAW );
+			gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, numBytesInBlock, null, GL_STREAM_DRAW );
 			gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 );
 		}
 	}

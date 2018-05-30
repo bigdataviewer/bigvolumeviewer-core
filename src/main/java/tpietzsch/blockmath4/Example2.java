@@ -18,7 +18,6 @@ import com.jogamp.opengl.GLEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -117,7 +116,7 @@ public class Example2 implements GLEventListener
 		final TextureBlockCache.BlockLoader< BlockKey > blockLoader = new TextureBlockCache.BlockLoader< BlockKey >()
 		{
 			@Override
-			public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
+			public boolean loadBlock( final BlockKey key, final Buffer buffer )
 			{
 				return Example2.this.loadBlock( key, buffer );
 			}
@@ -128,7 +127,7 @@ public class Example2 implements GLEventListener
 				return Example2.this.canLoadBlock( key );
 			}
 		};
-		blockCache = new TextureBlockCache<>( paddedBlockSize, 200, blockLoader );
+		blockCache = new TextureBlockCache<>( paddedBlockSize, 500, blockLoader );
 	}
 
 	@Override
@@ -160,7 +159,7 @@ public class Example2 implements GLEventListener
 		return new Copier( rai, paddedBlockSize ).canLoadCompletely( min );
 	}
 
-	public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
+	public boolean loadBlock( final BlockKey key, final Buffer buffer )
 	{
 		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = ( ( ResolutionLevel3D< VolatileUnsignedShortType > ) key.getStack() ).getImage();
 		final int[] gridPos = key.getGridPos();
@@ -202,7 +201,7 @@ public class Example2 implements GLEventListener
 		/**
 		 * @return {@code true}, if this block was completely loaded
 		 */
-		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
+		public boolean toBuffer( final Buffer buffer, final int[] min )
 		{
 			final boolean complete = gcopy.copy( min, blocksize, grid, buffer, dataAccess, subArrayCopy );
 			return complete;

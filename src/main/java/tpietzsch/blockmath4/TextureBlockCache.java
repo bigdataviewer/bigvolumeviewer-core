@@ -1,16 +1,18 @@
 package tpietzsch.blockmath4;
 
+import static tpietzsch.blocks.ByteUtils.addressOf;
+
 import com.jogamp.opengl.GL3;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.ShortBuffer;
+import java.nio.Buffer;
 
+import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
 
 import tpietzsch.blockmath3.LRUBlockCache;
 import tpietzsch.blockmath3.TextureBlock;
-import tpietzsch.day8.BlockTextureUtils;
+import tpietzsch.blockmath4.CacheTexture.UploadBuffer;
+import tpietzsch.blocks.ByteUtils;
 
 /**
  * A LRU cache associating keys to blocks. A key identifies a
@@ -32,7 +34,7 @@ public class TextureBlockCache< K >
 {
 	public interface BlockLoader< K >
 	{
-		boolean loadBlock( final K key, final ByteBuffer buffer );
+		boolean loadBlock( final K key, final Buffer buffer );
 
 		boolean canLoadBlock( final K key );
 	}
@@ -42,8 +44,6 @@ public class TextureBlockCache< K >
 	private final CacheTexture cacheTexture;
 
 	private final LRUBlockCache< K > lruBlockCache;
-
-	private final ThreadLocal< ByteBuffer > tlBuffer;
 
 	private final BlockLoader< K > blockLoader;
 
@@ -58,12 +58,6 @@ public class TextureBlockCache< K >
 		final int numReservedBlocks = 1;
 		lruBlockCache = new LRUBlockCache<>( blockSize, gridSize, numReservedBlocks );
 		cacheTexture = new CacheTexture( blockSize, gridSize );
-		tlBuffer = ThreadLocal.withInitial( () ->
-		{
-			final ByteBuffer buffer = BlockTextureUtils.allocateBlockBuffer( getBlockSize() );
-			buffer.order( ByteOrder.LITTLE_ENDIAN );
-			return buffer;
-		} );
 	}
 
 	public void bindTextures( final GL3 gl, final int textureUnit )
@@ -128,8 +122,8 @@ public class TextureBlockCache< K >
 				if ( block.needsLoading() )
 				{
 					copyWatch.start();
-					final ByteBuffer buffer = tlBuffer.get();
-					final boolean complete = blockLoader.loadBlock( key, buffer );
+					final UploadBuffer buffer = cacheTexture.getNextBuffer( gl );
+					final boolean complete = blockLoader.loadBlock( key, buffer.getBuffer() );
 					copyWatch.stop();
 					uploadWatch.start();
 					cacheTexture.putBlockData( gl, block, buffer );
@@ -160,8 +154,8 @@ public class TextureBlockCache< K >
 		if ( block.needsLoading() )
 		{
 			copyWatch.start();
-			final ByteBuffer buffer = tlBuffer.get();
-			final boolean complete = blockLoader.loadBlock( key, buffer );
+			final UploadBuffer buffer = cacheTexture.getNextBuffer( gl );
+			final boolean complete = blockLoader.loadBlock( key, buffer.getBuffer() );
 			copyWatch.stop();
 			uploadWatch.start();
 			cacheTexture.putBlockData( gl, block, buffer );
@@ -181,11 +175,8 @@ public class TextureBlockCache< K >
 			return;
 		oobInitialized = true;
 
-		final ByteBuffer buffer = tlBuffer.get();
-		final ShortBuffer sbuffer = buffer.asShortBuffer();
-		final int cap = sbuffer.capacity();
-		for ( int i = 0; i < cap; i++ )
-			sbuffer.put( i, ( short ) 0x0fff );
+		final UploadBuffer buffer = cacheTexture.getNextBuffer( gl );
+		ByteUtils.setShorts( ( short ) 0x0fff, addressOf( buffer.getBuffer() ), ( int ) Intervals.numElements( getBlockSize() ) );
 		final TextureBlock oobBlock = new TextureBlock( new int[] { 0, 0, 0 }, new int[] { 0, 0, 0 } );
 		cacheTexture.putBlockData( gl, oobBlock, buffer );
 	}

@@ -1,31 +1,35 @@
 package tpietzsch.blockmath4;
 
-import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.cache.CacheControl;
-import bdv.img.cache.VolatileCachedCellImg;
-import bdv.spimdata.SequenceDescriptionMinimal;
-import bdv.spimdata.SpimDataMinimal;
-import bdv.spimdata.XmlIoSpimDataMinimal;
-import bdv.volume.RequiredBlocks;
+import static bdv.volume.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
+import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
+import static com.jogamp.opengl.GL.GL_RGB16F;
+import static com.jogamp.opengl.GL.GL_RGB8;
+import static com.jogamp.opengl.GL.GL_TEXTURE0;
+import static com.jogamp.opengl.GL.GL_TEXTURE1;
+import static com.jogamp.opengl.GL.GL_TEXTURE2;
+import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
+import static javax.swing.SwingConstants.HORIZONTAL;
+
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+
 import java.awt.BorderLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.swing.JFrame;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import mpicbg.spim.data.SpimDataException;
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
+
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -36,9 +40,23 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+
+import bdv.ViewerImgLoader;
+import bdv.ViewerSetupImgLoader;
+import bdv.cache.CacheControl;
+import bdv.img.cache.VolatileCachedCellImg;
+import bdv.spimdata.SequenceDescriptionMinimal;
+import bdv.spimdata.SpimDataMinimal;
+import bdv.spimdata.XmlIoSpimDataMinimal;
+import bdv.volume.RequiredBlocks;
+import mpicbg.spim.data.SpimDataException;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
 import tpietzsch.blockmath2.LookupTexture;
 import tpietzsch.blockmath3.ArrayGridCopy3D;
 import tpietzsch.blockmath3.BlockKey;
@@ -54,18 +72,6 @@ import tpietzsch.day4.TransformHandler;
 import tpietzsch.day4.WireframeBox1;
 import tpietzsch.util.MatrixMath;
 import tpietzsch.util.Syncd;
-
-import static bdv.volume.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
-import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
-import static com.jogamp.opengl.GL.GL_RGB16F;
-import static com.jogamp.opengl.GL.GL_RGB8;
-import static com.jogamp.opengl.GL.GL_TEXTURE0;
-import static com.jogamp.opengl.GL.GL_TEXTURE1;
-import static com.jogamp.opengl.GL.GL_TEXTURE2;
-import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
-import static javax.swing.SwingConstants.HORIZONTAL;
 
 /**
  * Use blocks from all levels. Kind-of-ok fetching of hdf5 cache data.
@@ -123,12 +129,12 @@ public class Example1 implements GLEventListener
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
-		TextureBlockCache.BlockLoader< BlockKey > blockLoader = new TextureBlockCache.BlockLoader< BlockKey >()
+		final TextureBlockCache.BlockLoader< BlockKey > blockLoader = new TextureBlockCache.BlockLoader< BlockKey >()
 		{
 			@Override
-			public boolean loadBlock( final BlockKey key, final ByteBuffer buffer )
+			public boolean loadBlock( final BlockKey key, final Buffer buffer )
 			{
-				return Example1.this.loadBlock( key, buffer );
+				return Example1.this.loadBlock( key, ( ByteBuffer ) buffer );
 			}
 
 			@Override
@@ -448,7 +454,7 @@ public class Example1 implements GLEventListener
 					sij[ d ] = sj[ d ] * r[ d ];
 					gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
 				}
-				TextureBlock textureBlock =
+				final TextureBlock textureBlock =
 						level == maxLevel
 								? blockCache.get( gl, new BlockKey( gj, level, timepoint, setup ) )
 								: blockCache.getIfPresentOrCompletable( gl, new BlockKey( gj, level, timepoint, setup ) );
@@ -578,7 +584,7 @@ public class Example1 implements GLEventListener
 
 	JSlider stime;
 
-	void setCurrentTimepoint( int t )
+	void setCurrentTimepoint( final int t )
 	{
 		if ( currentTimepoint != t )
 		{
@@ -658,8 +664,8 @@ public class Example1 implements GLEventListener
 		} );
 		glPainter.raiLevelsSyncd.set( raiLevelsMaker.get( 0, 0 ) );
 
-		JFrame jframe = frame.getFrame();
-		JSlider sliderTime = new JSlider( HORIZONTAL, 0, glPainter.maxTimepoint, 0 );
+		final JFrame jframe = frame.getFrame();
+		final JSlider sliderTime = new JSlider( HORIZONTAL, 0, glPainter.maxTimepoint, 0 );
 		sliderTime.addChangeListener( new ChangeListener()
 		{
 			@Override
