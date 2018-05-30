@@ -16,16 +16,24 @@ public class CopyGridBlock
 	private final int[] doo2 = new int[ 3 ];
 
 	/**
+	 * Copy (non-aligned) block from cell grid.
 	 *
-	 * @param min min coordinate of block to copy
-	 * @param dim size of block to copy
-	 * @param srcgrid dimensions of the source grid
+	 * @param min
+	 *            min coordinate of block to copy
+	 * @param dim
+	 *            size of block to copy
+	 * @param srcgrid
+	 *            dimensions of the source grid
 	 * @param dst
 	 * @param srca
 	 * @param copy
-	 * @param <T>
 	 *
-	 * @return {@code true}, if this block was completely loaded
+	 * @param <S>
+	 *            source primitive array type
+	 * @param <T>
+	 *            destination type (primitive array or buffer)
+	 *
+	 * @return {@code true}, if {@code dst} was completely loaded
 	 */
 	public < S, T > boolean copy(
 			final int[] min,
@@ -72,6 +80,8 @@ public class CopyGridBlock
 	}
 
 	/**
+	 * Copy (non-aligned) block from cell grid.
+	 *
 	 * @param min min coordinate of block to copy
 	 * @param dim dimensions of block to copy
 	 * @param doff offset in destination
@@ -80,7 +90,13 @@ public class CopyGridBlock
 	 * @param dst destination array
 	 * @param srca access to cell storage arrays of source
 	 * @param copy functions to copy and clear subarrays
-	 * @param <T> source and destination array type
+	 *
+	 * @param <S>
+	 *            source primitive array type
+	 * @param <T>
+	 *            destination type (primitive array or buffer)
+	 *
+	 * @return {@code true}, if {@code dst} was completely loaded
 	 */
 	private < S, T > boolean copyNoOob(
 			final int[] min,

@@ -3,7 +3,8 @@ package tpietzsch.blocks;
 /**
  * Access to data at positions in a cell grid.
  *
- * @param <T> primitve array type of cell data, e.g. {@code short[]}.
+ * @param <T>
+ *            primitve array type of cell data, e.g. {@code short[]}.
  */
 public interface GridDataAccess< T >
 {

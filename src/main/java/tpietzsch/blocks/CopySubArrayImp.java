@@ -1,10 +1,8 @@
 package tpietzsch.blocks;
 
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import tpietzsch.blockmath3.SubArrays;
-
 import static tpietzsch.blocks.ByteUtils.addressOf;
+
+import java.nio.Buffer;
 
 public class CopySubArrayImp
 {
