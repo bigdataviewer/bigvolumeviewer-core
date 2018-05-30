@@ -19,7 +19,6 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -44,7 +43,6 @@ import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.volume.RequiredBlocks;
 import mpicbg.spim.data.SpimDataException;
 import tpietzsch.blockmath2.LookupTexture;
-import tpietzsch.blockmath3.ArrayGridCopy3D;
 import tpietzsch.blockmath3.TextureBlock;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
@@ -63,7 +61,7 @@ import tpietzsch.util.MatrixMath;
 import tpietzsch.util.Syncd;
 
 /**
- * Use blocks from all levels. Kind-of-ok fetching of hdf5 cache data.
+ * Consolidate cache texture loading
  */
 public class Example2 implements GLEventListener
 {

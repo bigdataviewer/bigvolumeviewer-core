@@ -8,7 +8,6 @@ import java.nio.ShortBuffer;
 
 import net.imglib2.util.StopWatch;
 
-import tpietzsch.blockmath3.CacheTexture;
 import tpietzsch.blockmath3.LRUBlockCache;
 import tpietzsch.blockmath3.TextureBlock;
 import tpietzsch.day8.BlockTextureUtils;
