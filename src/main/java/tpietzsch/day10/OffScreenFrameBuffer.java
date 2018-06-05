@@ -18,6 +18,7 @@ import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_FRAMEBUFFER;
+import static com.jogamp.opengl.GL.GL_FRAMEBUFFER_BINDING;
 import static com.jogamp.opengl.GL.GL_FRAMEBUFFER_COMPLETE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
@@ -71,6 +72,8 @@ public class OffScreenFrameBuffer
 
 	private boolean imgValid;
 
+	private int restoreFramebuffer;
+
 	/**
 	 * Use {@code GL_RGB32F} as internalFormat.
 	 * @param fbWidth width of offscreen framebuffer
@@ -102,6 +105,9 @@ public class OffScreenFrameBuffer
 		final int[] tmp = new int[ 1 ];
 		gl.glGenFramebuffers( 1, tmp, 0 );
 		framebuffer = tmp[ 0 ];
+
+		gl.glGetIntegerv( GL_FRAMEBUFFER_BINDING, tmp, 0 );
+		restoreFramebuffer = tmp[ 0 ];
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, framebuffer );
 
 		// generate texture
@@ -126,7 +132,7 @@ public class OffScreenFrameBuffer
 		gl.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo );
 		if ( gl.glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
 			System.err.println( "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" );
-		gl.glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		gl.glBindFramebuffer( GL_FRAMEBUFFER, restoreFramebuffer );
 	}
 
 	private void initQuad( GL3 gl )
@@ -223,6 +229,10 @@ public class OffScreenFrameBuffer
 	{
 		initFrameBuffer( gl );
 
+		final int[] tmp = new int[ 1 ];
+		gl.glGetIntegerv( GL_FRAMEBUFFER_BINDING, tmp, 0 );
+		restoreFramebuffer = tmp[ 0 ];
+
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, framebuffer );
 		gl.glGetIntegerv( GL_VIEWPORT, viewport, 0 );
 		gl.glViewport( 0, 0, fbWidth, fbHeight );
@@ -235,7 +245,7 @@ public class OffScreenFrameBuffer
 
 	public void unbind( GL3 gl, boolean getTexture )
 	{
-		gl.glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		gl.glBindFramebuffer( GL_FRAMEBUFFER, restoreFramebuffer );
 		gl.glViewport( viewport[ 0 ], viewport[ 1 ], viewport[ 2 ], viewport[ 3 ] );
 		imgValid = false;
 
