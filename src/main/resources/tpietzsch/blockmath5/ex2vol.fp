@@ -18,10 +18,10 @@ uniform vec3 cachePadOffset;
 uniform vec3 cacheSize; // TODO: get from texture!?
 uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 //uniform vec3 lutSize; // TODO: get from texture!?
-uniform vec3 padSize;
+//uniform vec3 padSize;
 
-uniform vec3 lutScale; // TEMP
-uniform vec3 lutOffset; // TEMP
+uniform vec3 lutScale;
+uniform vec3 lutOffset;
 
 
 uniform float intensity_offset;
@@ -71,12 +71,6 @@ void main()
 	const float sub = 1;
 	if ( tnear < tfar )
 	{
-//		ivec3 cacheSize = textureSize( volumeCache, 0 );
-//		ivec3 lutSize = textureSize( lut, 0 );
-
-//		vec3 lutScale = 1.0 / ( blockSize * lutSize );
-//		vec3 lutOffset = padSize / lutSize;
-
 		vec3 pos = mfront.xyz + tnear * step + 0.5;
 		int numSteps = int( sub * trunc( tfar - tnear ) + 1 );
 		vec3 posStep = ( 1 / sub ) * step;
@@ -84,11 +78,10 @@ void main()
 		for ( int i = 0; i < numSteps; ++i, pos += posStep )
 		{
 //			vec3 q = ( pos + blockSize * padSize ) / ( blockSize * lutSize );
-			vec3 q = fma( pos, lutScale, lutOffset );
+			vec3 q = pos * lutScale + lutOffset;
 
 			uvec4 lutv = texture( lut, q );
-//			vec3 B0 = lutv.xyz * paddedBlockSize + cachePadOffset;
-			vec3 B0 = fma( lutv.xyz, paddedBlockSize, cachePadOffset );
+			vec3 B0 = lutv.xyz * paddedBlockSize + cachePadOffset;
 			vec3 sj = blockScales[ lutv.w ];
 
 			vec3 c0 = B0 + mod( pos * sj, blockSize ) + 0.5 * sj;

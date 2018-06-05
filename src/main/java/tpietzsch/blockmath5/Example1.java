@@ -518,10 +518,7 @@ public class Example1 implements GLEventListener
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
-			final AffineTransform3D t = new AffineTransform3D();
-			t.set( 0.20765023354835557, 0.02415693031198364, -0.9779048129676096, 321.05506460482746, 0.05232798522331314, 0.9979893198293253, 0.035764500123301124, 27.597765098903665, 0.9768025196884895, -0.05859829540611955, 0.20596863184891784, -385.0387678359513 );
-			tf.setTransform( t );
-//			tf.setTransform( new AffineTransform3D() );
+			tf.setTransform( new AffineTransform3D() );
 		}, "reset transform", "R" );
 		frame.getDefaultActions().runnableAction( () -> {
 			glPainter.toggleVolumeSliceMode();
@@ -573,8 +570,8 @@ public class Example1 implements GLEventListener
 		frame.show();
 
 //		// print fps
-		FPSAnimator animator = new FPSAnimator( frame.getCanvas(), 200 );
-		animator.setUpdateFPSFrames(100, System.out );
-		animator.start();
+//		FPSAnimator animator = new FPSAnimator( frame.getCanvas(), 200 );
+//		animator.setUpdateFPSFrames(100, System.out );
+//		animator.start();
 	}
 }

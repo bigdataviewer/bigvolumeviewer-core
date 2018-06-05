@@ -127,7 +127,7 @@ public class Example2 implements GLEventListener
 				return Example2.this.canLoadBlock( key );
 			}
 		};
-		blockCache = new TextureBlockCache<>( paddedBlockSize, 500, blockLoader );
+		blockCache = new TextureBlockCache<>( paddedBlockSize, 200, blockLoader );
 	}
 
 	@Override
@@ -298,8 +298,8 @@ public class Example2 implements GLEventListener
 		modeprog.setUniform( gl, "cacheSize", cacheSize[ 0 ], cacheSize[ 1 ], cacheSize[ 2 ] );
 		modeprog.setUniform( gl, "blockScales", lookupBlockScales );
 		final int[] lutSize = lookupTexture.getSize();
-		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
-		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
+//		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
+//		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
 
 		modeprog.setUniform( gl, "lutScale",
 				( float ) ( 1.0 / ( blockSize[ 0 ] * lutSize[ 0 ] ) ),
@@ -537,10 +537,7 @@ public class Example2 implements GLEventListener
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
-			final AffineTransform3D t = new AffineTransform3D();
-			t.set( 0.20765023354835557, 0.02415693031198364, -0.9779048129676096, 321.05506460482746, 0.05232798522331314, 0.9979893198293253, 0.035764500123301124, 27.597765098903665, 0.9768025196884895, -0.05859829540611955, 0.20596863184891784, -385.0387678359513 );
-			tf.setTransform( t );
-//			tf.setTransform( new AffineTransform3D() );
+			tf.setTransform( new AffineTransform3D() );
 		}, "reset transform", "R" );
 		frame.getDefaultActions().runnableAction( () -> {
 			glPainter.toggleVolumeSliceMode();
@@ -592,8 +589,8 @@ public class Example2 implements GLEventListener
 		frame.show();
 
 //		// print fps
-		FPSAnimator animator = new FPSAnimator( frame.getCanvas(), 200 );
-		animator.setUpdateFPSFrames(100, System.out );
-		animator.start();
+//		FPSAnimator animator = new FPSAnimator( frame.getCanvas(), 200 );
+//		animator.setUpdateFPSFrames(100, System.out );
+//		animator.start();
 	}
 }

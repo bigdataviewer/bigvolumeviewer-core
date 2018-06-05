@@ -14,6 +14,7 @@ import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
+import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_WRAP_R;
 import static com.jogamp.opengl.GL2ES3.GL_RGBA8UI;
@@ -77,6 +78,6 @@ public class LookupTextureARGB
 		final int d = size[ 2 ];
 
 		gl.glBindTexture( GL_TEXTURE_3D, texture );
-		gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, w, h, d, GL_RGBA_INTEGER, GL_BYTE, ByteBuffer.wrap( lut ) );
+		gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, w, h, d, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, ByteBuffer.wrap( lut ) );
 	}
 }
