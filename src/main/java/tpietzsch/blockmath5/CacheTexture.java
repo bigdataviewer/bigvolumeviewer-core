@@ -220,7 +220,7 @@ public class CacheTexture
 //			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 34, 0, 340, 340, 34, GL_RED, GL_UNSIGNED_SHORT, 340 * 340 * 34 * 2 );
 			gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 );
 			final long t1 = System.currentTimeMillis();
-			System.out.println( "upload: " + ( t1 - t0 ) + "ms" );
+//			System.out.println( "upload: " + ( t1 - t0 ) + "ms" );
 
 			tasks.clear();
 			state = State.CLEAN;

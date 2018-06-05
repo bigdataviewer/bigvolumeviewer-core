@@ -11,7 +11,6 @@ import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.util.FPSAnimator;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
@@ -27,7 +26,6 @@ import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
-import tpietzsch.blockmath2.LookupTexture;
 import tpietzsch.blockmath3.TextureBlock;
 import tpietzsch.blockmath4.MipmapSizes;
 import tpietzsch.blockmath5.CacheTexture.UploadBuffer;
@@ -52,17 +50,15 @@ import static bdv.volume.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
-import static com.jogamp.opengl.GL.GL_RGB16F;
 import static com.jogamp.opengl.GL.GL_RGB8;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE1;
-import static com.jogamp.opengl.GL.GL_TEXTURE2;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 
 /**
  * Consolidate cache texture loading
  */
-public class Example1 implements GLEventListener
+public class Example2 implements GLEventListener
 {
 	private final OffScreenFrameBuffer offscreen;
 
@@ -84,7 +80,11 @@ public class Example1 implements GLEventListener
 
 	private final TextureBlockCache< BlockKey > blockCache;
 
-	private LookupTexture lookupTexture;
+	private static final int NUM_BLOCK_SCALES = 10;
+
+	private float[][] lookupBlockScales = new float[ NUM_BLOCK_SCALES ][ 3 ];
+
+	private LookupTextureARGB lookupTexture;
 
 	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
 
@@ -108,7 +108,7 @@ public class Example1 implements GLEventListener
 
 	private final Runnable requestRepaint;
 
-	public Example1( final CacheControl cacheControl, final Runnable requestRepaint )
+	public Example2( final CacheControl cacheControl, final Runnable requestRepaint )
 	{
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
@@ -118,13 +118,13 @@ public class Example1 implements GLEventListener
 			@Override
 			public boolean loadBlock( final BlockKey key, final UploadBuffer buffer )
 			{
-				return Example1.this.loadBlock( key, buffer );
+				return Example2.this.loadBlock( key, buffer );
 			}
 
 			@Override
 			public boolean canLoadBlock( final BlockKey key )
 			{
-				return Example1.this.canLoadBlock( key );
+				return Example2.this.canLoadBlock( key );
 			}
 		};
 		blockCache = new TextureBlockCache<>( paddedBlockSize, 500, blockLoader );
@@ -141,10 +141,10 @@ public class Example1 implements GLEventListener
 		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
 
 		prog = new Shader( gl, "ex1", "ex1", tpietzsch.day10.Example5.class );
-		progvol = new Shader( gl, "ex1", "ex1vol" );
+		progvol = new Shader( gl, "ex1", "ex2vol" );
 		progslice = new Shader( gl, "ex1", "ex1slice" );
 
-		lookupTexture = new LookupTexture( new int[] { 64, 64, 64 }, GL_RGB16F );
+		lookupTexture = new LookupTextureARGB( new int[] { 64, 64, 64 } );
 
 		gl.glEnable( GL_DEPTH_TEST );
 	}
@@ -286,16 +286,30 @@ public class Example1 implements GLEventListener
 		modeprog.setUniform( gl, "sourcemin", sourceLevelMin );
 		modeprog.setUniform( gl, "sourcemax", sourceLevelMax );
 
-		modeprog.setUniform( gl, "scaleLut", 0 );
-		modeprog.setUniform( gl, "offsetLut", 1 );
-		modeprog.setUniform( gl, "volumeCache", 2 );
-		lookupTexture.bindTextures( gl, GL_TEXTURE0, GL_TEXTURE1 );
-		blockCache.bindTextures( gl, GL_TEXTURE2 );
+		modeprog.setUniform( gl, "lut", 0 );
+		modeprog.setUniform( gl, "volumeCache", 1 );
+		lookupTexture.bindTextures( gl, GL_TEXTURE0 );
+		blockCache.bindTextures( gl, GL_TEXTURE1 );
 
 		modeprog.setUniform( gl, "blockSize", blockSize[ 0 ], blockSize[ 1 ], blockSize[ 2 ] );
+		modeprog.setUniform( gl, "paddedBlockSize", paddedBlockSize[ 0 ], paddedBlockSize[ 1 ], paddedBlockSize[ 2 ] );
+		modeprog.setUniform( gl, "cachePadOffset", cachePadOffset[ 0 ], cachePadOffset[ 1 ], cachePadOffset[ 2 ] );
+		final int[] cacheSize = blockCache.getCacheTextureSize();
+		modeprog.setUniform( gl, "cacheSize", cacheSize[ 0 ], cacheSize[ 1 ], cacheSize[ 2 ] );
+		modeprog.setUniform( gl, "blockScales", lookupBlockScales );
 		final int[] lutSize = lookupTexture.getSize();
 		modeprog.setUniform( gl, "lutSize", lutSize[ 0 ], lutSize[ 1 ], lutSize[ 2 ] );
 		modeprog.setUniform( gl, "padSize", pad[ 0 ], pad[ 1 ], pad[ 2 ] );
+
+		modeprog.setUniform( gl, "lutScale",
+				( float ) ( 1.0 / ( blockSize[ 0 ] * lutSize[ 0 ] ) ),
+				( float ) ( 1.0 / ( blockSize[ 1 ] * lutSize[ 1 ] ) ),
+				( float ) ( 1.0 / ( blockSize[ 2 ] * lutSize[ 2 ] ) ) );
+		modeprog.setUniform( gl, "lutOffset",
+				( float ) ( ( double ) pad[ 0 ] / lutSize[ 0 ] ),
+				( float ) ( ( double ) pad[ 1 ] / lutSize[ 1 ] ),
+				( float ) ( ( double ) pad[ 2 ] / lutSize[ 2 ] ) );
+
 
 		final double min = 962; // weber
 		final double max = 6201;
@@ -392,11 +406,9 @@ public class Example1 implements GLEventListener
 		lutSize[ 0 ] = rmax[ 0 ] - rmin[ 0 ] + 1 + 2 * padSize[ 0 ];
 		lutSize[ 1 ] = rmax[ 1 ] - rmin[ 1 ] + 1 + 2 * padSize[ 1 ];
 		lutSize[ 2 ] = rmax[ 2 ] - rmin[ 2 ] + 1 + 2 * padSize[ 2 ];
-		final int[] cacheSize = blockCache.getCacheTextureSize();
 
-		final int dataSize = 3 * ( int ) Intervals.numElements( lutSize );
-		final float[] qsData = new float[ dataSize ];
-		final float[] qdData = new float[ dataSize ];
+		final int dataSize = 4 * ( int ) Intervals.numElements( lutSize );
+		final byte[] lutData = new byte[ dataSize ];
 
 		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
 		final Vector3f blockCenter = new Vector3f();
@@ -411,6 +423,20 @@ public class Example1 implements GLEventListener
 		final ArrayList< int[] > gridPositions = requiredBlocks.getGridPositions();
 		final double[] sij = new double[ 3 ];
 		final int[] gj = new int[ 3 ];
+
+		// update lookupBlockScales
+		// lookupBlockScales[0] for oob
+		// lookupBlockScales[i+1] for relative scale between baseLevel and level baseLevel+i
+		for ( int d = 0; d < 3; ++d )
+			lookupBlockScales[ 0 ][ d ] = 0;
+		for ( int level = baseLevel; level <= maxLevel; ++level )
+		{
+			final ResolutionLevel3D< VolatileUnsignedShortType > resolution = multiResolutionStack.resolutions().get( level );
+			final double[] sj = resolution.getS();
+			final int i = 1 + level - baseLevel;
+			for ( int d = 0; d < 3; ++d )
+				lookupBlockScales[ i ][ d ] = ( float ) ( sj[ d ] * r[ d ] );
+		}
 
 		boolean needsRepaint = false;
 		for ( final int[] g0 : gridPositions )
@@ -436,18 +462,11 @@ public class Example1 implements GLEventListener
 								: blockCache.getIfPresentOrCompletable( gl, new BlockKey( gj, resolution ) );
 				if ( textureBlock != null )
 				{
-					final int[] texpos = textureBlock.getPos();
+					final int[] gridPos = textureBlock.getGridPos();
 					final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
 					for ( int d = 0; d < 3; ++d )
-					{
-						final double qs = sij[ d ] * lutSize[ d ] * blockSize[ d ] / cacheSize[ d ];
-						final double p = g0[ d ] * blockSize[ d ];
-						final double hj = 0.5 * ( sij[ d ] - 1 );
-						final double c0 = texpos[ d ] + cachePadOffset[ d ] + p * sij[ d ] - gj[ d ] * blockSize[ d ] + hj;
-						final double qd = ( c0 - sij[ d ] * ( pad[ d ] * blockSize[ d ] + p ) + 0.5 ) / cacheSize[ d ];
-						qsData[ 3 * i + d ] = ( float ) qs;
-						qdData[ 3 * i + d ] = ( float ) qd;
-					}
+						lutData[ 4 * i + d ] = ( byte ) gridPos[ d ];
+					lutData[ 4 * i + 3 ] = ( byte ) ( level - baseLevel + 1 );
 
 					if ( level != bestLevel || textureBlock.needsLoading() )
 						needsRepaint = true;
@@ -458,7 +477,7 @@ public class Example1 implements GLEventListener
 		}
 		final long t1 = System.currentTimeMillis();
 		lookupTexture.resize( gl, lutSize );
-		lookupTexture.set( gl, qsData, qdData );
+		lookupTexture.set( gl, lutData );
 		final long t2 = System.currentTimeMillis();
 		blockCache.printStats();
 //		System.out.println( "lookup texture took " + ( t1 - t0 ) + " ms to compute, " + ( t2 - t1 ) + " ms to upload" );
@@ -512,9 +531,9 @@ public class Example1 implements GLEventListener
 
 		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
-		final InputFrame frame = new InputFrame( "Example1", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example2", 640, 480 );
 		InputFrame.DEBUG = false;
-		final Example1 glPainter = new Example1( stacks.getCacheControl(), frame::requestRepaint );
+		final Example2 glPainter = new Example2( stacks.getCacheControl(), frame::requestRepaint );
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
