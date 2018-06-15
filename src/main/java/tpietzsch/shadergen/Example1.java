@@ -97,7 +97,7 @@ public class Example1 implements GLEventListener
 		final Playground.ShaderFragment shaderFragment = template.instantiate();
 		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { new StringBuilder( shaderFragment.getCode() ) } } );
 
-		final JoglUniform3f joglUniform3f = new JoglUniform3f( shaderFragment.getName( "rgb" ) );
+		final JoglUniform3f joglUniform3f = new JoglUniform3f( shaderFragment.getIdentifier( "rgb" ) );
 		uniforms.add( joglUniform3f );
 		rgb = joglUniform3f;
 

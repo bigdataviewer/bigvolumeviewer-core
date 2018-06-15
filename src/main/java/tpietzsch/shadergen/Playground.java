@@ -8,7 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.joml.Vector2fc;
 import org.joml.Vector3fc;
+import org.joml.Vector4fc;
 import org.stringtemplate.v4.ST;
 
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
@@ -25,20 +27,6 @@ public class Playground
 		final ShaderFragmentTemplate template = new ShaderFragmentTemplate( resourceContext, resourceName, keys );
 		final ShaderFragment shaderFragment = template.instantiate();
 		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { new StringBuilder( shaderFragment.code ) } } );
-
-
-
-
-//		vs.defaultShaderCustomization( gl3, true, false );
-//		fs.defaultShaderCustomization( gl3, true, false );
-//
-//		prog = new ShaderProgram();
-//		prog.add( vs );
-//		prog.add( fs );
-//		prog.link( gl3, System.err );
-//		vs.destroy( gl3 );
-//		fs.destroy( gl3 );
-
 	}
 
 
@@ -62,7 +50,7 @@ public class Playground
 			return code;
 		}
 
-		public String getName( final String key )
+		public String getIdentifier( final String key )
 		{
 			return keyToInstance.get( key );
 		}
@@ -119,6 +107,21 @@ public class Playground
 		void set( int value );
 	}
 
+	public interface Uniform1f
+	{
+		void set( float value );
+	}
+
+	public interface Uniform2f
+	{
+		void set( float v0, float v1 );
+
+		default void set( Vector2fc v )
+		{
+			set( v.x(), v.y() );
+		}
+	}
+
 	public interface Uniform3f
 	{
 		void set( float v0, float v1, float v2 );
@@ -126,6 +129,16 @@ public class Playground
 		default void set( Vector3fc v )
 		{
 			set( v.x(), v.y(), v.z() );
+		}
+	}
+
+	public interface Uniform4f
+	{
+		void set( float v0, float v1, float v2, float v3 );
+
+		default void set( Vector4fc v )
+		{
+			set( v.x(), v.y(), v.z(), v.w() );
 		}
 	}
 
@@ -165,9 +178,24 @@ public class Playground
 			gl().glProgramUniform1i( program(), location( uniform.name ), value );
 		}
 
+		void setUniform1f( final AbstractJoglUniform uniform, final float v0 )
+		{
+			gl().glProgramUniform1f( program(), location( uniform.name ), v0 );
+		}
+
+		void setUniform2f( final AbstractJoglUniform uniform, final float v0, final float v1 )
+		{
+			gl().glProgramUniform2f( program(), location( uniform.name ), v0, v1 );
+		}
+
 		void setUniform3f( final AbstractJoglUniform uniform, final float v0, final float v1, final float v2 )
 		{
 			gl().glProgramUniform3f( program(), location( uniform.name ), v0, v1, v2 );
+		}
+
+		void setUniform4f( final AbstractJoglUniform uniform, final float v0, final float v1, final float v2, final float v3 )
+		{
+			gl().glProgramUniform4f( program(), location( uniform.name ), v0, v1, v2, v3 );
 		}
 
 		void updateUniformValues( final AbstractJoglUniform uniform )
@@ -235,6 +263,60 @@ public class Playground
 		}
 	}
 
+	static class JoglUniform1f extends AbstractJoglUniform implements Uniform1f
+	{
+		private float v0;
+
+		public JoglUniform1f( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public void set( final float v0 )
+		{
+			if ( this.v0 != v0 )
+			{
+				this.v0 = v0;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( final JoglUniformContext context )
+		{
+			context.setUniform1f( this, v0 );
+		}
+	}
+
+	static class JoglUniform2f extends AbstractJoglUniform implements Uniform2f
+	{
+		private float v0;
+		private float v1;
+
+		public JoglUniform2f( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public void set( final float v0, final float v1 )
+		{
+			if ( this.v0 != v0 || this.v1 != v1 )
+			{
+				this.v0 = v0;
+				this.v1 = v1;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( final JoglUniformContext context )
+		{
+			context.setUniform2f( this, v0, v1 );
+		}
+	}
+
 	static class JoglUniform3f extends AbstractJoglUniform implements Uniform3f
 	{
 		private float v0;
@@ -262,6 +344,38 @@ public class Playground
 		void setInShader( final JoglUniformContext context )
 		{
 			context.setUniform3f( this, v0, v1, v2 );
+		}
+	}
+
+	static class JoglUniform4f extends AbstractJoglUniform implements Uniform4f
+	{
+		private float v0;
+		private float v1;
+		private float v2;
+		private float v3;
+
+		public JoglUniform4f( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public void set( final float v0, final float v1, final float v2, float v3 )
+		{
+			if ( this.v0 != v0 || this.v1 != v1 || this.v2 != v2 || this.v3 != v3 )
+			{
+				this.v0 = v0;
+				this.v1 = v1;
+				this.v2 = v2;
+				this.v3 = v3;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( final JoglUniformContext context )
+		{
+			context.setUniform4f( this, v0, v1, v2, v3 );
 		}
 	}
 }
