@@ -12,6 +12,7 @@ import org.joml.Vector3fc;
 import org.stringtemplate.v4.ST;
 
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
+import static tpietzsch.shadergen.StringTemplateStuff.clearAttributes;
 
 public class Playground
 {
@@ -85,20 +86,28 @@ public class Playground
 			this.keys = keys;
 		}
 
-		public ShaderFragment instantiate()
+		public Map< String, String > proposeKeyToIdentifierMap()
 		{
-			Map< String, String > keyToInstance = new HashMap<>();
+			Map< String, String > keyToIdentifier = new HashMap<>();
 			int baseId = idGen.getAndAdd( keys.size() );
 			for ( String key : keys )
 			{
 				String instance = String.format( "%s__%d__", key, baseId++ );
-				st.add( key, instance );
-				keyToInstance.put( key, instance );
+				keyToIdentifier.put( key, instance );
 			}
+			return keyToIdentifier;
+		}
 
-			String code = st.render();
+		public ShaderFragment instantiate()
+		{
+			return instantiate( proposeKeyToIdentifierMap() );
+		}
 
-			return new ShaderFragment( code, keyToInstance );
+		public ShaderFragment instantiate( Map< String, String > keyToIdentifier )
+		{
+			clearAttributes( st );
+			keys.forEach( key -> st.add( key, keyToIdentifier.get( key ) ) );
+			return new ShaderFragment( st.render(), keyToIdentifier );
 		}
 	}
 
