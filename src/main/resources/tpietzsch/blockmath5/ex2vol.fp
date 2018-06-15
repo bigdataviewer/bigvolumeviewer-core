@@ -26,7 +26,10 @@ uniform vec3 lutOffset;
 
 uniform float intensity_offset;
 uniform float intensity_scale;
-
+vec4 convert( float v )
+{
+	return vec4( vec3( intensity_offset + intensity_scale * v ), 1 );
+}
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -88,7 +91,7 @@ void main()
 			                                       // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
 			v = max( v, texture( volumeCache, c0 / cacheSize ).r );
 		}
-		FragColor = vec4( vec3( intensity_offset + intensity_scale * v ), 1 );
+		FragColor = convert( v );
 	}
 	else
 		discard;

@@ -1,0 +1,9 @@
+layout (location = 0) in vec3 aPos;
+
+void main()
+{
+    /*
+    To set the output of the vertex shader we have to assign the position data to the predefined gl_Position variable which is a vec4 behind the scenes.
+    */
+    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+}
