@@ -18,7 +18,10 @@ import tpietzsch.day1.SimpleFrame;
 import tpietzsch.shadergen.Playground.AbstractJoglUniform;
 import tpietzsch.shadergen.Playground.JoglUniform3f;
 import tpietzsch.shadergen.Playground.JoglUniformContext;
+import tpietzsch.shadergen.Playground.JoglUniforms;
+import tpietzsch.shadergen.Playground.ShaderFragment;
 import tpietzsch.shadergen.Playground.Uniform3f;
+import tpietzsch.shadergen.Playground.Uniforms;
 
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
@@ -33,9 +36,9 @@ public class Example1 implements GLEventListener
 
 	private ShaderProgram prog;
 
-	private Uniform3f rgb;
+	private Uniforms uniforms = new JoglUniforms();
 
-	private ArrayList< AbstractJoglUniform > uniforms = new ArrayList<>();
+	private Uniform3f rgb;
 
 	@Override
 	public void init( final GLAutoDrawable drawable )
@@ -94,12 +97,11 @@ public class Example1 implements GLEventListener
 		{
 			throw new RuntimeException( e );
 		}
-		final Playground.ShaderFragment shaderFragment = template.instantiate();
+		ShaderFragment shaderFragment = template.instantiate();
+		uniforms.addShaderFragment( shaderFragment );
 		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { new StringBuilder( shaderFragment.getCode() ) } } );
 
-		final JoglUniform3f joglUniform3f = new JoglUniform3f( shaderFragment.getIdentifier( "rgb" ) );
-		uniforms.add( joglUniform3f );
-		rgb = joglUniform3f;
+		rgb = uniforms.getUniform3f( "rgb" );
 
 		vs.defaultShaderCustomization( gl3, true, false );
 		fs.defaultShaderCustomization( gl3, true, false );
@@ -140,8 +142,7 @@ public class Example1 implements GLEventListener
 		prog.useProgram( gl3, true );
 
 		final JoglUniformContext context = new JoglUniformContext( gl3, prog.program() );
-		uniforms.forEach( context::updateUniformValues );
-//		gl3.glProgramUniform3f( prog.program(), gl3.glGetUniformLocation( prog.program(), "rgb__0__" ), 1, 0, 1 );
+		uniforms.updateUniformValues( context );
 
 		gl3.glBindVertexArray( vao );
 		gl3.glDrawArrays( GL_TRIANGLES, 0, 3 );

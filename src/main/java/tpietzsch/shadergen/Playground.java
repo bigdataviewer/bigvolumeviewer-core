@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.joml.Vector2fc;
 import org.joml.Vector3fc;
 import org.joml.Vector4fc;
@@ -37,12 +39,12 @@ public class Playground
 	{
 		private final String code;
 
-		private final Map< String, String > keyToInstance;
+		private final Map< String, String > keyToIdentifier;
 
-		public ShaderFragment( final String code, final Map< String, String > keyToInstance )
+		public ShaderFragment( final String code, final Map< String, String > keyToIdentifier )
 		{
 			this.code = code;
-			this.keyToInstance = keyToInstance;
+			this.keyToIdentifier = keyToIdentifier;
 		}
 
 		public String getCode()
@@ -52,7 +54,12 @@ public class Playground
 
 		public String getIdentifier( final String key )
 		{
-			return keyToInstance.get( key );
+			return keyToIdentifier.get( key );
+		}
+
+		public Map< String, String > getKeyToIdentifierMap()
+		{
+			return keyToIdentifier;
 		}
 	}
 
@@ -101,7 +108,6 @@ public class Playground
 
 	// =======================
 
-
 	public interface Uniform1i
 	{
 		void set( int value );
@@ -142,11 +148,84 @@ public class Playground
 		}
 	}
 
+	public interface Uniforms
+	{
+		void addShaderFragment( ShaderFragment fragment );
+
+		void setUniformValues( UniformContext context );
+
+		void updateUniformValues( UniformContext context );
+
+		Uniform3f getUniform3f( String key );
+	}
+
+	public interface UniformContext
+	{}
 
 	// =======================
 
+	static class JoglUniforms implements Uniforms
+	{
+		private final Map< String, String > keyToIdentifier = new HashMap<>();
 
-	static class JoglUniformContext
+		private final Map< String, AbstractJoglUniform > keyToUniform = new HashMap<>();
+
+		@Override
+		public void addShaderFragment( ShaderFragment fragment )
+		{
+			final Map< String, String > map = fragment.getKeyToIdentifierMap();
+			map.forEach( ( key, identifier ) -> {
+				final String existing = keyToIdentifier.put( key, identifier );
+				if ( existing != null && !identifier.equals( existing ) )
+					throw new IllegalArgumentException(
+							"ShaderFragments map key '" + key
+									+ "' to distinct identifers '" + identifier
+									+ "' and '" + existing + "'" );
+			} );
+		}
+
+		@Override
+		public Uniform3f getUniform3f( String key )
+		{
+			return getUniform( key, JoglUniform3f.class, name -> new JoglUniform3f( name ) );
+		}
+
+		public void setUniformValues( UniformContext context )
+		{
+			JoglUniformContext juc = ( JoglUniformContext ) context;
+			keyToUniform.values().forEach( juc::setUniformValues );
+		}
+
+		public void updateUniformValues( UniformContext context )
+		{
+			JoglUniformContext juc = ( JoglUniformContext ) context;
+			keyToUniform.values().forEach( juc::updateUniformValues );
+		}
+
+		private synchronized < T extends AbstractJoglUniform > T getUniform( String key, Class< T > klass, Function< String, T > create )
+		{
+			final AbstractJoglUniform uniform = keyToUniform.get( key );
+			if ( uniform == null )
+			{
+				final T u = create.apply( keyToIdentifier.get( key ) );
+				keyToUniform.put( key, u );
+				return u;
+			}
+			else if ( klass.isInstance( uniform )  )
+			{
+				return ( T ) uniform;
+			}
+			else
+			{
+				throw new IllegalArgumentException(
+						"trying to get uniform '" + key
+								+ "' of class " + klass.getSimpleName()
+								+ " which is already present with class " + uniform.getClass().getSimpleName() );
+			}
+		}
+	}
+
+	static class JoglUniformContext implements UniformContext
 	{
 		private final GL2ES2 gl;
 
