@@ -10,12 +10,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import net.imglib2.RealInterval;
 import org.joml.Vector2fc;
 import org.joml.Vector3fc;
 import org.joml.Vector4fc;
 import org.stringtemplate.v4.ST;
 
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
+import static tpietzsch.shadergen.Playground.MinMax.MIN;
 import static tpietzsch.shadergen.StringTemplateStuff.clearAttributes;
 
 public class Playground
@@ -108,9 +110,29 @@ public class Playground
 
 	// =======================
 
+	public enum MinMax
+	{
+		MIN, MAX
+	}
+
 	public interface Uniform1i
 	{
-		void set( int value );
+		void set( int v0 );
+	}
+
+	public interface Uniform2i
+	{
+		void set( int v0, int v1 );
+	}
+
+	public interface Uniform3i
+	{
+		void set( int v0, int v1, int v2 );
+	}
+
+	public interface Uniform4i
+	{
+		void set( int v0, int v1, int v2, int v3 );
 	}
 
 	public interface Uniform1f
@@ -126,6 +148,23 @@ public class Playground
 		{
 			set( v.x(), v.y() );
 		}
+
+		default void set( RealInterval interval, MinMax minmax )
+		{
+			if ( interval.numDimensions() < 2 )
+				throw new IllegalArgumentException(
+						"Interval has " + interval.numDimensions() + " dimensions."
+								+ "Expected interval of at least dimension 2." );
+
+			if ( minmax == MIN )
+				set(
+						( float ) interval.realMin( 0 ),
+						( float ) interval.realMin( 1 ) );
+			else
+				set(
+						( float ) interval.realMax( 0 ),
+						( float ) interval.realMax( 1 ) );
+		}
 	}
 
 	public interface Uniform3f
@@ -135,6 +174,25 @@ public class Playground
 		default void set( Vector3fc v )
 		{
 			set( v.x(), v.y(), v.z() );
+		}
+
+		default void set( RealInterval interval, MinMax minmax )
+		{
+			if ( interval.numDimensions() < 3 )
+				throw new IllegalArgumentException(
+						"Interval has " + interval.numDimensions() + " dimensions."
+								+ "Expected interval of at least dimension 3." );
+
+			if ( minmax == MIN )
+				set(
+						( float ) interval.realMin( 0 ),
+						( float ) interval.realMin( 1 ),
+						( float ) interval.realMin( 2 ) );
+			else
+				set(
+						( float ) interval.realMax( 0 ),
+						( float ) interval.realMax( 1 ),
+						( float ) interval.realMax( 2 ) );
 		}
 	}
 
@@ -146,6 +204,27 @@ public class Playground
 		{
 			set( v.x(), v.y(), v.z(), v.w() );
 		}
+
+		default void set( RealInterval interval, MinMax minmax )
+		{
+			if ( interval.numDimensions() < 4 )
+				throw new IllegalArgumentException(
+						"Interval has " + interval.numDimensions() + " dimensions."
+								+ "Expected interval of at least dimension 4." );
+
+			if ( minmax == MIN )
+				set(
+						( float ) interval.realMin( 0 ),
+						( float ) interval.realMin( 1 ),
+						( float ) interval.realMin( 2 ),
+						( float ) interval.realMin( 3 ) );
+			else
+				set(
+						( float ) interval.realMax( 0 ),
+						( float ) interval.realMax( 1 ),
+						( float ) interval.realMax( 2 ),
+						( float ) interval.realMax( 3 ) );
+		}
 	}
 
 	public interface Uniforms
@@ -156,7 +235,21 @@ public class Playground
 
 		void updateUniformValues( UniformContext context );
 
+		Uniform1i getUniform1i( String key );
+
+		Uniform2i getUniform2i( String key );
+
+		Uniform3i getUniform3i( String key );
+
+		Uniform4i getUniform4i( String key );
+
+		Uniform1f getUniform1f( String key );
+
+		Uniform2f getUniform2f( String key );
+
 		Uniform3f getUniform3f( String key );
+
+		Uniform4f getUniform4f( String key );
 	}
 
 	public interface UniformContext
@@ -185,9 +278,51 @@ public class Playground
 		}
 
 		@Override
-		public Uniform3f getUniform3f( String key )
+		public Uniform1i getUniform1i( final String key )
 		{
-			return getUniform( key, JoglUniform3f.class, name -> new JoglUniform3f( name ) );
+			return getUniform( key, JoglUniform1i.class, JoglUniform1i::new );
+		}
+
+		@Override
+		public Uniform2i getUniform2i( final String key )
+		{
+			return getUniform( key, JoglUniform2i.class, JoglUniform2i::new );
+		}
+
+		@Override
+		public Uniform3i getUniform3i( final String key )
+		{
+			return getUniform( key, JoglUniform3i.class, JoglUniform3i::new );
+		}
+
+		@Override
+		public Uniform4i getUniform4i( final String key )
+		{
+			return getUniform( key, JoglUniform4i.class, JoglUniform4i::new );
+		}
+
+		@Override
+		public Uniform1f getUniform1f( final String key )
+		{
+			return getUniform( key, JoglUniform1f.class, JoglUniform1f::new );
+		}
+
+		@Override
+		public Uniform2f getUniform2f( final String key )
+		{
+			return getUniform( key, JoglUniform2f.class, JoglUniform2f::new );
+		}
+
+		@Override
+		public Uniform3f getUniform3f( final String key )
+		{
+			return getUniform( key, JoglUniform3f.class, JoglUniform3f::new );
+		}
+
+		@Override
+		public Uniform4f getUniform4f( final String key )
+		{
+			return getUniform( key, JoglUniform4f.class, JoglUniform4f::new );
 		}
 
 		public void setUniformValues( UniformContext context )
@@ -252,9 +387,24 @@ public class Playground
 			return gl().glGetUniformLocation( program(), name );
 		}
 
-		void setUniform1i( final AbstractJoglUniform uniform, final int value )
+		void setUniform1i( final AbstractJoglUniform uniform, final int v0 )
 		{
-			gl().glProgramUniform1i( program(), location( uniform.name ), value );
+			gl().glProgramUniform1i( program(), location( uniform.name ), v0 );
+		}
+
+		void setUniform2i( final AbstractJoglUniform uniform, final int v0, final int v1 )
+		{
+			gl().glProgramUniform2i( program(), location( uniform.name ), v0, v1 );
+		}
+
+		void setUniform3i( final AbstractJoglUniform uniform, final int v0, final int v1, final int v2 )
+		{
+			gl().glProgramUniform3i( program(), location( uniform.name ), v0, v1, v2 );
+		}
+
+		void setUniform4i( final AbstractJoglUniform uniform, final int v0, final int v1, final int v2, final int v3 )
+		{
+			gl().glProgramUniform4i( program(), location( uniform.name ), v0, v1, v2, v3 );
 		}
 
 		void setUniform1f( final AbstractJoglUniform uniform, final float v0 )
@@ -339,6 +489,96 @@ public class Playground
 		void setInShader( JoglUniformContext context )
 		{
 			context.setUniform1i( this, v0 );
+		}
+	}
+
+	static class JoglUniform2i extends AbstractJoglUniform implements Uniform2i
+	{
+		private int v0;
+		private int v1;
+
+		public JoglUniform2i( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public synchronized void set( final int v0, int v1 )
+		{
+			if ( this.v0 != v0 || this.v1 != v1)
+			{
+				this.v0 = v0;
+				this.v1 = v1;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( JoglUniformContext context )
+		{
+			context.setUniform2i( this, v0, v1 );
+		}
+	}
+
+	static class JoglUniform3i extends AbstractJoglUniform implements Uniform3i
+	{
+		private int v0;
+		private int v1;
+		private int v2;
+
+		public JoglUniform3i( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public synchronized void set( final int v0, int v1, int v2 )
+		{
+			if ( this.v0 != v0 || this.v1 != v1 || this.v2 != v2 )
+			{
+				this.v0 = v0;
+				this.v1 = v1;
+				this.v2 = v2;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( JoglUniformContext context )
+		{
+			context.setUniform3i( this, v0, v1, v2 );
+		}
+	}
+
+	static class JoglUniform4i extends AbstractJoglUniform implements Uniform4i
+	{
+		private int v0;
+		private int v1;
+		private int v2;
+		private int v3;
+
+		public JoglUniform4i( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public synchronized void set( final int v0, int v1, int v2, int v3 )
+		{
+			if ( this.v0 != v0 || this.v1 != v1 || this.v2 != v2 || this.v3 != v3 )
+			{
+				this.v0 = v0;
+				this.v1 = v1;
+				this.v2 = v2;
+				this.v3 = v3;
+				modified = true;
+			}
+		}
+
+		@Override
+		void setInShader( JoglUniformContext context )
+		{
+			context.setUniform4i( this, v0, v1, v2, v3 );
 		}
 	}
 
