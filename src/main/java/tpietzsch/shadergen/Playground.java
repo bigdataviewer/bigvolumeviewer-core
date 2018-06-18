@@ -78,11 +78,18 @@ public class Playground
 		public ShaderFragmentTemplate(
 				final Class< ? > resourceContext,
 				final String resourceName,
-				final List< String > keys ) throws IOException
+				final List< String > keys )
 
 		{
-			st = StringTemplateStuff.loadAndPatchSnippet( resourceContext, resourceName, keys );
-			this.keys = keys;
+			try
+			{
+				st = StringTemplateStuff.loadAndPatchSnippet( resourceContext, resourceName, keys );
+				this.keys = keys;
+			}
+			catch ( IOException e )
+			{
+				throw new RuntimeException( e );
+			}
 		}
 
 		public Map< String, String > proposeKeyToIdentifierMap()

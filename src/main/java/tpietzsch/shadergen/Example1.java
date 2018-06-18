@@ -85,21 +85,27 @@ public class Example1 implements GLEventListener
 		ShaderCode vs = ShaderCode.create( gl3, GL2.GL_VERTEX_SHADER, Example1.class, "", null, "ex1", true );
 
 
-		final Class< ? > resourceContext = Playground.class;
-		final String resourceName = "ex1.fp";
-		final List< String > keys = Arrays.asList( "rgb" );
-		Playground.ShaderFragmentTemplate template = null;
-		try
-		{
-			template = new Playground.ShaderFragmentTemplate( resourceContext, resourceName, keys );
-		}
-		catch ( IOException e )
-		{
-			throw new RuntimeException( e );
-		}
-		ShaderFragment shaderFragment = template.instantiate();
-		uniforms.addShaderFragment( shaderFragment );
-		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { new StringBuilder( shaderFragment.getCode() ) } } );
+		final StringBuilder code = new StringBuilder();
+
+		Playground.ShaderFragmentTemplate templateMain = new Playground.ShaderFragmentTemplate(
+				Playground.class,
+				"ex1.fp",
+				Arrays.asList( "rgb", "convert" ) );
+		ShaderFragment fragMain = templateMain.instantiate();
+		uniforms.addShaderFragment( fragMain );
+		code.append( fragMain.getCode() );
+
+//		Playground.ShaderFragmentTemplate templateConvert = new Playground.ShaderFragmentTemplate(
+//				Playground.class,
+//				"convertlin.fp",
+//				Arrays.asList( "intensity_offset", "intensity_scale", "convert" ) );
+//		ShaderFragment fragConvert = templateConvert.instantiate();
+//		uniforms.addShaderFragment( fragConvert );
+//		code.append( fragConvert.getCode );
+
+		System.out.println( "code = " + code );
+
+		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { code } } );
 
 		rgb = uniforms.getUniform3f( "rgb" );
 
