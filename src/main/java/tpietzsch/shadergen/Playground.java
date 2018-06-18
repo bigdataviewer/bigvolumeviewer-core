@@ -1,16 +1,18 @@
 package tpietzsch.shadergen;
 
+import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL2ES2;
 import com.jogamp.opengl.util.glsl.ShaderCode;
 import java.io.IOException;
+import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import net.imglib2.RealInterval;
+import org.joml.Matrix4fc;
 import org.joml.Vector2fc;
 import org.joml.Vector3fc;
 import org.joml.Vector4fc;
@@ -227,6 +229,11 @@ public class Playground
 		}
 	}
 
+	public interface UniformMatrix4f
+	{
+		void set( Matrix4fc m44 );
+	}
+
 	public interface Uniforms
 	{
 		void addShaderFragment( ShaderFragment fragment );
@@ -250,6 +257,8 @@ public class Playground
 		Uniform3f getUniform3f( String key );
 
 		Uniform4f getUniform4f( String key );
+
+		UniformMatrix4f getUniformMatrix4f( String key );
 	}
 
 	public interface UniformContext
@@ -323,6 +332,12 @@ public class Playground
 		public Uniform4f getUniform4f( final String key )
 		{
 			return getUniform( key, JoglUniform4f.class, JoglUniform4f::new );
+		}
+
+		@Override
+		public UniformMatrix4f getUniformMatrix4f( final String key )
+		{
+			return getUniform( key, JoglUniformMatrix4f.class, JoglUniformMatrix4f::new );
 		}
 
 		public void setUniformValues( UniformContext context )
@@ -425,6 +440,12 @@ public class Playground
 		void setUniform4f( final AbstractJoglUniform uniform, final float v0, final float v1, final float v2, final float v3 )
 		{
 			gl().glProgramUniform4f( program(), location( uniform.name ), v0, v1, v2, v3 );
+		}
+
+		// transpose==true: data is in row-major order
+		void setUniformMatrix4f( final AbstractJoglUniform uniform, final boolean transpose, final FloatBuffer value )
+		{
+			gl().glProgramUniformMatrix4fv( program(), location( uniform.name ), 1, transpose, value );
 		}
 
 		void updateUniformValues( final AbstractJoglUniform uniform )
@@ -695,6 +716,28 @@ public class Playground
 		void setInShader( final JoglUniformContext context )
 		{
 			context.setUniform4f( this, v0, v1, v2, v3 );
+		}
+	}
+
+	static class JoglUniformMatrix4f extends AbstractJoglUniform implements UniformMatrix4f
+	{
+		private final FloatBuffer value = Buffers.newDirectFloatBuffer( 16 );
+
+		public JoglUniformMatrix4f( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public void set( Matrix4fc m44 )
+		{
+			m44.get( 0, value );
+		}
+
+		@Override
+		void setInShader( final JoglUniformContext context )
+		{
+			context.setUniformMatrix4f( this, false, value );
 		}
 	}
 }
