@@ -1,4 +1,4 @@
-package tpietzsch.shadergen;
+package tpietzsch.shadergen.example;
 
 // https://learnopengl.com/Getting-started/Hello-Triangle
 
@@ -8,24 +8,18 @@ import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.util.glsl.ShaderCode;
-import com.jogamp.opengl.util.glsl.ShaderProgram;
-import java.io.IOException;
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import tpietzsch.day1.SimpleFrame;
-import tpietzsch.shadergen.Playground.AbstractJoglUniform;
-import tpietzsch.shadergen.Playground.JoglUniform3f;
-import tpietzsch.shadergen.Playground.JoglUniformContext;
-import tpietzsch.shadergen.Playground.JoglUniforms;
-import tpietzsch.shadergen.Playground.ShaderFragment;
-import tpietzsch.shadergen.Playground.Uniform3f;
-import tpietzsch.shadergen.Playground.Uniforms;
+import tpietzsch.shadergen.Uniform3f;
+import tpietzsch.shadergen.backend.jogl.JoglGpuContext;
+import tpietzsch.shadergen.generate.Segment;
+import tpietzsch.shadergen.generate.SegmentTemplate;
+import tpietzsch.shadergen.generate.SegmentedShader;
+import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
-import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
 
 /**
  * Paint a triangle
@@ -34,11 +28,9 @@ public class Example1 implements GLEventListener
 {
 	private int vao;
 
-	private ShaderProgram prog;
-
-	private Uniforms uniforms = new JoglUniforms();
-
 	private Uniform3f rgb;
+
+	private SegmentedShader shader;
 
 	@Override
 	public void init( final GLAutoDrawable drawable )
@@ -87,40 +79,18 @@ public class Example1 implements GLEventListener
 
 		final StringBuilder code = new StringBuilder();
 
-		Playground.ShaderFragmentTemplate templateMain = new Playground.ShaderFragmentTemplate(
-				Playground.class,
+		SegmentTemplate templateMain = new SegmentTemplate(
+				Example1.class,
 				"ex1.fp",
 				Arrays.asList( "rgb", "convert" ) );
-		ShaderFragment fragMain = templateMain.instantiate();
-		uniforms.addShaderFragment( fragMain );
-		code.append( fragMain.getCode() );
-
-//		Playground.ShaderFragmentTemplate templateConvert = new Playground.ShaderFragmentTemplate(
-//				Playground.class,
-//				"convertlin.fp",
-//				Arrays.asList( "intensity_offset", "intensity_scale", "convert" ) );
-//		ShaderFragment fragConvert = templateConvert.instantiate();
-//		uniforms.addShaderFragment( fragConvert );
-//		code.append( fragConvert.getCode );
-
-		System.out.println( "code = " + code );
-
-		final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { code } } );
-
-		rgb = uniforms.getUniform3f( "rgb" );
-
-		vs.defaultShaderCustomization( gl3, true, false );
-		fs.defaultShaderCustomization( gl3, true, false );
-
-
-		prog = new ShaderProgram();
-		prog.add( vs );
-		prog.add( fs );
-		prog.link( gl3, System.err );
-		vs.destroy( gl3 );
-		fs.destroy( gl3 );
-
-
+		Segment fragMain = templateMain.instantiate();
+		SegmentTemplate templateVertMain = new SegmentTemplate(
+				Example1.class,
+				"ex1.vp",
+				Arrays.asList() );
+		Segment vertMain = templateVertMain.instantiate();
+		shader = new SegmentedShaderBuilder().fragment( fragMain ).vertex( vertMain ).build();
+		rgb = shader.getUniform3f( "rgb" );
 
 		// ..:: VERTEX ARRAY OBJECT ::..
 
@@ -145,10 +115,9 @@ public class Example1 implements GLEventListener
 		final GL gl = drawable.getGL();
 		final GL3 gl3 = drawable.getGL().getGL3();
 
-		prog.useProgram( gl3, true );
-
-		final JoglUniformContext context = new JoglUniformContext( gl3, prog.program() );
-		uniforms.updateUniformValues( context );
+		final JoglGpuContext context = JoglGpuContext.get( gl3 );
+		shader.use( context );
+		shader.setUniforms( context );
 
 		gl3.glBindVertexArray( vao );
 		gl3.glDrawArrays( GL_TRIANGLES, 0, 3 );

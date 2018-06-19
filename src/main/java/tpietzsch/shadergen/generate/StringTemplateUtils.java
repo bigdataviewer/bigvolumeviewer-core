@@ -1,16 +1,16 @@
-package tpietzsch.shadergen;
+package tpietzsch.shadergen.generate;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
 import org.stringtemplate.v4.ST;
 
-public class StringTemplateStuff
+public class StringTemplateUtils
 {
 	public static ST loadAndPatchSnippet(
 			final Class< ? > resourceContext,
@@ -20,7 +20,7 @@ public class StringTemplateStuff
 	{
 		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
 		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
-		StringBuilder builder = new StringBuilder();
+		final StringBuilder builder = new StringBuilder();
 		String line;
 		while ( ( line = reader.readLine() ) != null )
 		{
@@ -29,9 +29,9 @@ public class StringTemplateStuff
 		}
 		final String snippet = builder.toString();
 
-		ArrayList< String > searchList = new ArrayList<>();
-		ArrayList< String > replacementList = new ArrayList<>();
-		for ( String key : keys )
+		final ArrayList< String > searchList = new ArrayList<>();
+		final ArrayList< String > replacementList = new ArrayList<>();
+		for ( final String key : keys )
 		{
 			searchList.add( key );
 			replacementList.add( "$" + key + "$" );
@@ -45,7 +45,7 @@ public class StringTemplateStuff
 		return new ST( patched, '$', '$' );
 	}
 
-	public static void clearAttributes( ST st )
+	public static void clearAttributes( final ST st )
 	{
 		if ( st.getAttributes() != null )
 			new ArrayList<>( st.getAttributes().keySet() ).forEach( st::remove );
