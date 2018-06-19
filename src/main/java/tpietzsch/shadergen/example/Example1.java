@@ -1,15 +1,19 @@
 package tpietzsch.shadergen.example;
 
+import static com.jogamp.opengl.GL.GL_FLOAT;
+import static com.jogamp.opengl.GL.GL_TRIANGLES;
+
 // https://learnopengl.com/Getting-started/Hello-Triangle
 
 import com.jogamp.opengl.GL;
-import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
-import com.jogamp.opengl.util.glsl.ShaderCode;
+
 import java.nio.FloatBuffer;
 import java.util.Arrays;
+import java.util.Map;
+
 import tpietzsch.day1.SimpleFrame;
 import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.backend.jogl.JoglGpuContext;
@@ -17,9 +21,6 @@ import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
-
-import static com.jogamp.opengl.GL.GL_FLOAT;
-import static com.jogamp.opengl.GL.GL_TRIANGLES;
 
 /**
  * Paint a triangle
@@ -40,7 +41,7 @@ public class Example1 implements GLEventListener
 
 		// ..:: VERTEX BUFFER ::..
 
-		float[] vertices = new float[] {
+		final float[] vertices = new float[] {
 				-0.5f, -0.5f, 0.0f,
 				0.5f, -0.5f, 0.0f,
 				0.0f, 0.5f, 0.0f
@@ -74,23 +75,52 @@ public class Example1 implements GLEventListener
 
 		// ..:: SHADERS ::..
 
-		ShaderCode vs = ShaderCode.create( gl3, GL2.GL_VERTEX_SHADER, Example1.class, "", null, "ex1", true );
-
-
-		final StringBuilder code = new StringBuilder();
-
-		SegmentTemplate templateMain = new SegmentTemplate(
+		final SegmentTemplate templateFragMain = new SegmentTemplate(
 				Example1.class,
 				"ex1.fp",
-				Arrays.asList( "rgb", "convert" ) );
-		Segment fragMain = templateMain.instantiate();
-		SegmentTemplate templateVertMain = new SegmentTemplate(
+				Arrays.asList( "rgb", "convertR", "convertG", "convertB" ) );
+		final SegmentTemplate templateFragConvert = new SegmentTemplate(
+				Example1.class,
+				"convertlin.fp",
+				Arrays.asList( "offset", "scale", "convert" ) );
+
+		final Map< String, String > mainIdMap = templateFragMain.proposeKeyToIdentifierMap();
+		final Map< String, String > convertRIdMap = templateFragConvert.proposeKeyToIdentifierMap();
+		final Map< String, String > convertGIdMap = templateFragConvert.proposeKeyToIdentifierMap();
+		final Map< String, String > convertBIdMap = templateFragConvert.proposeKeyToIdentifierMap();
+
+		mainIdMap.put( "convertR", convertRIdMap.get( "convert" ) );
+		mainIdMap.put( "convertG", convertGIdMap.get( "convert" ) );
+		mainIdMap.put( "convertB", convertBIdMap.get( "convert" ) );
+
+		final Segment fragMain = templateFragMain.instantiate( mainIdMap );
+		final Segment fragConvertR = templateFragConvert.instantiate( convertRIdMap );
+		final Segment fragConvertG = templateFragConvert.instantiate( convertGIdMap );
+		final Segment fragConvertB = templateFragConvert.instantiate( convertBIdMap );
+
+		final SegmentTemplate templateVertMain = new SegmentTemplate(
 				Example1.class,
 				"ex1.vp",
 				Arrays.asList() );
-		Segment vertMain = templateVertMain.instantiate();
-		shader = new SegmentedShaderBuilder().fragment( fragMain ).vertex( vertMain ).build();
+		final Segment vertMain = templateVertMain.instantiate();
+
+		shader = new SegmentedShaderBuilder()
+				.fragment( fragConvertR )
+				.fragment( fragConvertG )
+				.fragment( fragConvertB )
+				.fragment( fragMain )
+				.vertex( vertMain )
+				.build();
+
+		shader.getUniform1f( fragConvertR, "scale" ).set( 0.5f );
+		shader.getUniform1f( fragConvertR, "offset" ).set( 0.5f );
+		shader.getUniform1f( fragConvertG, "scale" ).set( -0.2f );
+		shader.getUniform1f( fragConvertG, "offset" ).set( 0.5f );
+		shader.getUniform1f( fragConvertB, "scale" ).set( -0.2f );
+		shader.getUniform1f( fragConvertB, "offset" ).set( 0.5f );
+
 		rgb = shader.getUniform3f( "rgb" );
+		rgb.set( 0, 0, 1 );
 
 		// ..:: VERTEX ARRAY OBJECT ::..
 
@@ -111,8 +141,6 @@ public class Example1 implements GLEventListener
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
-		System.out.println( "Example1.display" );
-		final GL gl = drawable.getGL();
 		final GL3 gl3 = drawable.getGL().getGL3();
 
 		final JoglGpuContext context = JoglGpuContext.get( gl3 );
@@ -132,15 +160,15 @@ public class Example1 implements GLEventListener
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 	{
-		++i;
-		if ( i % 20 == 0 )
-			rgb.set( 1, 0, 1 );
-		else if ( i % 20 == 10 )
-			rgb.set( 0, 1, 0 );
+		if ( ++i % 2 == 0 )
+			rgb.set( 1, 1, 1 );
+		else
+			rgb.set( 0, 0, 0 );
 	}
 
-	public static void main( String[] args )
+	public static void main( final String[] args )
 	{
+		SimpleFrame.DEBUG = false;
 		new SimpleFrame( "Example1", 640, 480, new Example1() );
 	}
 }

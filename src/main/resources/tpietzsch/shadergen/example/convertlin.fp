@@ -1,7 +1,8 @@
-uniform float intensity_offset;
-uniform float intensity_scale;
+uniform float scale;
+uniform float offset;
 
-vec4 convert( float v )
+float convert( float v )
 {
-	return vec4( vec3( intensity_offset + intensity_scale * v ), 1 );
+	return scale * v + offset;
 }
+
