@@ -3,6 +3,7 @@ package tpietzsch.shadergen.generate;
 import static tpietzsch.shadergen.generate.StringTemplateUtils.clearAttributes;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,23 @@ public class SegmentTemplate
 	private static final AtomicInteger idGen = new AtomicInteger();
 
 	public SegmentTemplate(
+			final String resourceName,
+			final String ... keys )
+	{
+		this( tryGetContext(), resourceName, Arrays.asList( keys ) );
+	}
+
+	public SegmentTemplate(
+			final String resourceName,
+			final List< String > keys )
+	{
+		this( tryGetContext(), resourceName, keys );
+	}
+
+	public SegmentTemplate(
 			final Class< ? > resourceContext,
 			final String resourceName,
 			final List< String > keys )
-
 	{
 		try
 		{
@@ -35,7 +49,17 @@ public class SegmentTemplate
 		}
 	}
 
-	public Map< String, String > proposeKeyToIdentifierMap()
+	public Segment instantiate()
+	{
+		return instantiate( proposeKeyToIdentifierMap() );
+	}
+
+	private Segment instantiate( final Map< String, String > keyToIdentifier )
+	{
+		return new Segment( this, keyToIdentifier );
+	}
+
+	private Map< String, String > proposeKeyToIdentifierMap()
 	{
 		final Map< String, String > keyToIdentifier = new HashMap<>();
 		int baseId = idGen.getAndAdd( keys.size() );
@@ -47,15 +71,25 @@ public class SegmentTemplate
 		return keyToIdentifier;
 	}
 
-	public Segment instantiate()
-	{
-		return instantiate( proposeKeyToIdentifierMap() );
-	}
-
-	public Segment instantiate( final Map< String, String > keyToIdentifier )
+	String render( final Map< String, String > keyToIdentifier )
 	{
 		clearAttributes( st );
 		keys.forEach( key -> st.add( key, keyToIdentifier.get( key ) ) );
-		return new Segment( st.render(), keyToIdentifier );
+		return st.render();
+	}
+
+	private static Class<?> tryGetContext()
+	{
+		final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+		try
+		{
+			final Class< ? > klass = SegmentTemplate.class.getClassLoader().loadClass( stackTrace[ 3 ].getClassName() );
+			System.out.println( "klass = " + klass );
+			return klass;
+		}
+		catch ( final ClassNotFoundException e )
+		{
+			throw new RuntimeException( e );
+		}
 	}
 }

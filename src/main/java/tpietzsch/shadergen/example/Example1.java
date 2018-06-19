@@ -75,34 +75,22 @@ public class Example1 implements GLEventListener
 
 		// ..:: SHADERS ::..
 
-		final SegmentTemplate templateFragMain = new SegmentTemplate(
-				Example1.class,
-				"ex1.fp",
-				Arrays.asList( "rgb", "convertR", "convertG", "convertB" ) );
 		final SegmentTemplate templateFragConvert = new SegmentTemplate(
-				Example1.class,
 				"convertlin.fp",
-				Arrays.asList( "offset", "scale", "convert" ) );
+				"offset", "scale", "convert" );
+		final Segment fragConvertR = templateFragConvert.instantiate();
+		final Segment fragConvertG = templateFragConvert.instantiate();
+		final Segment fragConvertB = templateFragConvert.instantiate();
 
-		final Map< String, String > mainIdMap = templateFragMain.proposeKeyToIdentifierMap();
-		final Map< String, String > convertRIdMap = templateFragConvert.proposeKeyToIdentifierMap();
-		final Map< String, String > convertGIdMap = templateFragConvert.proposeKeyToIdentifierMap();
-		final Map< String, String > convertBIdMap = templateFragConvert.proposeKeyToIdentifierMap();
+		final SegmentTemplate templateFragMain = new SegmentTemplate(
+				"ex1.fp",
+				"rgb", "convertR", "convertG", "convertB" );
+		final Segment fragMain = templateFragMain.instantiate()
+				.bind( "convertR", fragConvertR, "convert" )
+				.bind( "convertG", fragConvertG, "convert" )
+				.bind( "convertB", fragConvertB, "convert" );
 
-		mainIdMap.put( "convertR", convertRIdMap.get( "convert" ) );
-		mainIdMap.put( "convertG", convertGIdMap.get( "convert" ) );
-		mainIdMap.put( "convertB", convertBIdMap.get( "convert" ) );
-
-		final Segment fragMain = templateFragMain.instantiate( mainIdMap );
-		final Segment fragConvertR = templateFragConvert.instantiate( convertRIdMap );
-		final Segment fragConvertG = templateFragConvert.instantiate( convertGIdMap );
-		final Segment fragConvertB = templateFragConvert.instantiate( convertBIdMap );
-
-		final SegmentTemplate templateVertMain = new SegmentTemplate(
-				Example1.class,
-				"ex1.vp",
-				Arrays.asList() );
-		final Segment vertMain = templateVertMain.instantiate();
+		final Segment vertMain = new SegmentTemplate("ex1.vp" ).instantiate();
 
 		shader = new SegmentedShaderBuilder()
 				.fragment( fragConvertR )
@@ -114,8 +102,10 @@ public class Example1 implements GLEventListener
 
 		shader.getUniform1f( fragConvertR, "scale" ).set( 0.5f );
 		shader.getUniform1f( fragConvertR, "offset" ).set( 0.5f );
+
 		shader.getUniform1f( fragConvertG, "scale" ).set( -0.2f );
 		shader.getUniform1f( fragConvertG, "offset" ).set( 0.5f );
+
 		shader.getUniform1f( fragConvertB, "scale" ).set( -0.2f );
 		shader.getUniform1f( fragConvertB, "offset" ).set( 0.5f );
 

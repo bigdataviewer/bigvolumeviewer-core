@@ -4,22 +4,34 @@ import java.util.Map;
 
 public class Segment
 {
-	private final String code;
+	private final SegmentTemplate template;
 
 	private final Map< String, String > keyToIdentifier;
 
-	public Segment( final String code, final Map< String, String > keyToIdentifier )
+	private String code = null;
+
+	Segment( final SegmentTemplate template, final Map< String, String > keyToIdentifier )
 	{
-		this.code = code;
+		this.template = template;
 		this.keyToIdentifier = keyToIdentifier;
 	}
 
-	public String getCode()
+	public synchronized String getCode()
 	{
+		if ( code == null )
+			code = template.render( keyToIdentifier );
 		return code;
 	}
 
-	public String getIdentifier( final String key )
+	public synchronized Segment bind( final String key, final Segment segment, final String segmentKey )
+	{
+		if ( code != null )
+			throw new IllegalStateException( "trying to bind identifiers after code has been already generated." );
+		keyToIdentifier.put( key, segment.getIdentifier( segmentKey ) );
+		return this;
+	}
+
+	String getIdentifier( final String key )
 	{
 		final String s = keyToIdentifier.get( key );
 		if ( s == null )
@@ -27,8 +39,9 @@ public class Segment
 		return s;
 	}
 
-	public Map< String, String > getKeyToIdentifierMap()
+	Map< String, String > getKeyToIdentifierMap()
 	{
 		return keyToIdentifier;
 	}
+
 }
