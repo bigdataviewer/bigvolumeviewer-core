@@ -413,6 +413,7 @@ public abstract class AbstractShader implements Shader
 		public void set( final Matrix4fc m44 )
 		{
 			m44.get( 0, value );
+			modified = true;
 		}
 
 		@Override
