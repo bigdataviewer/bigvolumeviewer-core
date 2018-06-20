@@ -73,6 +73,12 @@ public class JoglSetUniforms implements SetUniforms
 	}
 
 	@Override
+	public void setUniform3fv( final String name, final int count, final float[] value )
+	{
+		gl.glProgramUniform3fv( program, location( name ), count, value, 0 );
+	}
+
+	@Override
 	public void setUniformMatrix4f( final String name, final boolean transpose, final FloatBuffer value )
 	{
 		gl.glProgramUniformMatrix4fv( program, location( name ), 1, transpose, value );

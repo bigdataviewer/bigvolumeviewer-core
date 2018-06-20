@@ -83,6 +83,12 @@ public abstract class AbstractShader implements Shader
 	}
 
 	@Override
+	public Uniform3fv getUniform3fv( final String key )
+	{
+		return getUniform( getUniqueName( key ), UniformImp3fv.class, UniformImp3fv::new );
+	}
+
+	@Override
 	public UniformMatrix4f getUniformMatrix4f( final String key )
 	{
 		return getUniform( getUniqueName( key ), UniformImpMatrix4f.class, UniformImpMatrix4f::new );
@@ -397,6 +403,30 @@ public abstract class AbstractShader implements Shader
 		void setInShader( final SetUniforms visitor )
 		{
 			visitor.setUniform4f( name, v0, v1, v2, v3 );
+		}
+	}
+
+	static class UniformImp3fv extends UniformImp implements Uniform3fv
+	{
+		private float[] v;
+
+		public UniformImp3fv( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		void setInShader( final SetUniforms visitor )
+		{
+			if ( v != null )
+				visitor.setUniform3fv( name, v.length / 3, v );
+		}
+
+		@Override
+		public void set( final float[] value )
+		{
+			this.v = value.clone();
+			modified = true;
 		}
 	}
 
