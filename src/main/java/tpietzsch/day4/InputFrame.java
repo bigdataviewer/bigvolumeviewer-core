@@ -90,7 +90,8 @@ public class InputFrame
 			final int width,
 			final int height )
 	{
-		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
+//		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
+		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
 		canvas = new GLCanvas( capsReqUser );
 		getCanvas().addGLEventListener( wrapper );
 		getCanvas().setPreferredSize( new Dimension( width, height ) );
