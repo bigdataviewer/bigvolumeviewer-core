@@ -135,7 +135,7 @@ public class Example4 implements GLEventListener
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
 		final Segment ex2volfp = new SegmentTemplate("ex2vol.fp" ).instantiate();
-		final Segment ex1slicefp = new SegmentTemplate("ex1slice.fp" ).instantiate();
+		final Segment ex1slicefp = new SegmentTemplate("ex2slice.fp" ).instantiate();
 
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 		progvol = new DefaultShader( ex1vp.getCode(), ex2volfp.getCode() );

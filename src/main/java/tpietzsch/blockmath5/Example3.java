@@ -143,7 +143,7 @@ public class Example3 implements GLEventListener
 
 		prog = new Shader( gl, "ex1", "ex1", tpietzsch.day10.Example5.class );
 		progvol = new Shader( gl, "ex1", "ex2vol" );
-		progslice = new Shader( gl, "ex1", "ex1slice" );
+		progslice = new Shader( gl, "ex1", "ex2slice" );
 
 		lookupTexture = new LookupTextureARGB( new int[] { 64, 64, 64 } );
 
