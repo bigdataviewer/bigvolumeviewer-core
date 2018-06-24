@@ -9,8 +9,8 @@ import java.util.function.Function;
 
 import org.joml.Matrix4fc;
 
-import tpietzsch.shadergen.backend.GpuContext;
-import tpietzsch.shadergen.backend.SetUniforms;
+import tpietzsch.backend.GpuContext;
+import tpietzsch.backend.SetUniforms;
 
 public abstract class AbstractShader implements Shader
 {

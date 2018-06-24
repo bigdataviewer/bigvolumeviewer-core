@@ -1,6 +1,6 @@
 package tpietzsch.shadergen;
 
-import tpietzsch.shadergen.backend.GpuContext;
+import tpietzsch.backend.GpuContext;
 
 public interface Shader
 {

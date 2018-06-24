@@ -1,4 +1,4 @@
-package tpietzsch.shadergen.backend.jogl;
+package tpietzsch.backend.jogl;
 
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
 import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
@@ -11,8 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import tpietzsch.shadergen.Shader;
-import tpietzsch.shadergen.backend.GpuContext;
-import tpietzsch.shadergen.backend.SetUniforms;
+import tpietzsch.backend.GpuContext;
+import tpietzsch.backend.SetUniforms;
 
 public class JoglGpuContext implements GpuContext
 {

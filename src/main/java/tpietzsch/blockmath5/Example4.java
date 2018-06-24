@@ -43,7 +43,7 @@ import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
-import tpietzsch.shadergen.backend.jogl.JoglGpuContext;
+import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.util.MatrixMath;

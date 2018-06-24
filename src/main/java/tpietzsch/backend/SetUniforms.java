@@ -1,4 +1,4 @@
-package tpietzsch.shadergen.backend;
+package tpietzsch.backend;
 
 import java.nio.FloatBuffer;
 

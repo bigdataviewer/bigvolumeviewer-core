@@ -11,12 +11,10 @@ import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 
 import java.nio.FloatBuffer;
-import java.util.Arrays;
-import java.util.Map;
 
 import tpietzsch.day1.SimpleFrame;
 import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.backend.jogl.JoglGpuContext;
+import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
