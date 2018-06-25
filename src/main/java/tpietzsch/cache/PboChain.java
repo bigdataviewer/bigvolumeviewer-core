@@ -10,6 +10,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import tpietzsch.cache.TextureCache.Tile;
 
+import static tpietzsch.cache.PboChain.PboChainState.FILL;
+import static tpietzsch.cache.PboChain.PboChainState.FLUSH;
 import static tpietzsch.cache.PboChain.PboState.CLEAN;
 import static tpietzsch.cache.PboChain.PboState.MAPPED;
 import static tpietzsch.cache.PboChain.PboState.UNMAPPED;
@@ -31,9 +33,11 @@ public class PboChain
 	/** Condition for waiting takes */
 	private final Condition notEmpty;
 
-	/** TODO */
-	private final Condition activeExhausted;
+	/** Condition for waiting maintain */
+	private final Condition gpu;
 
+	/** Condition for waiting init */
+	private final Condition allClean;
 
 	/** texture tiles to fill in current batch */
 	private List< Tile > fillTiles;
@@ -41,39 +45,55 @@ public class PboChain
 	/** index of next tile in {@code fillTiles} */
 	private int ti;
 
-
-	public PboChain( final int numBufs, final int bufSize, final int blockSize )
+	public PboChain(
+			final int numBufs,
+			final int bufSize,
+			final int blockSize,
+			final int[] blockDimensions,
+			final TextureCache cache )
 	{
 		this.numBufs = numBufs;
 		this.bufSize = bufSize;
 		this.blockSize = blockSize;
 
-		// TODO: create PBOs, set up initial state
 		cleanPbos = new ArrayBlockingQueue<>( numBufs );
+		for ( int i = 0; i < numBufs; i++ )
+			cleanPbos.add( new Pbo( bufSize, blockSize, blockDimensions, cache ) );
 		readyForUploadPbos = new ArrayBlockingQueue<>( numBufs );
-		activePbo = null;
+		activePbo = cleanPbos.peek();
 
 		lock = new ReentrantLock();
 		notEmpty = lock.newCondition();
-		activeExhausted = lock.newCondition();
+		gpu = lock.newCondition();
+		allClean = lock.newCondition();
 	}
 
 	/*
+	 * ====================================================
 	 * Called by fillers.
+	 * ====================================================
 	 */
 
+	/**
+	 * Take next available UploadBuffer.
+	 * (Blocks if necessay until one is available).
+	 * When taking the last UploadBuffer of the active Pbo, signal {@code gpu} to activate next Pbo.
+	 */
 	public UploadBuffer take() throws InterruptedException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try
 		{
-			while ( activePbo.numBuffersRemaining() == 0 )
+			if ( chainState != FILL )
+				throw new IllegalStateException();
+
+			while ( !activePbo.hasRemainingBuffers() )
 				notEmpty.await();
 
 			UploadBuffer buffer = activePbo.takeBuffer();
-			if ( activePbo.numBuffersRemaining() == 0 )
-				activeExhausted.signal();
+			if ( !activePbo.hasRemainingBuffers() )
+				gpu.signal();
 
 			return buffer;
 		}
@@ -83,52 +103,179 @@ public class PboChain
 		}
 	}
 
+	/**
+	 * Commit UploadBuffer.
+	 * When committing the lase UploadBuffer of a Pbo, signal {@code gpu} to upload the Pbo.
+	 *
+	 * @param buffer
+	 */
 	void commit( UploadBuffer buffer )
 	{
-		( ( PboUploadBuffer ) buffer ).pbo.commitBuffer( buffer );
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try
+		{
+			if ( chainState != FILL )
+				throw new IllegalStateException();
+		}
+		finally
+		{
+			lock.unlock();
+		}
+
+		Pbo pbo = ( ( PboUploadBuffer ) buffer ).pbo;
+		pbo.commitBuffer( buffer );
+		if ( pbo.isReadyForUpload() )
+		{
+			lock.lock();
+			try
+			{
+				readyForUploadPbos.add( pbo );
+				gpu.signal();
+			}
+			finally
+			{
+				lock.unlock();
+			}
+		}
 	}
 
 	/*
+	 * ====================================================
 	 * Called by TextureCache for upload batch control.
+	 * ====================================================
 	 */
 
+	enum PboChainState
+	{
+		FLUSH,
+		FILL
+	}
+
+	private PboChainState chainState = FLUSH;
+
+	/**
+	 * Finalize a batch of cache tile uploads.
+	 */
 	public void flush()
 	{
-		// TODO
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try
+		{
+			if ( chainState != FILL )
+				throw new IllegalStateException();
+
+			if ( activePbo.flush() )
+			{
+				// Pbo.flush() returns true if the Pbo becomes immediately ready for upload
+				readyForUploadPbos.add( activePbo );
+				gpu.signal();
+			}
+
+			chainState = FLUSH;
+		}
+		finally
+		{
+			lock.unlock();
+		}
 	}
 
+	/**
+	 * @return ready for {@link #init(List)}?
+	 */
 	public boolean ready()
 	{
-		// TODO
-		return false;
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try
+		{
+			return chainState == FLUSH && cleanPbos.size() == numBufs;
+		}
+		finally
+		{
+			lock.unlock();
+		}
 	}
 
-	public void init( List< Tile > fillTiles )
+	/**
+	 * Initialize a new batch of cache tile uploads.
+	 * The size of {@code fillTiles} should match exactly the number of times that {@link #take()} and {@link #commit(UploadBuffer)} will be called.
+	 *
+	 * @param fillTiles
+	 * 		cache tiles that are available for filling.
+	 */
+	public void init( List< Tile > fillTiles ) throws InterruptedException
 	{
-		this.fillTiles = fillTiles;
-		this.ti = 0;
+		final ReentrantLock lock = this.lock;
+		lock.lockInterruptibly();
+		try
+		{
+			while ( !ready() )
+				allClean.await();
+
+			this.fillTiles = fillTiles;
+			this.ti = 0;
+			chainState = FILL;
+		}
+		finally
+		{
+			lock.unlock();
+		}
 	}
 
 	/*
+	 * ====================================================
 	 * Called by gpu maintenance.
+	 * ====================================================
 	 */
 
-	public void tryActivate( MyGpuContext context ) throws InterruptedException
+	// runs forever...
+	public void maintain( MyGpuContext context ) throws InterruptedException
 	{
+		while ( true )
+		{
+			final ReentrantLock lock = this.lock;
+			lock.lockInterruptibly();
+			try
+			{
+				while ( ( activePbo.hasRemainingBuffers() || cleanPbos.poll() == null ) // nothing to activate
+						&& readyForUploadPbos.poll() == null ) // nothing to upload
+					gpu.await();
+			}
+			finally
+			{
+				lock.unlock();
+			}
+			tryActivate( context );
+			tryUpload( context );
+		}
+	}
+
+	/**
+	 * Activate next Pbo if necessary and possible.
+	 * Signals {@code notEmpty} if Pbo is activated.
+	 *
+	 * @return whether a Pbo was activated.
+	 */
+	public boolean tryActivate( MyGpuContext context )
+	{
+		if ( activePbo.hasRemainingBuffers() )
+			return false;
+
+		final Pbo pbo = cleanPbos.poll();
+		if ( pbo == null )
+			return false;
+
+		pbo.map( context );
+
 		final ReentrantLock lock = this.lock;
-		lock.lockInterruptibly();
+		lock.lock();
 		try
 		{
-			if ( activePbo.numBuffersRemaining() == 0 )
-			{
-				Pbo pbo = cleanPbos.poll();
-				if ( pbo != null )
-				{
-					activePbo = pbo;
-					activePbo.map( context );
-					notEmpty.signalAll();
-				}
-			}
+			activePbo = pbo;
+			notEmpty.signalAll();
+			return true;
 		}
 		finally
 		{
@@ -136,24 +283,38 @@ public class PboChain
 		}
 	}
 
-	public void tryUpload( MyGpuContext context ) throws InterruptedException
+	/**
+	 * Unmap and upload next Pbo if necessary.
+	 *
+	 * @return whether a Pbo was uploaded.
+	 */
+	public boolean tryUpload( MyGpuContext context )
 	{
+		Pbo pbo = readyForUploadPbos.poll();
+		if ( pbo == null )
+			return false;
+		pbo.unmap( context );
+		ti = pbo.uploadToTexture( context, fillTiles, ti );
+
 		final ReentrantLock lock = this.lock;
-		lock.lockInterruptibly();
+		lock.lock();
 		try
 		{
-			final Pbo pbo = readyForUploadPbos.poll();
-			if ( pbo != null )
-			{
-				pbo.uploadToTexture( List< Tile > fillTiles, int ti );
-			}
+			cleanPbos.add( pbo );
+			if ( cleanPbos.size() == numBufs )
+				allClean.signal();
 		}
 		finally
 		{
 			lock.unlock();
 		}
 
+		return true;
 	}
+
+
+
+
 
 
 
@@ -163,6 +324,19 @@ public class PboChain
 
 	public interface MyGpuContext
 	{
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+
 		// TODO details...
 		Buffer map( Pbo pbo );
 
@@ -201,6 +375,12 @@ public class PboChain
 		private final int blockSize; // size in bytes of each block
 		private final int[] blockDimensions;
 		private final TextureCache cache;
+
+		/**
+		 * filled buffers, i.e., those that got handed out.
+		 * assumed to be all returned by the time uploadToTexture() is called.
+		 */
+		private final ArrayList< UploadBuffer > buffers = new ArrayList<>();
 
 		private PboState state;
 		private Buffer buffer;
@@ -246,14 +426,29 @@ public class PboChain
 			--uncommitted;
 		}
 
-		int numBuffersRemaining()
+		boolean hasRemainingBuffers()
 		{
-			return state == MAPPED ? bufSize - nextIndex : 0;
+			return state == MAPPED && bufSize - nextIndex > 0;
 		}
 
-		boolean hasUncommittedBlocks()
+		boolean hasUncommittedBuffers()
 		{
 			return uncommitted > 0;
+		}
+
+		boolean isReadyForUpload()
+		{
+			return !hasUncommittedBuffers() && !hasRemainingBuffers();
+		}
+
+		/**
+		 * @return {@code true} if the Pbo becomes {@link #isReadyForUpload() ready for upload} as an immediate result of this {@code flush()}
+		 */
+		boolean flush()
+		{
+			final boolean ret = hasRemainingBuffers() && !hasUncommittedBuffers();
+			nextIndex = bufSize;
+			return ret;
 		}
 
 		void map( MyGpuContext context )
@@ -269,18 +464,12 @@ public class PboChain
 
 		void unmap( MyGpuContext context )
 		{
-			if ( state != MAPPED || hasUncommittedBlocks() )
+			if ( state != MAPPED || hasUncommittedBuffers() )
 				throw new IllegalStateException();
 
 			context.unmap( this );
 			state = UNMAPPED;
 		}
-
-		/**
-		 * filled buffers, i.e., those that got handed out.
-		 * assumed to be all returned by the time uploadToTexture() is called.
-		 */
-		private final ArrayList< UploadBuffer > buffers = new ArrayList<>();
 
 		/**
 		 * @param fillTiles
@@ -292,7 +481,7 @@ public class PboChain
 		 * @return
 		 * 		index of next tile in {@code fillTiles} (after uploading committed UploadBuffers).
 		 */
-		int uploadToTexture( MyGpuContext context, TextureCache texture, List< Tile > fillTiles, int ti )
+		int uploadToTexture( MyGpuContext context, List< Tile > fillTiles, int ti )
 		{
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();
@@ -321,7 +510,7 @@ public class PboChain
 				final int h = blockDimensions[ 1 ];
 				final int d = blockDimensions[ 2 ];
 				final long pixels_buffer_offset = buffers.get( bi ).getOffset();
-				context.texSubImage3D( this, texture, x, y, z, w, h, d, pixels_buffer_offset );
+				context.texSubImage3D( this, cache, x, y, z, w, h, d, pixels_buffer_offset );
 
 				// for each (uploadbuffer, tile): map tile to uploadBuffer.getKey, assign uploadBuffer.isComplete
 				for ( int i = 0; i < nb; ++i )

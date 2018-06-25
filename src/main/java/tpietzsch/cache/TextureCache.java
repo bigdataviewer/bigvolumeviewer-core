@@ -3,14 +3,11 @@ package tpietzsch.cache;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import net.imglib2.iterator.ZeroMinIntervalIterator;
-import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
@@ -19,7 +16,7 @@ import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 /**
  * Not thread-safe. UploadSets are supposed to be submitted and processed sequentially.
  */
-public class TextureCache
+public class TextureCache implements Texture3D
 {
 	public enum ContentState
 	{
@@ -50,11 +47,18 @@ public class TextureCache
 		}
 	}
 
+	private final int texWidth;
+	private final int texHeight;
+	private final int texDepth;
+
 	// width, height, depth in tiles
-	private int[] dimensions;
+	private final int[] dimensions; // TODO: unused? remove?
+
+	// dimensions of single tile
+	private final int[] tileDimensions; // TODO: unused? remove?
 
 	// tiles arranged in flattened texture order
-	private final Tile[] tiles;
+	private final Tile[] tiles; // TODO: unused? remove?
 
 	// tiles arranged by (lru, z, y, x)
 	private final ArrayList< Tile > lruOrdered = new ArrayList<>();
@@ -68,9 +72,18 @@ public class TextureCache
 
 	private static final AtomicInteger timestampGen = new AtomicInteger();
 
-	public TextureCache( int[] dimensions )
+	public TextureCache(
+			final int[] dimensions,
+			final int[] tileDimensions )
 	{
 		assert dimensions.length == 3;
+
+		this.dimensions = dimensions;
+		this.tileDimensions = tileDimensions;
+
+		texWidth = dimensions[ 0 ] * tileDimensions[ 0 ];
+		texHeight = dimensions[ 1 ] * tileDimensions[ 1 ];
+		texDepth = dimensions[ 2 ] * tileDimensions[ 2 ];
 
 		final int len = ( int ) Intervals.numElements( dimensions );
 		tiles = new Tile[ len ];
@@ -171,5 +184,53 @@ public class TextureCache
 		}
 	};
 
+
 	// TODO: use BlockingFetchQueues?
+
+
+	/*
+	 * ... implements Texture3D
+	 */
+
+	@Override
+	public InternalFormat texInternalFormat()
+	{
+		return InternalFormat.R16;
+	}
+
+	@Override
+	public int texWidth()
+	{
+		return texWidth;
+	}
+
+	@Override
+	public int texHeight()
+	{
+		return texHeight;
+	}
+
+	@Override
+	public int texDepth()
+	{
+		return texDepth;
+	}
+
+	@Override
+	public MinFilter texMinFilter()
+	{
+		return MinFilter.LINEAR;
+	}
+
+	@Override
+	public MagFilter texMagFilter()
+	{
+		return MagFilter.LINEAR;
+	}
+
+	@Override
+	public Wrap texWrap()
+	{
+		return Wrap.CLAMP_TO_EDGE;
+	}
 }
