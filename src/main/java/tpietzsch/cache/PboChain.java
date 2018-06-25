@@ -8,6 +8,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.TextureCache.Tile;
 
 import static tpietzsch.cache.PboChain.PboChainState.FILL;
@@ -237,7 +238,7 @@ public class PboChain
 	 */
 
 	// runs forever...
-	public void maintain( final MyGpuContext context ) throws InterruptedException
+	public void maintain( final GpuContext context ) throws InterruptedException
 	{
 		while ( true )
 		{
@@ -264,7 +265,7 @@ public class PboChain
 	 *
 	 * @return whether a Pbo was activated.
 	 */
-	public boolean tryActivate( final MyGpuContext context )
+	public boolean tryActivate( final GpuContext context )
 	{
 		if ( activePbo.hasRemainingBuffers() )
 			return false;
@@ -294,7 +295,7 @@ public class PboChain
 	 *
 	 * @return whether a Pbo was uploaded.
 	 */
-	public boolean tryUpload( final MyGpuContext context )
+	public boolean tryUpload( final GpuContext context )
 	{
 		final Pbo pbo = readyForUploadPbos.poll();
 		if ( pbo == null )
@@ -318,44 +319,11 @@ public class PboChain
 		return true;
 	}
 
-
-
-
-
-
-
 	/*
-	 *
+	 * ====================================================
+	 * inner classes representing one PBO.
+	 * ====================================================
 	 */
-
-	public interface MyGpuContext
-	{
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-
-		// TODO details...
-		Buffer map( Pbo pbo );
-
-		// TODO details...
-		void unmap( Pbo pbo );
-
-		// TODO details...
-		void texSubImage3D( Pbo pbo, TextureCache texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, long pixels_buffer_offset );
-	}
-
-
-
-
 
 	enum PboState
 	{
@@ -375,7 +343,7 @@ public class PboChain
 		}
 	}
 
-	public static class Pbo
+	public static class Pbo implements tpietzsch.cache.Pbo
 	{
 		private final int bufSize; // size in blocks of this PBO
 		private final int blockSize; // size in bytes of each block
@@ -407,6 +375,7 @@ public class PboChain
 		}
 
 		// for GpuContext to initialized Pbo to correct size
+		@Override
 		public int getSizeInBytes()
 		{
 			return bufSize * blockSize;
@@ -459,7 +428,7 @@ public class PboChain
 			return ret;
 		}
 
-		void map( final MyGpuContext context )
+		void map( final GpuContext context )
 		{
 			if ( state != CLEAN )
 				throw new IllegalStateException();
@@ -470,7 +439,7 @@ public class PboChain
 			uncommitted = 0;
 		}
 
-		void unmap( final MyGpuContext context )
+		void unmap( final GpuContext context )
 		{
 			if ( state != MAPPED || hasUncommittedBuffers() )
 				throw new IllegalStateException();
@@ -490,7 +459,7 @@ public class PboChain
 		 * @return index of next tile in {@code fillTiles} (after uploading
 		 *         committed UploadBuffers).
 		 */
-		int uploadToTexture( final MyGpuContext context, final List< Tile > fillTiles, int ti )
+		int uploadToTexture( final GpuContext context, final List< Tile > fillTiles, int ti )
 		{
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();

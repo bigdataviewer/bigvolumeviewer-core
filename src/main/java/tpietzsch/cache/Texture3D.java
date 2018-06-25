@@ -2,5 +2,9 @@ package tpietzsch.cache;
 
 public interface Texture3D extends Texture
 {
-	int texDepth();
+	@Override
+	default int texDims()
+	{
+		return 3;
+	}
 }

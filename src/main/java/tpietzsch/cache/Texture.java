@@ -31,6 +31,11 @@ public interface Texture
 
 	int texHeight();
 
+	int texDepth();
+
+	// whether its a 1D, 2D, or 3D texture
+	int texDims();
+
 	MinFilter texMinFilter();
 
 	MagFilter texMagFilter();
