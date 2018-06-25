@@ -14,7 +14,8 @@ import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
 
 /**
- * Not thread-safe. UploadSets are supposed to be submitted and processed sequentially.
+ * Not thread-safe. UploadSets are supposed to be submitted and processed
+ * sequentially.
  */
 public class TextureCache implements Texture3D
 {
@@ -100,12 +101,12 @@ public class TextureCache implements Texture3D
 		numUnblockedTiles = len - 1;
 	}
 
-	void stage( UploadSet uploadSet )
+	void stage( final UploadSet uploadSet )
 	{
 		final int timestamp = timestampGen.incrementAndGet();
 
 		final Set< ? extends FillTask > tasks = uploadSet.entries;
-		for ( FillTask task : tasks )
+		for ( final FillTask task : tasks )
 		{
 			final Tile tile = tilemap.get( task.getKey() );
 			if ( tile != null )
@@ -129,14 +130,16 @@ public class TextureCache implements Texture3D
 		fill.add( task );
 	}
 
-	void assignFillTiles( int currentTimestamp )
+	void assignFillTiles( final int currentTimestamp )
 	{
 		final int size = fill.size();
 		lruOrdered.sort( lruComparator );
 		if ( size > numUnblockedTiles || lruOrdered.get( size - 1 ).lru == currentTimestamp )
 			throw new IllegalArgumentException( "Requested blocks don't fit into TextureCache." );
 
+		// TODO
 		final List< Tile > fillTiles = new ArrayList<>( lruOrdered.subList( 0, size ) );
+		// TODO
 	}
 
 	private void enqueueRefill( final FillTask task )
@@ -151,7 +154,7 @@ public class TextureCache implements Texture3D
 	 * @param key
 	 * @param state
 	 */
-	void assign( Tile tile, ImageBlockKey< ? > key, ContentState state )
+	void assign( final Tile tile, final ImageBlockKey< ? > key, final ContentState state )
 	{
 		if ( tile.content != key )
 		{

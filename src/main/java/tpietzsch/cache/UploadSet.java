@@ -17,7 +17,8 @@ public class UploadSet
 		final Predicate< UploadBuffer > fill;
 
 		/**
-		 * {@code fill.test()} fills buffer and returns whether block data was complete
+		 * {@code fill.test()} fills buffer and returns whether block data was
+		 * complete
 		 */
 		public Entry( final ImageBlockKey< ? > key, final Predicate< UploadBuffer > fill )
 		{
@@ -34,7 +35,7 @@ public class UploadSet
 		@Override
 		public void fill( final UploadBuffer buffer )
 		{
-			boolean complete = fill.test( buffer );
+			final boolean complete = fill.test( buffer );
 			buffer.setImageBlockKey( key );
 			buffer.setContentState( complete ? COMPLETE : INCOMPLETE );
 		}

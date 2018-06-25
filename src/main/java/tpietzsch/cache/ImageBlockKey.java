@@ -4,7 +4,7 @@ package tpietzsch.cache;
  * Identifies a particular block in a particular image.
  *
  * @param <T>
- *     image type
+ *            image type
  */
 public class ImageBlockKey< T >
 {
@@ -69,7 +69,7 @@ public class ImageBlockKey< T >
 		return pos;
 	}
 
-	public int pos( int d )
+	public int pos( final int d )
 	{
 		switch ( d )
 		{
@@ -87,7 +87,7 @@ public class ImageBlockKey< T >
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if ( ! ( obj instanceof ImageBlockKey ) )
+		if ( !( obj instanceof ImageBlockKey ) )
 			return false;
 
 		final ImageBlockKey< T > b = ( ImageBlockKey< T > ) obj;

@@ -1,6 +1,7 @@
 package tpietzsch.cache;
 
 import java.nio.Buffer;
+
 import tpietzsch.cache.TextureCache.ContentState;
 
 public class UploadBuffer

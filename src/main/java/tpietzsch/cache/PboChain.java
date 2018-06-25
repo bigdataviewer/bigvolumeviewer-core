@@ -75,9 +75,13 @@ public class PboChain
 	 */
 
 	/**
-	 * Take next available UploadBuffer.
-	 * (Blocks if necessay until one is available).
-	 * When taking the last UploadBuffer of the active Pbo, signal {@code gpu} to activate next Pbo.
+	 * Take next available UploadBuffer. (Blocks if necessay until one is
+	 * available). When taking the last UploadBuffer of the active Pbo, signal
+	 * {@code gpu} to activate next Pbo.
+	 *
+	 * @return new buffer to be filled and {@link #commit(UploadBuffer)
+	 *         commited}.
+	 * @throws InterruptedException
 	 */
 	public UploadBuffer take() throws InterruptedException
 	{
@@ -91,7 +95,7 @@ public class PboChain
 			while ( !activePbo.hasRemainingBuffers() )
 				notEmpty.await();
 
-			UploadBuffer buffer = activePbo.takeBuffer();
+			final UploadBuffer buffer = activePbo.takeBuffer();
 			if ( !activePbo.hasRemainingBuffers() )
 				gpu.signal();
 
@@ -104,12 +108,13 @@ public class PboChain
 	}
 
 	/**
-	 * Commit UploadBuffer.
-	 * When committing the lase UploadBuffer of a Pbo, signal {@code gpu} to upload the Pbo.
+	 * Commit {@code buffer}. When committing the last UploadBuffer of a Pbo,
+	 * signal {@code gpu} to upload the Pbo.
 	 *
 	 * @param buffer
+	 *            buffer to commit
 	 */
-	void commit( UploadBuffer buffer )
+	void commit( final UploadBuffer buffer )
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lock();
@@ -123,7 +128,7 @@ public class PboChain
 			lock.unlock();
 		}
 
-		Pbo pbo = ( ( PboUploadBuffer ) buffer ).pbo;
+		final Pbo pbo = ( ( PboUploadBuffer ) buffer ).pbo;
 		pbo.commitBuffer( buffer );
 		if ( pbo.isReadyForUpload() )
 		{
@@ -199,13 +204,14 @@ public class PboChain
 	}
 
 	/**
-	 * Initialize a new batch of cache tile uploads.
-	 * The size of {@code fillTiles} should match exactly the number of times that {@link #take()} and {@link #commit(UploadBuffer)} will be called.
+	 * Initialize a new batch of cache tile uploads. The size of
+	 * {@code fillTiles} should match exactly the number of times that
+	 * {@link #take()} and {@link #commit(UploadBuffer)} will be called.
 	 *
 	 * @param fillTiles
-	 * 		cache tiles that are available for filling.
+	 *            cache tiles that are available for filling.
 	 */
-	public void init( List< Tile > fillTiles ) throws InterruptedException
+	public void init( final List< Tile > fillTiles ) throws InterruptedException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
@@ -231,7 +237,7 @@ public class PboChain
 	 */
 
 	// runs forever...
-	public void maintain( MyGpuContext context ) throws InterruptedException
+	public void maintain( final MyGpuContext context ) throws InterruptedException
 	{
 		while ( true )
 		{
@@ -253,12 +259,12 @@ public class PboChain
 	}
 
 	/**
-	 * Activate next Pbo if necessary and possible.
-	 * Signals {@code notEmpty} if Pbo is activated.
+	 * Activate next Pbo if necessary and possible. Signals {@code notEmpty} if
+	 * Pbo is activated.
 	 *
 	 * @return whether a Pbo was activated.
 	 */
-	public boolean tryActivate( MyGpuContext context )
+	public boolean tryActivate( final MyGpuContext context )
 	{
 		if ( activePbo.hasRemainingBuffers() )
 			return false;
@@ -288,9 +294,9 @@ public class PboChain
 	 *
 	 * @return whether a Pbo was uploaded.
 	 */
-	public boolean tryUpload( MyGpuContext context )
+	public boolean tryUpload( final MyGpuContext context )
 	{
-		Pbo pbo = readyForUploadPbos.poll();
+		final Pbo pbo = readyForUploadPbos.poll();
 		if ( pbo == null )
 			return false;
 		pbo.unmap( context );
@@ -420,7 +426,7 @@ public class PboChain
 			return b;
 		}
 
-		void commitBuffer( UploadBuffer buffer )
+		void commitBuffer( final UploadBuffer buffer )
 		{
 			buffers.add( buffer );
 			--uncommitted;
@@ -442,7 +448,9 @@ public class PboChain
 		}
 
 		/**
-		 * @return {@code true} if the Pbo becomes {@link #isReadyForUpload() ready for upload} as an immediate result of this {@code flush()}
+		 * @return {@code true} if the Pbo becomes {@link #isReadyForUpload()
+		 *         ready for upload} as an immediate result of this
+		 *         {@code flush()}
 		 */
 		boolean flush()
 		{
@@ -451,7 +459,7 @@ public class PboChain
 			return ret;
 		}
 
-		void map( MyGpuContext context )
+		void map( final MyGpuContext context )
 		{
 			if ( state != CLEAN )
 				throw new IllegalStateException();
@@ -462,7 +470,7 @@ public class PboChain
 			uncommitted = 0;
 		}
 
-		void unmap( MyGpuContext context )
+		void unmap( final MyGpuContext context )
 		{
 			if ( state != MAPPED || hasUncommittedBuffers() )
 				throw new IllegalStateException();
@@ -473,15 +481,16 @@ public class PboChain
 
 		/**
 		 * @param fillTiles
-		 * 		list of tiles from cache that can be filled.
-		 * 		Ordered by (z,y,x) so that contiguous ranges can be inferred.
-		 * 		(these are shared between Pbos, ti start index persists over calls to uploadToTexture for different Pbos).
+		 *            list of tiles from cache that can be filled. Ordered by
+		 *            (z,y,x) so that contiguous ranges can be inferred. (these
+		 *            are shared between Pbos, ti start index persists over
+		 *            calls to uploadToTexture for different Pbos).
 		 * @param ti
-		 * 		index of next tile in {@code fillTiles}.
-		 * @return
-		 * 		index of next tile in {@code fillTiles} (after uploading committed UploadBuffers).
+		 *            index of next tile in {@code fillTiles}.
+		 * @return index of next tile in {@code fillTiles} (after uploading
+		 *         committed UploadBuffers).
 		 */
-		int uploadToTexture( MyGpuContext context, List< Tile > fillTiles, int ti )
+		int uploadToTexture( final MyGpuContext context, final List< Tile > fillTiles, int ti )
 		{
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();
