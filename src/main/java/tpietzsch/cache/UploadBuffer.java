@@ -1,42 +1,70 @@
 package tpietzsch.cache;
 
 import java.nio.Buffer;
-import tpietzsch.blocks.CopySubArrayImp;
 import tpietzsch.cache.TextureCache.ContentState;
 
-public interface UploadBuffer
+public class UploadBuffer
 {
+	private final Buffer buffer;
+	private final int offset;
+	private ImageBlockKey< ? > key;
+	private ContentState state;
+
+	public UploadBuffer( final Buffer buffer, final int offset )
+	{
+		this.buffer = buffer;
+		this.offset = offset;
+	}
+
 	/**
 	 * Stores data for uploading to texture tile.
 	 *
 	 * @return a direct buffer
 	 */
-	Buffer getBuffer();
+	public Buffer getBuffer()
+	{
+		return buffer;
+	}
 
 	/**
 	 * Starting offset for tile in buffer.
 	 *
 	 * @return offset in bytes
 	 */
-	int getOffset();
+	public int getOffset()
+	{
+		return offset;
+	}
 
 	/**
 	 * Called by client to say which image block was stored.
 	 */
-	void setImageBlockKey( ImageBlockKey< ? > key );
+	public void setImageBlockKey( final ImageBlockKey< ? > key )
+	{
+		this.key = key;
+	}
 
 	/**
 	 * Called by client to say whether image block data was complete.
 	 */
-	void setContentState( ContentState state );
+	public void setContentState( final ContentState state )
+	{
+		this.state = state;
+	}
 
 	/**
 	 * Which image block was stored?
 	 */
-	ImageBlockKey< ? > getImageBlockKey();
+	public ImageBlockKey< ? > getImageBlockKey()
+	{
+		return key;
+	}
 
 	/**
 	 * Was stored image block data complete?
 	 */
-	ContentState getContentState();
+	public ContentState getContentState()
+	{
+		return state;
+	}
 }
