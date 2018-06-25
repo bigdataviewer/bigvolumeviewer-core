@@ -10,6 +10,7 @@ import com.jogamp.opengl.util.glsl.ShaderProgram;
 import java.util.HashMap;
 import java.util.Map;
 
+import java.util.WeakHashMap;
 import tpietzsch.shadergen.Shader;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.SetUniforms;
@@ -39,7 +40,7 @@ public class JoglGpuContext implements GpuContext
 
 	private final GL3 gl;
 
-	private final Map< Shader, ShaderProgram > shaders = new HashMap<>();
+	private final Map< Shader, ShaderProgram > shaders = new WeakHashMap<>();
 
 	private JoglGpuContext( final GL3 gl )
 	{

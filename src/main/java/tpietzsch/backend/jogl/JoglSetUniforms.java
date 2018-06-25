@@ -12,7 +12,7 @@ public class JoglSetUniforms implements SetUniforms
 
 	private final int program;
 
-	public JoglSetUniforms( final GL2ES2 gl, final int program )
+	JoglSetUniforms( final GL2ES2 gl, final int program )
 	{
 		this.gl = gl;
 		this.program = program;
