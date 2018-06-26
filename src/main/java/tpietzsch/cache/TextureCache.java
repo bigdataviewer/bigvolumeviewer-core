@@ -1,6 +1,5 @@
 package tpietzsch.cache;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -131,54 +130,50 @@ public class TextureCache implements Texture3D
 		numUnblockedTiles = len - 1;
 	}
 
-	void stage( final Collection< ? extends FillTask >  tasks )
+	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask >  tasks )
 	{
 		final int timestamp = timestampGen.incrementAndGet();
+
+		final ArrayList< TileFillTask > update = new ArrayList<>();
+		final ArrayList< FillTask > create = new ArrayList<>();
 
 		for ( final FillTask task : tasks )
 		{
 			final Tile tile = tilemap.get( task.getKey() );
-			if ( tile != null )
+			if ( tile == null )
+				create.add( task );
+			else
 			{
 				tile.lru = timestamp;
 				if ( tile.state == INCOMPLETE )
-					enqueueRefill( task );
-			}
-			else
-			{
-				enqueueFill( task );
+					update.add( new TileFillTask( task, tile ) );
 			}
 		}
+
+		/*
+		 *
+		 * TODO: sort 'create' list by desired loading order
+		 * TODO: similar to BlockingFetchQueues priority levels?
+		 *
+		 */
+
+		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
+		final int newsize = create.size();
+		final List< Tile > fillTiles = assignFillTiles( newsize, timestamp );
+		for ( int i = 0; i < newsize; ++i )
+			tileFillTasks.add( new TileFillTask( create.get( i ), fillTiles.get( i ) ) );
+		tileFillTasks.addAll( update );
+
+		return tileFillTasks;
 	}
 
-	ArrayDeque< FillTask > fill = new ArrayDeque<>();
-
-	private void enqueueFill( final FillTask task )
+	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
 	{
-		// TODO
-		fill.add( task );
-	}
-
-	void assignFillTiles( final int currentTimestamp )
-	{
-		final int size = fill.size();
 		lruOrdered.sort( lruComparator );
 		if ( size > numUnblockedTiles || lruOrdered.get( size - 1 ).lru == currentTimestamp )
 			throw new IllegalArgumentException( "Requested blocks don't fit into TextureCache." );
-
-		// TODO
-		final List< Tile > fillTiles = new ArrayList<>( lruOrdered.subList( 0, size ) );
-		// TODO
+		return lruOrdered.subList( 0, size );
 	}
-
-	ArrayDeque< FillTask > refill = new ArrayDeque<>();
-
-	private void enqueueRefill( final FillTask task )
-	{
-		// TODO
-		refill.add( task );
-	}
-
 
 	/**
 	 * Called for each tile when its content is updated.
@@ -219,9 +214,6 @@ public class TextureCache implements Texture3D
 			return dx;
 		}
 	};
-
-
-	// TODO: use BlockingFetchQueues?
 
 
 	/*
