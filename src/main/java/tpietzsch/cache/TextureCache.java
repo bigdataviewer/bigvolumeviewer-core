@@ -2,6 +2,7 @@ package tpietzsch.cache;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class TextureCache implements Texture3D
 			this.x = x;
 			this.y = y;
 			this.z = z;
+			state = INCOMPLETE;
 			lru = -1;
 		}
 
@@ -110,10 +112,10 @@ public class TextureCache implements Texture3D
 	// dimensions of single tile
 	private final int[] tileDimensions; // TODO: unused? remove?
 
-	// tiles arranged in flattened texture order
+	// tiles arranged in (z,y,x)-flattened texture order
 	private final Tile[] tiles; // TODO: unused? remove?
 
-	// tiles arranged by (lru, z, y, x)
+	// tiles arranged by (lru, x, y, z)
 	private final ArrayList< Tile > lruOrdered = new ArrayList<>();
 
 	// tiles.length - 1. Tile 0 is reserved for out-of-bounds.
@@ -142,9 +144,9 @@ public class TextureCache implements Texture3D
 		tiles = new Tile[ len ];
 
 		int i = 0;
-		for ( int z = 0; z < dimensions[ 2 ]; ++z )
+		for ( int x = 0; x < dimensions[ 0 ]; ++x )
 			for ( int y = 0; y < dimensions[ 1 ]; ++y )
-				for ( int x = 0; x < dimensions[ 0 ]; ++x )
+				for ( int z = 0; z < dimensions[ 2 ]; ++z )
 					tiles[ i++ ] = new Tile( x, y, z );
 
 		// i = 0 is reserved for out-of-bounds block
@@ -197,6 +199,9 @@ public class TextureCache implements Texture3D
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
 	{
+		if ( size == 0 )
+			return Collections.emptyList();
+
 		lruOrdered.sort( lruComparator );
 		if ( size > numUnblockedTiles || lruOrdered.get( size - 1 ).lru == currentTimestamp )
 			throw new IllegalArgumentException( "Requested blocks don't fit into TextureCache." );
@@ -212,9 +217,10 @@ public class TextureCache implements Texture3D
 	 */
 	void assign( final Tile tile, final ImageBlockKey< ? > key, final ContentState state )
 	{
-		if ( tile.content != key )
+		if ( ! key.equals( tile.content ) )
 		{
-			tilemap.remove( tile.content );
+			if ( tile.content != null )
+				tilemap.remove( tile.content );
 			tilemap.put( key, tile );
 		}
 		tile.content = key;
@@ -230,16 +236,16 @@ public class TextureCache implements Texture3D
 			if ( dlru != 0 )
 				return dlru;
 
-			final int dz = t1.z - t2.z;
-			if ( dz != 0 )
-				return dz;
+			final int dx = t1.x - t2.x;
+			if ( dx != 0 )
+				return dx;
 
 			final int dy = t1.y - t2.y;
 			if ( dy != 0 )
 				return dy;
 
-			final int dx = t1.x - t2.x;
-			return dx;
+			final int dz = t1.z - t2.z;
+			return dz;
 		}
 	};
 

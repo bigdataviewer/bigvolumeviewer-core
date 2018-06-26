@@ -267,6 +267,7 @@ public class PboChain
 		flush();
 	}
 
+
 	/*
 	 * ====================================================
 	 * Called by gpu maintenance.
@@ -508,19 +509,19 @@ public class PboChain
 
 				final int remainingBlocks = buffers.size() - bi;
 				int nb = 1;
-				for ( nb = 1; nb < remainingBlocks; ++nb )
+				for ( ; nb < remainingBlocks; ++nb )
 				{
 					final Tile tile = buffers.get( bi + nb ).task.getTile();
-					if ( tile.z == prevTile.z && tile.y == prevTile.y && tile.x == prevTile.x + 1 )
+					if ( tile.z == prevTile.z + 1 && tile.y == prevTile.y && tile.x == prevTile.x )
 						prevTile = tile;
 					else
 						break;
 				}
 
 				// upload nb blocks
-				final int w = blockDimensions[ 0 ] * nb;
+				final int w = blockDimensions[ 0 ];
 				final int h = blockDimensions[ 1 ];
-				final int d = blockDimensions[ 2 ];
+				final int d = blockDimensions[ 2 ] * nb;
 				context.texSubImage3D( this, cache, x, y, z, w, h, d, pixels_buffer_offset );
 
 				// for each (uploadbuffer, tile): map tile to uploadBuffer.getKey, assign uploadBuffer.isComplete
