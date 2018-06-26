@@ -25,7 +25,7 @@ public class TextureCache implements Texture3D
 		COMPLETE
 	}
 
-	static class Tile
+	public static class Tile
 	{
 		final int x;
 
@@ -45,6 +45,29 @@ public class TextureCache implements Texture3D
 			this.y = y;
 			this.z = z;
 			lru = -1;
+		}
+
+		/** Tile X coordinate in texture grid (padded blocks) */
+		public int x()
+		{
+			return x;
+		}
+
+		/** Tile Y coordinate in texture grid (padded blocks) */
+		public int y()
+		{
+			return y;
+		}
+
+		/** Tile Z coordinate in texture grid (padded blocks) */
+		public int z()
+		{
+			return z;
+		}
+
+		public ContentState state()
+		{
+			return state;
 		}
 	}
 
@@ -128,6 +151,11 @@ public class TextureCache implements Texture3D
 		for ( i = 1; i < len; ++i )
 			lruOrdered.add( tiles[ i ] );
 		numUnblockedTiles = len - 1;
+	}
+
+	public Tile get( final ImageBlockKey< ? > key )
+	{
+		return tilemap.get( key );
 	}
 
 	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask >  tasks )

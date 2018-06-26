@@ -5,7 +5,7 @@ import java.util.function.Predicate;
 import static tpietzsch.cache.TextureCache.ContentState.COMPLETE;
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
-class DefaultFillTask implements FillTask
+public class DefaultFillTask implements FillTask
 {
 	final ImageBlockKey< ? > key;
 

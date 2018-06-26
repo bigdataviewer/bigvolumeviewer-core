@@ -52,7 +52,14 @@ public class PboChain
 	/** index of next task in {@code fillTileTasks} */
 	private int ti;
 
-
+	/**
+	 *
+	 * @param numBufs number of PBOs to create
+	 * @param bufSize size in blocks of each PBO
+	 * @param blockSize size in bytes of each block
+	 * @param blockDimensions dimensions of each block
+	 * @param cache texture to upload to
+	 */
 	public PboChain(
 			final int numBufs,
 			final int bufSize,

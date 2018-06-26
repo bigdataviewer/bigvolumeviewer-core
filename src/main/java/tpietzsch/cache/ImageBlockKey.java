@@ -13,6 +13,12 @@ public class ImageBlockKey< T >
 	private final int y;
 	private final int z;
 
+	/**
+	 * @param image one image per timepoint, channel, resolution level, etc
+	 * @param x block X coordinate in image grid
+	 * @param y block Y coordinate in image grid
+	 * @param z block Z coordinate in image grid
+	 */
 	public ImageBlockKey( final T image, final int x, final int y, final int z )
 	{
 		this.image = image;
