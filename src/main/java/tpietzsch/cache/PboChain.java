@@ -343,7 +343,7 @@ public class PboChain
 		}
 	}
 
-	public static class Pbo implements tpietzsch.cache.Pbo
+	public static class Pbo implements tpietzsch.backend.Pbo
 	{
 		private final int bufSize; // size in blocks of this PBO
 		private final int blockSize; // size in bytes of each block

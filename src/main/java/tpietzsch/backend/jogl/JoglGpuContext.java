@@ -35,9 +35,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import java.util.WeakHashMap;
-import tpietzsch.cache.Pbo;
-import tpietzsch.cache.Texture;
-import tpietzsch.cache.Texture3D;
+import tpietzsch.backend.Pbo;
+import tpietzsch.backend.Texture;
+import tpietzsch.backend.Texture3D;
 import tpietzsch.shadergen.Shader;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.SetUniforms;

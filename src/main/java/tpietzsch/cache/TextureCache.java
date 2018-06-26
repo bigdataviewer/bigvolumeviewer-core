@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.util.Intervals;
+import tpietzsch.backend.Texture3D;
 
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 

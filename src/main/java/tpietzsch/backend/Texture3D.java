@@ -1,4 +1,4 @@
-package tpietzsch.cache;
+package tpietzsch.backend;
 
 public interface Texture3D extends Texture
 {

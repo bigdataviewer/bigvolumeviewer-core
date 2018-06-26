@@ -1,9 +1,6 @@
 package tpietzsch.backend;
 
 import java.nio.Buffer;
-import tpietzsch.cache.Pbo;
-import tpietzsch.cache.Texture;
-import tpietzsch.cache.Texture3D;
 import tpietzsch.shadergen.Shader;
 
 public interface GpuContext
