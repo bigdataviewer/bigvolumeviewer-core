@@ -5,11 +5,13 @@ import bdv.img.cache.VolatileCachedCellImg;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.volume.RequiredBlocks;
+import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,6 +30,7 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blockmath4.MipmapSizes;
+import tpietzsch.blocks.ByteUtils;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
 import tpietzsch.blocks.CopySubArrayImp;
@@ -65,6 +68,8 @@ import static com.jogamp.opengl.GL.GL_RGB8;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE1;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
+import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
+import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.blocks.ByteUtils.addressOf;
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
@@ -133,7 +138,7 @@ public class Example5 implements GLEventListener
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
 
 		final int maxMemoryInMB = 200;
-		final int[] cacheGridDimensions = LRUBlockCache.findSuitableGridSize( blockSize, 2, maxMemoryInMB );
+		final int[] cacheGridDimensions = LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, maxMemoryInMB );
 		textureCache = new TextureCache( cacheGridDimensions, paddedBlockSize );
 		pboChain = new PboChain( 5, 100, 2 * ( int ) Intervals.numElements( paddedBlockSize ), paddedBlockSize, textureCache );
 
@@ -286,10 +291,15 @@ public class Example5 implements GLEventListener
 		modeprog.getUniform1i( "volumeCache" ).set( 1 );
 		lookupTexture.bindTextures( gl, GL_TEXTURE0 );
 
-		// TODO: fix hack
+		// TODO: fix hacks
 //			blockCache.bindTextures( gl, GL_TEXTURE1 );
 			gl.glActiveTexture( GL_TEXTURE1 );
 			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( textureCache ) );
+
+		// TODO: fix hacks (initialize OOB block init)
+			Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( paddedBlockSize ) );
+			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( paddedBlockSize ) );
+			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, paddedBlockSize[ 0 ], paddedBlockSize[ 1 ], paddedBlockSize[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
 		modeprog.getUniform3f( "blockSize" ).set( blockSize[ 0 ], blockSize[ 1 ], blockSize[ 2 ] );
 		modeprog.getUniform3f( "paddedBlockSize" ).set( paddedBlockSize[ 0 ], paddedBlockSize[ 1 ], paddedBlockSize[ 2 ] );

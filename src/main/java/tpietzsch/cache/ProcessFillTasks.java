@@ -25,5 +25,7 @@ public class ProcessFillTasks
 			pboChain.commit( buf );
 			pboChain.tryUpload( context );
 		}
+		pboChain.flush();
+		pboChain.tryUpload( context );
 	}
 }
