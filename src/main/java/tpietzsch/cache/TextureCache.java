@@ -2,10 +2,10 @@ package tpietzsch.cache;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.util.Intervals;
@@ -46,6 +46,35 @@ public class TextureCache implements Texture3D
 			this.y = y;
 			this.z = z;
 			lru = -1;
+		}
+	}
+
+	static class TileFillTask implements FillTask
+	{
+		private final FillTask task; // wrapped task
+		private final Tile tile;
+
+		public TileFillTask( final FillTask task, final Tile tile )
+		{
+			this.task = task;
+			this.tile = tile;
+		}
+
+		@Override
+		public ImageBlockKey< ? > getKey()
+		{
+			return task.getKey();
+		}
+
+		@Override
+		public void fill( final UploadBuffer buffer )
+		{
+			task.fill( buffer );
+		}
+
+		Tile getTile()
+		{
+			return tile;
 		}
 	}
 
@@ -102,11 +131,10 @@ public class TextureCache implements Texture3D
 		numUnblockedTiles = len - 1;
 	}
 
-	void stage( final UploadSet uploadSet )
+	void stage( final Collection< ? extends FillTask >  tasks )
 	{
 		final int timestamp = timestampGen.incrementAndGet();
 
-		final Set< ? extends FillTask > tasks = uploadSet.entries;
 		for ( final FillTask task : tasks )
 		{
 			final Tile tile = tilemap.get( task.getKey() );
@@ -143,10 +171,14 @@ public class TextureCache implements Texture3D
 		// TODO
 	}
 
+	ArrayDeque< FillTask > refill = new ArrayDeque<>();
+
 	private void enqueueRefill( final FillTask task )
 	{
 		// TODO
+		refill.add( task );
 	}
+
 
 	/**
 	 * Called for each tile when its content is updated.

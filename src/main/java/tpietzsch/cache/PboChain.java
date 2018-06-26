@@ -6,10 +6,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.TextureCache.Tile;
+import tpietzsch.cache.TextureCache.TileFillTask;
 
 import static tpietzsch.cache.PboChain.PboChainState.FILL;
 import static tpietzsch.cache.PboChain.PboChainState.FLUSH;
@@ -40,11 +45,13 @@ public class PboChain
 	/** Condition for waiting init */
 	private final Condition allClean;
 
-	/** texture tiles to fill in current batch */
-	private List< Tile > fillTiles;
 
-	/** index of next tile in {@code fillTiles} */
+	/** texture tiles to fill in current batch */
+	private List< TileFillTask > tileFillTasks;
+
+	/** index of next task in {@code fillTileTasks} */
 	private int ti;
+
 
 	public PboChain(
 			final int numBufs,
@@ -69,6 +76,7 @@ public class PboChain
 		allClean = lock.newCondition();
 	}
 
+
 	/*
 	 * ====================================================
 	 * Called by fillers.
@@ -80,11 +88,13 @@ public class PboChain
 	 * available). When taking the last UploadBuffer of the active Pbo, signal
 	 * {@code gpu} to activate next Pbo.
 	 *
-	 * @return new buffer to be filled and {@link #commit(UploadBuffer)
+	 * @return new buffer to be filled and {@link #commit(PboUploadBuffer)
 	 *         commited}.
 	 * @throws InterruptedException
+	 * @throws NoSuchElementException if there are no more upload buffers to process for the current batch of tasks.
+	 * @throws IllegalStateException if there is no current batch of tasks.
 	 */
-	public UploadBuffer take() throws InterruptedException
+	PboUploadBuffer take() throws InterruptedException, NoSuchElementException, IllegalStateException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
@@ -93,10 +103,13 @@ public class PboChain
 			if ( chainState != FILL )
 				throw new IllegalStateException();
 
+			if ( ti >= tileFillTasks.size() )
+				throw new NoSuchElementException();
+
 			while ( !activePbo.hasRemainingBuffers() )
 				notEmpty.await();
 
-			final UploadBuffer buffer = activePbo.takeBuffer();
+			final PboUploadBuffer buffer = activePbo.takeBuffer( tileFillTasks.get( ti++ ) );
 			if ( !activePbo.hasRemainingBuffers() )
 				gpu.signal();
 
@@ -115,7 +128,7 @@ public class PboChain
 	 * @param buffer
 	 *            buffer to commit
 	 */
-	void commit( final UploadBuffer buffer )
+	void commit( final PboUploadBuffer buffer )
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lock();
@@ -129,7 +142,7 @@ public class PboChain
 			lock.unlock();
 		}
 
-		final Pbo pbo = ( ( PboUploadBuffer ) buffer ).pbo;
+		final Pbo pbo = buffer.pbo;
 		pbo.commitBuffer( buffer );
 		if ( pbo.isReadyForUpload() )
 		{
@@ -145,6 +158,7 @@ public class PboChain
 			}
 		}
 	}
+
 
 	/*
 	 * ====================================================
@@ -205,14 +219,9 @@ public class PboChain
 	}
 
 	/**
-	 * Initialize a new batch of cache tile uploads. The size of
-	 * {@code fillTiles} should match exactly the number of times that
-	 * {@link #take()} and {@link #commit(UploadBuffer)} will be called.
-	 *
-	 * @param fillTiles
-	 *            cache tiles that are available for filling.
+	 * Initialize a new batch of cache tile uploads.
 	 */
-	public void init( final List< Tile > fillTiles ) throws InterruptedException
+	public void init( final List< TileFillTask > tileFillTasks ) throws InterruptedException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
@@ -221,7 +230,7 @@ public class PboChain
 			while ( !ready() )
 				allClean.await();
 
-			this.fillTiles = fillTiles;
+			this.tileFillTasks = tileFillTasks;
 			this.ti = 0;
 			chainState = FILL;
 		}
@@ -229,6 +238,26 @@ public class PboChain
 		{
 			lock.unlock();
 		}
+	}
+
+	/**
+	 * TODO: move to separate class (?)
+	 * Run all fill tasks and flush.
+	 */
+	public void processAll( ExecutorService es ) throws InterruptedException, ExecutionException
+	{
+		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
+		for ( TileFillTask tileFillTask : tileFillTasks )
+			tasks.add( () -> {
+				final PboUploadBuffer buf = take();
+				buf.task.fill( buf );
+				commit( buf );
+				return null;
+			} );
+		final List< Future< Void > > futures = es.invokeAll( tasks );
+		for ( final Future< Void > f : futures )
+			f.get();
+		flush();
 	}
 
 	/*
@@ -301,7 +330,7 @@ public class PboChain
 		if ( pbo == null )
 			return false;
 		pbo.unmap( context );
-		ti = pbo.uploadToTexture( context, fillTiles, ti );
+		pbo.uploadToTexture( context );
 
 		final ReentrantLock lock = this.lock;
 		lock.lock();
@@ -319,6 +348,7 @@ public class PboChain
 		return true;
 	}
 
+
 	/*
 	 * ====================================================
 	 * inner classes representing one PBO.
@@ -334,16 +364,19 @@ public class PboChain
 
 	static class PboUploadBuffer extends UploadBuffer
 	{
+		final TileFillTask task;
+
 		final Pbo pbo;
 
-		public PboUploadBuffer( final Buffer buffer, final int offset, final Pbo pbo )
+		public PboUploadBuffer( final Buffer buffer, final int offset, final TileFillTask task, final Pbo pbo )
 		{
 			super( buffer, offset );
+			this.task = task;
 			this.pbo = pbo;
 		}
 	}
 
-	public static class Pbo implements tpietzsch.backend.Pbo
+	static class Pbo implements tpietzsch.backend.Pbo
 	{
 		private final int bufSize; // size in blocks of this PBO
 		private final int blockSize; // size in bytes of each block
@@ -351,10 +384,10 @@ public class PboChain
 		private final TextureCache cache;
 
 		/**
-		 * filled buffers, i.e., those that got handed out.
-		 * assumed to be all returned by the time uploadToTexture() is called.
+		 * Committed buffers, ready for upload.
+		 * All buffers that were taken out, are assumed to be committed by the time uploadToTexture() is called.
 		 */
-		private final ArrayList< UploadBuffer > buffers = new ArrayList<>();
+		private final ArrayList< PboUploadBuffer > buffers = new ArrayList<>();
 
 		private PboState state;
 		private Buffer buffer;
@@ -381,7 +414,7 @@ public class PboChain
 			return bufSize * blockSize;
 		}
 
-		UploadBuffer takeBuffer()
+		PboUploadBuffer takeBuffer( TileFillTask task )
 		{
 			if ( state != MAPPED )
 				throw new IllegalStateException();
@@ -389,13 +422,13 @@ public class PboChain
 			if ( nextIndex >= bufSize )
 				throw new NoSuchElementException();
 
-			final UploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, this );
+			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, task, this );
 			++uncommitted;
 			++nextIndex;
 			return b;
 		}
 
-		void commitBuffer( final UploadBuffer buffer )
+		void commitBuffer( final PboUploadBuffer buffer )
 		{
 			buffers.add( buffer );
 			--uncommitted;
@@ -449,17 +482,9 @@ public class PboChain
 		}
 
 		/**
-		 * @param fillTiles
-		 *            list of tiles from cache that can be filled. Ordered by
-		 *            (z,y,x) so that contiguous ranges can be inferred. (these
-		 *            are shared between Pbos, ti start index persists over
-		 *            calls to uploadToTexture for different Pbos).
-		 * @param ti
-		 *            index of next tile in {@code fillTiles}.
-		 * @return index of next tile in {@code fillTiles} (after uploading
-		 *         committed UploadBuffers).
+		 * Tiles of buffers list might have contiguous ranges that will be recognized and uploaded in batches.
 		 */
-		int uploadToTexture( final GpuContext context, final List< Tile > fillTiles, int ti )
+		void uploadToTexture( final GpuContext context )
 		{
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();
@@ -467,12 +492,18 @@ public class PboChain
 			int bi = 0; // index of next buffer
 			while ( bi < buffers.size() )
 			{
+				final PboUploadBuffer buf0 = buffers.get( bi );
+				Tile prevTile = buf0.task.getTile();
+				final int x = blockDimensions[ 0 ] * prevTile.x;
+				final int y = blockDimensions[ 1 ] * prevTile.y;
+				final int z = blockDimensions[ 2 ] * prevTile.z;
+				final long pixels_buffer_offset = buf0.getOffset();
+
 				final int remainingBlocks = buffers.size() - bi;
-				Tile prevTile = fillTiles.get( ti );
 				int nb = 1;
 				for ( nb = 1; nb < remainingBlocks; ++nb )
 				{
-					final Tile tile = fillTiles.get( ti + nb );
+					final Tile tile = buffers.get( bi + nb ).task.getTile();
 					if ( tile.z == prevTile.z && tile.y == prevTile.y && tile.x == prevTile.x + 1 )
 						prevTile = tile;
 					else
@@ -480,33 +511,23 @@ public class PboChain
 				}
 
 				// upload nb blocks
-				final Tile tile0 = fillTiles.get( ti );
-				final int x = blockDimensions[ 0 ] * tile0.x;
-				final int y = blockDimensions[ 1 ] * tile0.y;
-				final int z = blockDimensions[ 2 ] * tile0.z;
 				final int w = blockDimensions[ 0 ] * nb;
 				final int h = blockDimensions[ 1 ];
 				final int d = blockDimensions[ 2 ];
-				final long pixels_buffer_offset = buffers.get( bi ).getOffset();
 				context.texSubImage3D( this, cache, x, y, z, w, h, d, pixels_buffer_offset );
 
 				// for each (uploadbuffer, tile): map tile to uploadBuffer.getKey, assign uploadBuffer.isComplete
 				for ( int i = 0; i < nb; ++i )
 				{
-					final Tile tile = fillTiles.get( ti + i );
-					final UploadBuffer buffer = buffers.get( bi + i );
-					cache.assign( tile, buffer.getImageBlockKey(), buffer.getContentState() );
+					final PboUploadBuffer buffer = buffers.get( bi + i );
+					cache.assign( buffer.task.getTile(), buffer.task.getKey(), buffer.getContentState() );
 				}
 
-				// increment bi and ti by nb
 				bi += nb;
-				ti += nb;
 			}	// repeat until bi == buffers.size()
 
 			buffers.clear();
 			state = CLEAN;
-
-			return ti;
 		}
 	}
 }

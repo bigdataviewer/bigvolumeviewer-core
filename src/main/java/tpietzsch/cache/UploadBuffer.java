@@ -8,7 +8,6 @@ public class UploadBuffer
 {
 	private final Buffer buffer;
 	private final int offset;
-	private ImageBlockKey< ? > key;
 	private ContentState state;
 
 	public UploadBuffer( final Buffer buffer, final int offset )
@@ -38,27 +37,11 @@ public class UploadBuffer
 	}
 
 	/**
-	 * Called by client to say which image block was stored.
-	 */
-	public void setImageBlockKey( final ImageBlockKey< ? > key )
-	{
-		this.key = key;
-	}
-
-	/**
-	 * Called by client to say whether image block data was complete.
+	 * Called by FillTask to say whether stored image block data was complete.
 	 */
 	public void setContentState( final ContentState state )
 	{
 		this.state = state;
-	}
-
-	/**
-	 * Which image block was stored?
-	 */
-	public ImageBlockKey< ? > getImageBlockKey()
-	{
-		return key;
 	}
 
 	/**
