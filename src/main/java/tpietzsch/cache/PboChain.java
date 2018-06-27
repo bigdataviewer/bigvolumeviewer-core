@@ -1,9 +1,11 @@
 package tpietzsch.cache;
 
 import java.nio.Buffer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.Condition;
@@ -24,8 +26,8 @@ public class PboChain
 	private final int bufSize; // size in blocks of each PBO
 	private final int blockSize; // size in bytes of each block
 
-	private final BlockingQueue< Pbo > cleanPbos;
-	private final BlockingQueue< Pbo > readyForUploadPbos;
+	private final Queue< Pbo > cleanPbos;
+	private final Queue< Pbo > readyForUploadPbos;
 	private Pbo activePbo;
 
 
@@ -67,10 +69,10 @@ public class PboChain
 		this.bufSize = bufSize;
 		this.blockSize = blockSize;
 
-		cleanPbos = new ArrayBlockingQueue<>( numBufs );
+		cleanPbos = new ArrayDeque<>( numBufs );
 		for ( int i = 0; i < numBufs; i++ )
 			cleanPbos.add( new Pbo( bufSize, blockSize, blockDimensions, cache ) );
-		readyForUploadPbos = new ArrayBlockingQueue<>( numBufs );
+		readyForUploadPbos = new ArrayDeque<>( numBufs );
 		activePbo = cleanPbos.peek();
 
 		lock = new ReentrantLock();
@@ -115,7 +117,7 @@ public class PboChain
 			final PboUploadBuffer buffer = activePbo.takeBuffer( tileFillTasks.get( ti++ ) );
 			if ( !activePbo.hasRemainingBuffers() )
 			{
-				System.out.println( "take() last buffer --> gpu.signal() to trigger activate" );
+//				System.out.println( "take() last buffer --> gpu.signal() to trigger activate" );
 				gpu.signal();
 			}
 
@@ -149,7 +151,7 @@ public class PboChain
 			if ( pbo.isReadyForUpload() )
 			{
 				readyForUploadPbos.add( pbo );
-				System.out.println( "commit() makes pbo.isReadyForUpload -> gpu.signal() to trigger upload" );
+//				System.out.println( "commit() makes pbo.isReadyForUpload -> gpu.signal() to trigger upload" );
 				gpu.signal();
 			}
 		}
@@ -188,14 +190,14 @@ public class PboChain
 
 			chainState = FLUSH;
 
-			System.out.println( "flush()" );
-			System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
+//			System.out.println( "flush()" );
+//			System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
 
 			if ( activePbo.flush() )
 			{
 				// Pbo.flush() returns true if the Pbo becomes immediately ready for upload
 				readyForUploadPbos.add( activePbo );
-				System.out.println( "flush() make activePbo immediately ready -> gpu.signal() for" );
+//				System.out.println( "flush() make activePbo immediately ready -> gpu.signal() for" );
 				gpu.signal();
 			}
 		}
@@ -214,11 +216,11 @@ public class PboChain
 		lock.lock();
 		try
 		{
-			System.out.println();
-			System.out.println( "PboChain.ready() = " + ( chainState == FLUSH && cleanPbos.size() == numBufs ) );
-			System.out.println( "  chainState = " + chainState );
-			System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
-			System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
+//			System.out.println();
+//			System.out.println( "PboChain.ready() = " + ( chainState == FLUSH && cleanPbos.size() == numBufs ) );
+//			System.out.println( "  chainState = " + chainState );
+//			System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
+//			System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
 			return chainState == FLUSH && cleanPbos.size() == numBufs;
 		}
 		finally
@@ -268,26 +270,28 @@ public class PboChain
 				while ( ( chainState == FLUSH || activePbo.hasRemainingBuffers() || cleanPbos.peek() == null ) // nothing to activate
 						&& readyForUploadPbos.peek() == null ) // nothing to upload
 				{
-					System.out.println("gpu.await();");
-					System.out.println( "  chainState = " + chainState );
-					System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
-					System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
-					System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
+//					System.out.println("gpu.await();");
+//					System.out.println( "  chainState = " + chainState );
+//					System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
+//					System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
+//					System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
 					gpu.await();
 				}
-				System.out.println("go");
+//				System.out.println("go");
 			}
 			finally
 			{
 				lock.unlock();
 			}
-			final boolean a = tryActivate( context );
-			System.out.println( "a = " + a );
-			final boolean u = tryUpload( context );
-			System.out.println( "u = " + u );
+			tryActivate( context );
+			tryUpload( context );
+//			final boolean a = tryActivate( context );
+//			System.out.println( "a = " + a );
+//			final boolean u = tryUpload( context );
+//			System.out.println( "u = " + u );
 		}
-		System.out.println( "done" );
-		System.out.println( "=====================" );
+//		System.out.println( "done" );
+//		System.out.println( "=====================" );
 	}
 
 	/**
@@ -298,6 +302,8 @@ public class PboChain
 	 */
 	public boolean tryActivate( final GpuContext context )
 	{
+		Pbo pbo = null;
+
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try
@@ -307,16 +313,16 @@ public class PboChain
 
 			if ( activePbo.hasRemainingBuffers() )
 				return false;
+
+			pbo = cleanPbos.poll();
 		}
 		finally
 		{
 			lock.unlock();
 		}
 
-		final Pbo pbo = cleanPbos.poll();
 		if ( pbo == null )
 			return false;
-
 		pbo.map( context );
 
 		lock.lock();
@@ -349,13 +355,24 @@ public class PboChain
 	 */
 	public boolean tryUpload( final GpuContext context )
 	{
-		final Pbo pbo = readyForUploadPbos.poll();
+		Pbo pbo = null;
+
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try
+		{
+			pbo = readyForUploadPbos.poll();
+		}
+		finally
+		{
+			lock.unlock();
+		}
+
 		if ( pbo == null )
 			return false;
 		pbo.unmap( context );
 		pbo.uploadToTexture( context );
 
-		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try
 		{
