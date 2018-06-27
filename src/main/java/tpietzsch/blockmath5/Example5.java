@@ -108,6 +108,8 @@ public class Example5 implements GLEventListener
 
 	private final PboChain pboChain;
 
+	private final ForkJoinPool forkJoinPool;
+
 
 
 	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
@@ -142,6 +144,8 @@ public class Example5 implements GLEventListener
 		final int[] cacheGridDimensions = LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, maxMemoryInMB );
 		textureCache = new TextureCache( cacheGridDimensions, paddedBlockSize );
 		pboChain = new PboChain( 5, 100, 2 * ( int ) Intervals.numElements( paddedBlockSize ), paddedBlockSize, textureCache );
+		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
+		forkJoinPool = new ForkJoinPool( parallelism );
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
@@ -505,9 +509,7 @@ public class Example5 implements GLEventListener
 
 		try
 		{
-			final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
-			ProcessFillTasks.parallel( textureCache, pboChain, JoglGpuContext.get( gl ),
-					new ForkJoinPool( parallelism ), fillTasks );
+			ProcessFillTasks.parallel( textureCache, pboChain, JoglGpuContext.get( gl ), forkJoinPool, fillTasks );
 		}
 		catch ( InterruptedException e )
 		{
