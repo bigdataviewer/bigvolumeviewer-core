@@ -71,6 +71,12 @@ public class TextureCache implements Texture3D
 		{
 			return state;
 		}
+
+		// TODO: REMOVE - for debugging only
+		public int getLru()
+		{
+			return lru;
+		}
 	}
 
 	static class TileFillTask implements FillTask
@@ -191,10 +197,17 @@ public class TextureCache implements Texture3D
 		final int newsize = create.size();
 		final List< Tile > fillTiles = assignFillTiles( newsize, timestamp );
 		for ( int i = 0; i < newsize; ++i )
+			// TODO: set lru = timestamp for all fillTiles?
 			tileFillTasks.add( new TileFillTask( create.get( i ), fillTiles.get( i ) ) );
 		tileFillTasks.addAll( update );
 
 		return tileFillTasks;
+	}
+
+	// TODO: verify tiles[] and tilemap consistency
+	void checkConsistency()
+	{
+
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
