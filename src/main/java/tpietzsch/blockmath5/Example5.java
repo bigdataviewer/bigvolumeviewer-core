@@ -14,6 +14,7 @@ import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
@@ -504,7 +505,9 @@ public class Example5 implements GLEventListener
 
 		try
 		{
-			ProcessFillTasks.sequential( textureCache, pboChain, JoglGpuContext.get( gl ), fillTasks );
+			final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
+			ProcessFillTasks.parallel( textureCache, pboChain, JoglGpuContext.get( gl ),
+					new ForkJoinPool( parallelism ), fillTasks );
 		}
 		catch ( InterruptedException e )
 		{

@@ -118,7 +118,10 @@ public class PboChain
 
 			final PboUploadBuffer buffer = activePbo.takeBuffer( tileFillTasks.get( ti++ ) );
 			if ( !activePbo.hasRemainingBuffers() )
+			{
+				System.out.println( "take -> gpu.signal();" );
 				gpu.signal();
+			}
 
 			return buffer;
 		}
@@ -143,26 +146,18 @@ public class PboChain
 		{
 			if ( chainState != FILL )
 				throw new IllegalStateException();
+			final Pbo pbo = buffer.pbo;
+			pbo.commitBuffer( buffer );
+			if ( pbo.isReadyForUpload() )
+			{
+				readyForUploadPbos.add( pbo );
+				System.out.println( "commit -> gpu.signal();" );
+				gpu.signal();
+			}
 		}
 		finally
 		{
 			lock.unlock();
-		}
-
-		final Pbo pbo = buffer.pbo;
-		pbo.commitBuffer( buffer );
-		if ( pbo.isReadyForUpload() )
-		{
-			lock.lock();
-			try
-			{
-				readyForUploadPbos.add( pbo );
-				gpu.signal();
-			}
-			finally
-			{
-				lock.unlock();
-			}
 		}
 	}
 
@@ -196,7 +191,10 @@ public class PboChain
 			if ( activePbo.flush() )
 			{
 				// Pbo.flush() returns true if the Pbo becomes immediately ready for upload
+				if ( activePbo.state != MAPPED )
+					System.err.println( "flush -> activePbo.state != MAPPED" );
 				readyForUploadPbos.add( activePbo );
+				System.out.println( "flush -> gpu.signal();" );
 				gpu.signal();
 			}
 
@@ -217,6 +215,11 @@ public class PboChain
 		lock.lock();
 		try
 		{
+			System.out.println();
+			System.out.println( "PboChain.ready() = " + ( chainState == FLUSH && cleanPbos.size() == numBufs ) );
+			System.out.println( "  chainState = " + chainState );
+			System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
+			System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
 			return chainState == FLUSH && cleanPbos.size() == numBufs;
 		}
 		finally
@@ -247,26 +250,6 @@ public class PboChain
 		}
 	}
 
-	/**
-	 * TODO: move to separate class (?)
-	 * Run all fill tasks and flush.
-	 */
-	public void processAll( ExecutorService es ) throws InterruptedException, ExecutionException
-	{
-		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
-		for ( TileFillTask tileFillTask : tileFillTasks )
-			tasks.add( () -> {
-				final PboUploadBuffer buf = take();
-				buf.task.fill( buf );
-				commit( buf );
-				return null;
-			} );
-		final List< Future< Void > > futures = es.invokeAll( tasks );
-		for ( final Future< Void > f : futures )
-			f.get();
-		flush();
-	}
-
 
 	/*
 	 * ====================================================
@@ -274,26 +257,34 @@ public class PboChain
 	 * ====================================================
 	 */
 
-	// runs forever...
+	// runs until flush() is completed
 	public void maintain( final GpuContext context ) throws InterruptedException
 	{
-		while ( true )
+		while ( !ready() )
 		{
 			final ReentrantLock lock = this.lock;
 			lock.lockInterruptibly();
 			try
 			{
-				while ( ( activePbo.hasRemainingBuffers() || cleanPbos.poll() == null ) // nothing to activate
-						&& readyForUploadPbos.poll() == null ) // nothing to upload
+				while ( ( chainState == FLUSH || activePbo.hasRemainingBuffers() || cleanPbos.peek() == null ) // nothing to activate
+						&& readyForUploadPbos.peek() == null ) // nothing to upload
+				{
+					System.out.println("gpu.await();");
 					gpu.await();
+				}
+				System.out.println("go");
 			}
 			finally
 			{
 				lock.unlock();
 			}
-			tryActivate( context );
-			tryUpload( context );
+			final boolean a = tryActivate( context );
+			System.out.println( "a = " + a );
+			final boolean u = tryUpload( context );
+			System.out.println( "u = " + u );
 		}
+		System.out.println( "done" );
+		System.out.println( "=====================" );
 	}
 
 	/**
@@ -307,13 +298,24 @@ public class PboChain
 		if ( activePbo.hasRemainingBuffers() )
 			return false;
 
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try
+		{
+			if ( chainState == FLUSH )
+				return false;
+		}
+		finally
+		{
+			lock.unlock();
+		}
+
 		final Pbo pbo = cleanPbos.poll();
 		if ( pbo == null )
 			return false;
 
 		pbo.map( context );
 
-		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try
 		{
@@ -346,7 +348,7 @@ public class PboChain
 		{
 			cleanPbos.add( pbo );
 			if ( cleanPbos.size() == numBufs )
-				allClean.signal();
+				allClean.signalAll();
 		}
 		finally
 		{
