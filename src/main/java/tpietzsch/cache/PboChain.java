@@ -6,10 +6,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import tpietzsch.backend.GpuContext;
@@ -119,7 +115,7 @@ public class PboChain
 			final PboUploadBuffer buffer = activePbo.takeBuffer( tileFillTasks.get( ti++ ) );
 			if ( !activePbo.hasRemainingBuffers() )
 			{
-				System.out.println( "take -> gpu.signal();" );
+				System.out.println( "take() last buffer --> gpu.signal() to trigger activate" );
 				gpu.signal();
 			}
 
@@ -146,12 +142,14 @@ public class PboChain
 		{
 			if ( chainState != FILL )
 				throw new IllegalStateException();
+
 			final Pbo pbo = buffer.pbo;
 			pbo.commitBuffer( buffer );
+
 			if ( pbo.isReadyForUpload() )
 			{
 				readyForUploadPbos.add( pbo );
-				System.out.println( "commit -> gpu.signal();" );
+				System.out.println( "commit() makes pbo.isReadyForUpload -> gpu.signal() to trigger upload" );
 				gpu.signal();
 			}
 		}
@@ -188,17 +186,18 @@ public class PboChain
 			if ( chainState != FILL )
 				throw new IllegalStateException();
 
+			chainState = FLUSH;
+
+			System.out.println( "flush()" );
+			System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
+
 			if ( activePbo.flush() )
 			{
 				// Pbo.flush() returns true if the Pbo becomes immediately ready for upload
-				if ( activePbo.state != MAPPED )
-					System.err.println( "flush -> activePbo.state != MAPPED" );
 				readyForUploadPbos.add( activePbo );
-				System.out.println( "flush -> gpu.signal();" );
+				System.out.println( "flush() make activePbo immediately ready -> gpu.signal() for" );
 				gpu.signal();
 			}
-
-			chainState = FLUSH;
 		}
 		finally
 		{
@@ -270,6 +269,10 @@ public class PboChain
 						&& readyForUploadPbos.peek() == null ) // nothing to upload
 				{
 					System.out.println("gpu.await();");
+					System.out.println( "  chainState = " + chainState );
+					System.out.println( "  cleanPbos.size = " + cleanPbos.size() + " / " + numBufs );
+					System.out.println( "  readyForUploadPbos.size = " + readyForUploadPbos.size() + " / " + numBufs );
+					System.out.println( "  activePbo.nextIndex = " + activePbo.nextIndex + " / " + activePbo.bufSize + "  uncommitted = " + activePbo.uncommitted );
 					gpu.await();
 				}
 				System.out.println("go");
@@ -295,14 +298,14 @@ public class PboChain
 	 */
 	public boolean tryActivate( final GpuContext context )
 	{
-		if ( activePbo.hasRemainingBuffers() )
-			return false;
-
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try
 		{
 			if ( chainState == FLUSH )
+				return false;
+
+			if ( activePbo.hasRemainingBuffers() )
 				return false;
 		}
 		finally
@@ -319,8 +322,18 @@ public class PboChain
 		lock.lock();
 		try
 		{
-			activePbo = pbo;
-			notEmpty.signalAll();
+			if ( chainState == FLUSH )
+			{
+				// oops, that map() was unnecessary...
+				pbo.flush();
+				readyForUploadPbos.add( pbo );
+				gpu.signal();
+			}
+			else
+			{
+				activePbo = pbo;
+				notEmpty.signalAll();
+			}
 			return true;
 		}
 		finally
