@@ -34,8 +34,8 @@ import tpietzsch.blockmath4.MipmapSizes;
 import tpietzsch.blocks.ByteUtils;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
-import tpietzsch.blocks.CopySubArrayImp;
 import tpietzsch.blocks.CopySubArrayImp.Address;
+import tpietzsch.blocks.CopySubArrayImp2;
 import tpietzsch.blocks.GridDataAccess;
 import tpietzsch.blocks.GridDataAccessImp;
 import tpietzsch.cache.DefaultFillTask;
@@ -179,16 +179,16 @@ public class Example5 implements GLEventListener
 
 		private final GridDataAccess< short[] > dataAccess;
 
-		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
+		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
 
-		private final CellGrid grid;
+		private final CellGrid srcgrid;
 
 		private final int[] blocksize;
 
 		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
 			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
-			grid = img.getCellGrid();
+			srcgrid = img.getCellGrid();
 			dataAccess = new GridDataAccessImp.VolatileCells<>( ( RandomAccess ) img.getCells().randomAccess() );
 
 			this.blocksize = blocksize;
@@ -199,7 +199,7 @@ public class Example5 implements GLEventListener
 		 */
 		public boolean canLoadCompletely( final int[] min )
 		{
-			return gcopy.canLoadCompletely( min, blocksize, grid, dataAccess );
+			return gcopy.canLoadCompletely( min, blocksize, srcgrid, dataAccess );
 		}
 
 		/**
@@ -208,7 +208,7 @@ public class Example5 implements GLEventListener
 		public boolean toBuffer( final UploadBuffer buffer, final int[] min )
 		{
 			final long address = addressOf( buffer.getBuffer() ) + buffer.getOffset();
-			final boolean complete = gcopy.copy( min, blocksize, grid, () -> address /* TODO */, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, srcgrid, () -> address /* TODO */, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}
