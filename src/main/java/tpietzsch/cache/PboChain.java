@@ -89,7 +89,7 @@ public class PboChain
 	 */
 
 	/**
-	 * Take next available UploadBuffer. (Blocks if necessay until one is
+	 * Take next available UploadBuffer. (Blocks if necessary until one is
 	 * available). When taking the last UploadBuffer of the active Pbo, signal
 	 * {@code gpu} to activate next Pbo.
 	 *
@@ -198,8 +198,8 @@ public class PboChain
 				// Pbo.flush() returns true if the Pbo becomes immediately ready for upload
 				readyForUploadPbos.add( activePbo );
 //				System.out.println( "flush() make activePbo immediately ready -> gpu.signal() for" );
-				gpu.signal();
 			}
+			gpu.signal();
 		}
 		finally
 		{
