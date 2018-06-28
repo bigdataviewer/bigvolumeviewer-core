@@ -36,7 +36,8 @@ import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
 import tpietzsch.blocks.CopySubArrayImp;
 import tpietzsch.blocks.CopySubArrayImp.Address;
-import tpietzsch.blocks.VolatileShortGridDataAccess;
+import tpietzsch.blocks.GridDataAccess;
+import tpietzsch.blocks.GridDataAccessImp;
 import tpietzsch.cache.DefaultFillTask;
 import tpietzsch.cache.FillTask;
 import tpietzsch.cache.ImageBlockKey;
@@ -176,7 +177,7 @@ public class Example5 implements GLEventListener
 	{
 		private final CopyGridBlock gcopy = new CopyGridBlock();
 
-		private final VolatileShortGridDataAccess dataAccess;
+		private final GridDataAccess< short[] > dataAccess;
 
 		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
 
@@ -188,7 +189,7 @@ public class Example5 implements GLEventListener
 		{
 			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
 			grid = img.getCellGrid();
-			dataAccess = new VolatileShortGridDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
+			dataAccess = new GridDataAccessImp.VolatileCells<>( ( RandomAccess ) img.getCells().randomAccess() );
 
 			this.blocksize = blocksize;
 		}

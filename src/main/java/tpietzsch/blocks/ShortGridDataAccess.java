@@ -4,6 +4,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.basictypeaccess.array.AbstractShortArray;
 import net.imglib2.img.cell.Cell;
 
+@Deprecated
 public class ShortGridDataAccess implements GridDataAccess< short[] >
 {
 	private final RandomAccess< ? extends Cell< ? extends AbstractShortArray< ? > > > cellAccess;

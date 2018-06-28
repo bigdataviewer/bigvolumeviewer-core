@@ -4,6 +4,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileShortArray;
 import net.imglib2.img.cell.Cell;
 
+@Deprecated
 public class VolatileShortGridDataAccess implements GridDataAccess< short[] >
 {
 	private final RandomAccess< ? extends Cell< ? extends AbstractVolatileShortArray< ? > > > cellAccess;
