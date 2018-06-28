@@ -7,8 +7,6 @@ public class CopyGridBlock
 	private final int[][] spans = new int[ 3 ][ 6 ];
 	private final int[] ls = new int[ 3 ];
 	private final int[] gmin = new int[ 3 ];
-	private final int[] srcsize = new int[ 3 ];
-	private final int[] cellsize = new int[ 3 ];
 	private final int nmin[] = new int[ 3 ];
 	private final int ndim[] = new int[ 3 ];
 	private final int css[] = new int[ 3 ];
@@ -45,7 +43,6 @@ public class CopyGridBlock
 	{
 		for ( int d = 0; d < 3; ++d )
 		{
-			srcsize[ d ] = ( int ) srcgrid.imgDimension( d );
 			nmin[ d ] = min[ d ];
 			ndim[ d ] = dim[ d ];
 			css[ d ] = dim[ d ];
@@ -56,6 +53,7 @@ public class CopyGridBlock
 
 		for ( int d = 2; d >= 0; --d )
 		{
+			final int srcsize = ( int ) srcgrid.imgDimension( d );
 			if ( min[ d ] < 0 )
 			{
 				css[ d ] = -min[ d ];
@@ -64,7 +62,7 @@ public class CopyGridBlock
 				ndim[ d ] -= css[ d ];
 				doo[ d ] = css[ d ];
 			}
-			final int b = min[ d ] + dim[ d ] - srcsize[ d ];
+			final int b = min[ d ] + dim[ d ] - srcsize;
 			if ( b > 0 )
 			{
 				doo2[ d ] = dim[ d ] - b;
@@ -109,11 +107,11 @@ public class CopyGridBlock
 			final CopySubArray< S, T > copy )
 	{
 		boolean complete = true;
-		srcgrid.cellDimensions( cellsize );
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int g0 = min[ d ] / cellsize[ d ];
-			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize[ d ];
+			final int cellsize = srcgrid.cellDimension( d );
+			final int g0 = min[ d ] / cellsize;
+			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize;
 			gmin[ d ] = g0;
 			ls[ d ] = g1 - g0 + 1;
 			final int spanreq = 3 * ls[ d ];
@@ -121,16 +119,16 @@ public class CopyGridBlock
 				spans[ d ] = new int[ spanreq ];
 			final int[] span = spans[ d ];
 			int i = 0;
-			int o = min[ d ] - g0 * cellsize[ d ];
+			int o = min[ d ] - g0 * cellsize;
 			for ( int g = g0; g < g1; ++g )
 			{
 				span[ i++ ] = o;
-				span[ i++ ] = cellsize[ d ] - o;
-				span[ i++ ] = cellsize[ d ];
+				span[ i++ ] = cellsize - o;
+				span[ i++ ] = cellsize;
 				o = 0;
 			}
 			span[ i++ ] = o;
-			span[ i++ ] = min[ d ] + dim[ d ] - g1 * cellsize[ d ] - o;
+			span[ i++ ] = min[ d ] + dim[ d ] - g1 * cellsize - o;
 			span[ i ] = srcgrid.getCellDimension( d, g1 );
 		}
 
@@ -192,7 +190,7 @@ public class CopyGridBlock
 	{
 		for ( int d = 0; d < 3; ++d )
 		{
-			srcsize[ d ] = ( int ) srcgrid.imgDimension( d );
+			final int srcsize = ( int ) srcgrid.imgDimension( d );
 			nmin[ d ] = min[ d ];
 			ndim[ d ] = dim[ d ];
 			if ( min[ d ] < 0 )
@@ -200,7 +198,7 @@ public class CopyGridBlock
 				nmin[ d ] = 0;
 				ndim[ d ] += min[ d ];
 			}
-			final int b = min[ d ] + dim[ d ] - srcsize[ d ];
+			final int b = min[ d ] + dim[ d ] - srcsize;
 			if ( b > 0 )
 				ndim[ d ] -= b;
 		}
@@ -212,11 +210,11 @@ public class CopyGridBlock
 	private boolean canLoadCompletelyNoOob( final int[] min, final int[] dim, final CellGrid srcgrid, final GridDataAccess< ? > srca )
 	{
 		boolean complete = true;
-		srcgrid.cellDimensions( cellsize );
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int g0 = min[ d ] / cellsize[ d ];
-			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize[ d ];
+			final int cellsize = srcgrid.cellDimension( d );
+			final int g0 = min[ d ] / cellsize;
+			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize;
 			gmin[ d ] = g0;
 			ls[ d ] = g1 - g0 + 1;
 		}
