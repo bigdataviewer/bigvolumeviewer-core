@@ -463,6 +463,7 @@ public class PboChain
 				throw new NoSuchElementException();
 
 			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, task, this );
+			buffers.add( b );
 			++uncommitted;
 			++nextIndex;
 			return b;
@@ -470,7 +471,6 @@ public class PboChain
 
 		void commitBuffer( final PboUploadBuffer buffer )
 		{
-			buffers.add( buffer );
 			--uncommitted;
 		}
 
