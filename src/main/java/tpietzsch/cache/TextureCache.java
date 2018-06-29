@@ -197,8 +197,11 @@ public class TextureCache implements Texture3D
 		final int newsize = create.size();
 		final List< Tile > fillTiles = assignFillTiles( newsize, timestamp );
 		for ( int i = 0; i < newsize; ++i )
-			// TODO: set lru = timestamp for all fillTiles?
-			tileFillTasks.add( new TileFillTask( create.get( i ), fillTiles.get( i ) ) );
+		{
+			final Tile tile = fillTiles.get( i );
+			tile.lru = timestamp;
+			tileFillTasks.add( new TileFillTask( create.get( i ), tile ) );
+		}
 		tileFillTasks.addAll( update );
 
 		return tileFillTasks;
