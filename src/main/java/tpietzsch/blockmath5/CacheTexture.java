@@ -25,7 +25,7 @@ import static com.jogamp.opengl.GL2ES3.GL_PIXEL_UNPACK_BUFFER;
 import static com.jogamp.opengl.GL2GL3.GL_R16;
 import static tpietzsch.blocks.ByteUtils.addressOf;
 
-import tpietzsch.blocks.CopySubArrayImp;
+import tpietzsch.blocks.ByteUtils;
 
 public class CacheTexture
 {
@@ -58,7 +58,7 @@ public class CacheTexture
 		numBytesInBlock = blockSize[ 0 ] * blockSize[ 1 ] * blockSize[ 2 ] * 2;
 	}
 
-	public static class UploadBuffer implements CopySubArrayImp.Address
+	public static class UploadBuffer implements ByteUtils.Address
 	{
 		private final Buffer buffer;
 

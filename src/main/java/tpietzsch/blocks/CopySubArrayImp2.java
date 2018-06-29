@@ -1,6 +1,6 @@
 package tpietzsch.blocks;
 
-import tpietzsch.blocks.CopySubArrayImp.Address;
+import tpietzsch.blocks.ByteUtils.Address;
 
 public class CopySubArrayImp2
 {
@@ -13,7 +13,7 @@ public class CopySubArrayImp2
 		public void clearsubarray3d( final Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
 		{
 			final ArrayFill fill = ( o, l ) -> ByteUtils.setShorts( ( short ) 0, dst.getAddress() + 2 * o, l );
-			CopySubArrayImp2.fillsubarray3dn( fill, dox, doy, doz, dsx, dsy, csx, csy, csz );
+			fillsubarray3dn( fill, dox, doy, doz, dsx, dsy, csx, csy, csz );
 		}
 
 		@Override

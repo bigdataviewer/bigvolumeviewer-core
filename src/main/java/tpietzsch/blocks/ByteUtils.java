@@ -69,6 +69,11 @@ public class ByteUtils
 			UNSAFE.putShort( dst + 2 * i, src );
 	}
 
+	public interface Address
+	{
+		long getAddress();
+	}
+
 	public static void main( final String[] args )
 	{
 		System.out.println( "BUFFER_ADDRESS_OFFSET = " + BUFFER_ADDRESS_OFFSET );

@@ -1,7 +1,6 @@
 package tpietzsch.blockmath5;
 
 import bdv.cache.CacheControl;
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.volume.RequiredBlocks;
@@ -18,11 +17,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
@@ -35,7 +32,7 @@ import tpietzsch.blockmath4.MipmapSizes;
 import tpietzsch.blocks.ByteUtils;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
-import tpietzsch.blocks.CopySubArrayImp.Address;
+import tpietzsch.blocks.ByteUtils.Address;
 import tpietzsch.blocks.CopySubArrayImp2;
 import tpietzsch.blocks.GridDataAccess;
 import tpietzsch.blocks.GridDataAccessImp;
@@ -74,7 +71,6 @@ import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
-import static tpietzsch.blocks.ByteUtils.addressOf;
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
 /**
@@ -186,9 +182,7 @@ public class Example5 implements GLEventListener
 
 		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
-			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
-			dataAccess = new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img );
-
+			dataAccess = new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) rai );
 			this.blocksize = blocksize;
 		}
 
@@ -205,8 +199,7 @@ public class Example5 implements GLEventListener
 		 */
 		public boolean toBuffer( final UploadBuffer buffer, final int[] min )
 		{
-			final long address = addressOf( buffer.getBuffer() ) + buffer.getOffset();
-			final boolean complete = gcopy.copy( min, blocksize, () -> address /* TODO */, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, buffer, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}

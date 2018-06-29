@@ -1,31 +1,24 @@
 package tpietzsch.blockmath3;
 
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.BenchmarkHelper;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
+import tpietzsch.blocks.ByteUtils;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
 import tpietzsch.blocks.CopySubArrayImp;
 import tpietzsch.blocks.CopySubArrayImp2;
 import tpietzsch.blocks.GridDataAccess;
 import tpietzsch.blocks.GridDataAccessImp;
-import tpietzsch.cache.UploadBuffer;
 import tpietzsch.day10.BlockKey;
 import tpietzsch.day8.BlockTextureUtils;
 
@@ -65,7 +58,7 @@ public class Benchmark2
 
 		private final GridDataAccess< short[] > dataAccess;
 
-		private final CopySubArray< short[], CopySubArrayImp.Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
+		private final CopySubArray< short[], ByteUtils.Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
 
 		private final int[] blocksize;
 
@@ -134,7 +127,7 @@ public class Benchmark2
 
 		private final GridDataAccess< short[] > dataAccess;
 
-		private final CopySubArray< short[], CopySubArrayImp.Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
+		private final CopySubArray< short[], ByteUtils.Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
 
 		private final int[] blocksize;
 

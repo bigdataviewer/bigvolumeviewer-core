@@ -4,11 +4,13 @@ import static tpietzsch.blocks.ByteUtils.addressOf;
 
 import java.nio.Buffer;
 
+@Deprecated
 public class CopySubArrayImp
 {
 	// -------------------------------------------------------------
 	// short[] to short[]
 
+	@Deprecated
 	public static class ShortToShort implements CopySubArray< short[], short[] >
 	{
 		@Override
@@ -129,21 +131,16 @@ public class CopySubArrayImp
 		}
 	}
 
-	public interface Address
-	{
-		long getAddress();
-	}
-
-	public static class ShortToAddress implements CopySubArray< short[], Address >
+	public static class ShortToAddress implements CopySubArray< short[], ByteUtils.Address >
 	{
 		@Override
-		public void clearsubarray3d( final Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		public void clearsubarray3d( final ByteUtils.Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
 		{
 			CopySubArrayImp.fillsubarray3dn( ( short ) 0, dst.getAddress(), dox, doy, doz, dsx, dsy, csx, csy, csz );
 		}
 
 		@Override
-		public void copysubarray3d( final short[] src, final int sox, final int soy, final int soz, final int ssx, final int ssy, final Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		public void copysubarray3d( final short[] src, final int sox, final int soy, final int soz, final int ssx, final int ssy, final ByteUtils.Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
 		{
 			CopySubArrayImp.copysubarray3dn( src, sox, soy, soz, ssx, ssy, dst.getAddress(), dox, doy, doz, dsx, dsy, csx, csy, csz );
 		}

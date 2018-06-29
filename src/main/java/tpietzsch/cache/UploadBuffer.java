@@ -2,9 +2,10 @@ package tpietzsch.cache;
 
 import java.nio.Buffer;
 
+import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.TextureCache.ContentState;
 
-public class UploadBuffer
+public class UploadBuffer implements ByteUtils.Address
 {
 	private final Buffer buffer;
 	private final int offset;
@@ -50,5 +51,14 @@ public class UploadBuffer
 	public ContentState getContentState()
 	{
 		return state;
+	}
+
+	/**
+	 * ...tentative...
+	 */
+	@Override
+	public long getAddress()
+	{
+		return ByteUtils.addressOf( buffer ) + offset;
 	}
 }

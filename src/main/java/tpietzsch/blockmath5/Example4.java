@@ -29,7 +29,7 @@ import tpietzsch.blockmath5.CacheTexture.UploadBuffer;
 import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
 import tpietzsch.blocks.CopySubArrayImp;
-import tpietzsch.blocks.CopySubArrayImp.Address;
+import tpietzsch.blocks.ByteUtils.Address;
 import tpietzsch.blocks.GridDataAccess;
 import tpietzsch.blocks.GridDataAccessImp;
 import tpietzsch.day10.OffScreenFrameBuffer;
