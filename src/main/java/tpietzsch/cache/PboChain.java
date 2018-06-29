@@ -146,7 +146,7 @@ public class PboChain
 				throw new IllegalStateException();
 
 			final Pbo pbo = buffer.pbo;
-			pbo.commitBuffer( buffer );
+			pbo.commitBuffer();
 
 			if ( pbo.isReadyForUpload() )
 			{
@@ -469,7 +469,7 @@ public class PboChain
 			return b;
 		}
 
-		void commitBuffer( final PboUploadBuffer buffer )
+		void commitBuffer()
 		{
 			--uncommitted;
 		}
