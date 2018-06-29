@@ -1,25 +1,21 @@
 package tpietzsch.blockmath5;
 
 import bdv.cache.CacheControl;
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.volume.RequiredBlocks;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
-import com.jogamp.opengl.util.FPSAnimator;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
-import net.imglib2.img.cell.CellGrid;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
@@ -35,7 +31,8 @@ import tpietzsch.blocks.CopyGridBlock;
 import tpietzsch.blocks.CopySubArray;
 import tpietzsch.blocks.CopySubArrayImp;
 import tpietzsch.blocks.CopySubArrayImp.Address;
-import tpietzsch.blocks.VolatileShortGridDataAccess;
+import tpietzsch.blocks.GridDataAccess;
+import tpietzsch.blocks.GridDataAccessImp;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day2.Shader;
 import tpietzsch.day4.InputFrame;
@@ -173,20 +170,15 @@ public class Example1 implements GLEventListener
 	{
 		private final CopyGridBlock gcopy = new CopyGridBlock();
 
-		private final VolatileShortGridDataAccess dataAccess;
+		private final GridDataAccess< short[] > dataAccess;
 
 		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
-
-		private final CellGrid grid;
 
 		private final int[] blocksize;
 
 		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
-			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
-			grid = img.getCellGrid();
-			dataAccess = new VolatileShortGridDataAccess( ( RandomAccess ) img.getCells().randomAccess() );
-
+			dataAccess = new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) rai );
 			this.blocksize = blocksize;
 		}
 
@@ -195,7 +187,7 @@ public class Example1 implements GLEventListener
 		 */
 		public boolean canLoadCompletely( final int[] min )
 		{
-			return gcopy.canLoadCompletely( min, blocksize, grid, dataAccess );
+			return gcopy.canLoadCompletely( min, blocksize, dataAccess );
 		}
 
 		/**
@@ -203,7 +195,7 @@ public class Example1 implements GLEventListener
 		 */
 		public boolean toBuffer( final UploadBuffer buffer, final int[] min )
 		{
-			final boolean complete = gcopy.copy( min, blocksize, grid, buffer, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, buffer, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}

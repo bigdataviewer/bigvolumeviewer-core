@@ -21,6 +21,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
@@ -181,15 +182,12 @@ public class Example5 implements GLEventListener
 
 		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
 
-		private final CellGrid srcgrid;
-
 		private final int[] blocksize;
 
 		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
 		{
 			final VolatileCachedCellImg< VolatileUnsignedShortType, ? > img = ( VolatileCachedCellImg< VolatileUnsignedShortType, ? > ) rai;
-			srcgrid = img.getCellGrid();
-			dataAccess = new GridDataAccessImp.VolatileCells<>( ( RandomAccess ) img.getCells().randomAccess() );
+			dataAccess = new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img );
 
 			this.blocksize = blocksize;
 		}
@@ -199,7 +197,7 @@ public class Example5 implements GLEventListener
 		 */
 		public boolean canLoadCompletely( final int[] min )
 		{
-			return gcopy.canLoadCompletely( min, blocksize, srcgrid, dataAccess );
+			return gcopy.canLoadCompletely( min, blocksize, dataAccess );
 		}
 
 		/**
@@ -208,7 +206,7 @@ public class Example5 implements GLEventListener
 		public boolean toBuffer( final UploadBuffer buffer, final int[] min )
 		{
 			final long address = addressOf( buffer.getBuffer() ) + buffer.getOffset();
-			final boolean complete = gcopy.copy( min, blocksize, srcgrid, () -> address /* TODO */, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, () -> address /* TODO */, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}

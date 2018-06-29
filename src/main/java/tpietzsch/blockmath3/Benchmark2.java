@@ -12,6 +12,7 @@ import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
@@ -66,16 +67,11 @@ public class Benchmark2
 
 		private final CopySubArray< short[], CopySubArrayImp.Address > subArrayCopy = new CopySubArrayImp.ShortToAddress();
 
-		private final CellGrid grid;
-
 		private final int[] blocksize;
 
 		public Copier( final RandomAccessibleInterval< UnsignedShortType > rai, final int[] blocksize )
 		{
-			final VolatileCachedCellImg< UnsignedShortType, ? > img = ( VolatileCachedCellImg< UnsignedShortType, ? > ) rai;
-			grid = img.getCellGrid();
-			dataAccess = new GridDataAccessImp.Cells<>( ( RandomAccess ) img.getCells().randomAccess() );
-
+			dataAccess = new GridDataAccessImp.Cells<>( ( AbstractCellImg ) rai );
 			this.blocksize = blocksize;
 		}
 
@@ -84,7 +80,7 @@ public class Benchmark2
 		 */
 		public boolean canLoadCompletely( final int[] min )
 		{
-			return gcopy.canLoadCompletely( min, blocksize, grid, dataAccess );
+			return gcopy.canLoadCompletely( min, blocksize, dataAccess );
 		}
 
 		/**
@@ -93,7 +89,7 @@ public class Benchmark2
 		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
 		{
 			final long address = addressOf( buffer );
-			final boolean complete = gcopy.copy( min, blocksize, grid, () -> address /* TODO */, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, () -> address /* TODO */, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}
@@ -140,15 +136,11 @@ public class Benchmark2
 
 		private final CopySubArray< short[], CopySubArrayImp.Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
 
-		private final CellGrid grid;
-
 		private final int[] blocksize;
 
 		public CopierNew( final RandomAccessibleInterval< UnsignedShortType > rai, final int[] blocksize )
 		{
-			final VolatileCachedCellImg< UnsignedShortType, ? > img = ( VolatileCachedCellImg< UnsignedShortType, ? > ) rai;
-			grid = img.getCellGrid();
-			dataAccess = new GridDataAccessImp.Cells<>( ( RandomAccess ) img.getCells().randomAccess() );
+			dataAccess = new GridDataAccessImp.Cells<>( ( AbstractCellImg ) rai );
 
 			this.blocksize = blocksize;
 		}
@@ -158,7 +150,7 @@ public class Benchmark2
 		 */
 		public boolean canLoadCompletely( final int[] min )
 		{
-			return gcopy.canLoadCompletely( min, blocksize, grid, dataAccess );
+			return gcopy.canLoadCompletely( min, blocksize, dataAccess );
 		}
 
 		/**
@@ -167,7 +159,7 @@ public class Benchmark2
 		public boolean toBuffer( final ByteBuffer buffer, final int[] min )
 		{
 			final long address = addressOf( buffer );
-			final boolean complete = gcopy.copy( min, blocksize, grid, () -> address /* TODO */, dataAccess, subArrayCopy );
+			final boolean complete = gcopy.copy( min, blocksize, () -> address /* TODO */, dataAccess, subArrayCopy );
 			return complete;
 		}
 	}

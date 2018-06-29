@@ -1,7 +1,5 @@
 package tpietzsch.blocks;
 
-import net.imglib2.img.cell.CellGrid;
-
 public class CopyGridBlock
 {
 	private final int[][] spans = new int[ 3 ][ 6 ];
@@ -20,8 +18,6 @@ public class CopyGridBlock
 	 *            min coordinate of block to copy
 	 * @param dim
 	 *            size of block to copy
-	 * @param srcgrid
-	 *            dimensions of the source grid
 	 * @param dst
 	 * @param srca
 	 * @param copy
@@ -36,7 +32,6 @@ public class CopyGridBlock
 	public < S, T > boolean copy(
 			final int[] min,
 			final int[] dim,
-			final CellGrid srcgrid,
 			final T dst,
 			final GridDataAccess< S > srca,
 			final CopySubArray< S, T > copy )
@@ -53,7 +48,6 @@ public class CopyGridBlock
 
 		for ( int d = 2; d >= 0; --d )
 		{
-			final int srcsize = ( int ) srcgrid.imgDimension( d );
 			if ( min[ d ] < 0 )
 			{
 				css[ d ] = -min[ d ];
@@ -62,7 +56,7 @@ public class CopyGridBlock
 				ndim[ d ] -= css[ d ];
 				doo[ d ] = css[ d ];
 			}
-			final int b = min[ d ] + dim[ d ] - srcsize;
+			final int b = min[ d ] + dim[ d ] - srca.imgSize( d );
 			if ( b > 0 )
 			{
 				doo2[ d ] = dim[ d ] - b;
@@ -74,7 +68,7 @@ public class CopyGridBlock
 			doo2[ d ] = doo[ d ];
 		}
 
-		return copyNoOob( nmin, ndim, doo, dim, srcgrid, dst, srca, copy );
+		return copyNoOob( nmin, ndim, doo, dim, dst, srca, copy );
 	}
 
 	/**
@@ -84,7 +78,6 @@ public class CopyGridBlock
 	 * @param dim dimensions of block to copy
 	 * @param doff offset in destination
 	 * @param ddim dimensions of destination
-	 * @param srcgrid cell dimensions of the source grid
 	 * @param dst destination array
 	 * @param srca access to cell storage arrays of source
 	 * @param copy functions to copy and clear subarrays
@@ -101,7 +94,6 @@ public class CopyGridBlock
 			final int[] dim,
 			final int[] doff,
 			final int[] ddim,
-			final CellGrid srcgrid,
 			final T dst,
 			final GridDataAccess< S > srca,
 			final CopySubArray< S, T > copy )
@@ -109,7 +101,7 @@ public class CopyGridBlock
 		boolean complete = true;
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int cellsize = srcgrid.cellDimension( d );
+			final int cellsize = srca.cellSize( d );
 			final int g0 = min[ d ] / cellsize;
 			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize;
 			gmin[ d ] = g0;
@@ -129,7 +121,7 @@ public class CopyGridBlock
 			}
 			span[ i++ ] = o;
 			span[ i++ ] = min[ d ] + dim[ d ] - g1 * cellsize - o;
-			span[ i ] = srcgrid.getCellDimension( d, g1 );
+			span[ i ] = srca.cellSize( d, g1 );
 		}
 
 		srca.setPosition( gmin );
@@ -186,11 +178,14 @@ public class CopyGridBlock
 		return complete;
 	}
 
-	public boolean canLoadCompletely( final int[] min, final int[] dim, final CellGrid srcgrid, final GridDataAccess< ? > srca )
+	public boolean canLoadCompletely(
+			final int[] min,
+			final int[] dim,
+			final GridDataAccess< ? > srca )
 	{
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int srcsize = ( int ) srcgrid.imgDimension( d );
+			final int srcsize = ( int ) srca.imgSize( d );
 			nmin[ d ] = min[ d ];
 			ndim[ d ] = dim[ d ];
 			if ( min[ d ] < 0 )
@@ -204,15 +199,18 @@ public class CopyGridBlock
 		}
 		// TODO check whether dst is completely outside of src
 
-		return canLoadCompletelyNoOob( nmin, ndim, srcgrid, srca );
+		return canLoadCompletelyNoOob( nmin, ndim, srca );
 	}
 
-	private boolean canLoadCompletelyNoOob( final int[] min, final int[] dim, final CellGrid srcgrid, final GridDataAccess< ? > srca )
+	private boolean canLoadCompletelyNoOob(
+			final int[] min,
+			final int[] dim,
+			final GridDataAccess< ? > srca )
 	{
 		boolean complete = true;
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int cellsize = srcgrid.cellDimension( d );
+			final int cellsize = srca.cellSize( d );
 			final int g0 = min[ d ] / cellsize;
 			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize;
 			gmin[ d ] = g0;
