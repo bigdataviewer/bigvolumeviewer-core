@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import tpietzsch.backend.GpuContext;
@@ -90,14 +88,17 @@ public class PboChain
 
 	/**
 	 * Take next available UploadBuffer. (Blocks if necessary until one is
-	 * available). When taking the last UploadBuffer of the active Pbo, signal
-	 * {@code gpu} to activate next Pbo.
+	 * available). When taking the last UploadBuffer of the active Pbo,
+	 * {@code gpu.signal()} to activate next Pbo.
 	 *
 	 * @return new buffer to be filled and {@link #commit(PboUploadBuffer)
-	 *         commited}.
+	 *         committed}.
 	 * @throws InterruptedException
-	 * @throws NoSuchElementException if there are no more upload buffers to process for the current batch of tasks.
-	 * @throws IllegalStateException if there is no current batch of tasks.
+	 * @throws NoSuchElementException
+	 *             if there are no more upload buffers to process for the
+	 *             current batch of tasks.
+	 * @throws IllegalStateException
+	 *             if there is no current batch of tasks.
 	 */
 	PboUploadBuffer take() throws InterruptedException, NoSuchElementException, IllegalStateException
 	{
@@ -131,7 +132,7 @@ public class PboChain
 
 	/**
 	 * Commit {@code buffer}. When committing the last UploadBuffer of a Pbo,
-	 * signal {@code gpu} to upload the Pbo.
+	 * {@code gpu.signal()} to upload the Pbo.
 	 *
 	 * @param buffer
 	 *            buffer to commit
@@ -258,7 +259,10 @@ public class PboChain
 	 * ====================================================
 	 */
 
-	// runs until flush() is completed
+	/**
+	 * Maps and unmaps Pbos and uploads to texture. Runs until flush() is
+	 * completed
+	 */
 	public void maintain( final GpuContext context ) throws InterruptedException
 	{
 		while ( !ready() )
@@ -424,8 +428,8 @@ public class PboChain
 		private final TextureCache cache;
 
 		/**
-		 * Committed buffers, ready for upload.
-		 * All buffers that were taken out, are assumed to be committed by the time uploadToTexture() is called.
+		 * Committed buffers, ready for upload. All buffers that were taken out,
+		 * are assumed to be committed by the time uploadToTexture() is called.
 		 */
 		private final ArrayList< PboUploadBuffer > buffers = new ArrayList<>();
 
@@ -454,7 +458,7 @@ public class PboChain
 			return bufSize * blockSize;
 		}
 
-		PboUploadBuffer takeBuffer( TileFillTask task )
+		PboUploadBuffer takeBuffer( final TileFillTask task )
 		{
 			if ( state != MAPPED )
 				throw new IllegalStateException();
@@ -522,7 +526,8 @@ public class PboChain
 		}
 
 		/**
-		 * Tiles of buffers list might have contiguous ranges that will be recognized and uploaded in batches.
+		 * Tiles of buffers list might have contiguous ranges that will be
+		 * recognized and uploaded in batches.
 		 */
 		void uploadToTexture( final GpuContext context )
 		{

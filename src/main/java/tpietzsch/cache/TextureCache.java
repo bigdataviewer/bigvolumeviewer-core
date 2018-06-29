@@ -71,12 +71,6 @@ public class TextureCache implements Texture3D
 		{
 			return state;
 		}
-
-		// TODO: REMOVE - for debugging only
-		public int getLru()
-		{
-			return lru;
-		}
 	}
 
 	static class TileFillTask implements FillTask
@@ -205,12 +199,6 @@ public class TextureCache implements Texture3D
 		tileFillTasks.addAll( update );
 
 		return tileFillTasks;
-	}
-
-	// TODO: verify tiles[] and tilemap consistency
-	void checkConsistency()
-	{
-
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
