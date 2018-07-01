@@ -109,8 +109,8 @@ public class TextureCache implements Texture3D
 	// width, height, depth in tiles
 	private final int[] dimensions; // TODO: unused? remove?
 
-	// dimensions of single tile
-	private final int[] tileDimensions; // TODO: unused? remove?
+	// tile size and texture format
+	private final CacheSpec spec;
 
 	// tiles arranged in (z,y,x)-flattened texture order
 	private final Tile[] tiles; // TODO: unused? remove?
@@ -129,13 +129,14 @@ public class TextureCache implements Texture3D
 
 	public TextureCache(
 			final int[] dimensions,
-			final int[] tileDimensions )
+			final CacheSpec spec )
 	{
 		assert dimensions.length == 3;
 
 		this.dimensions = dimensions;
-		this.tileDimensions = tileDimensions;
+		this.spec = spec;
 
+		final int[] tileDimensions = spec.paddedBlockSize();
 		texWidth = dimensions[ 0 ] * tileDimensions[ 0 ];
 		texHeight = dimensions[ 1 ] * tileDimensions[ 1 ];
 		texDepth = dimensions[ 2 ] * tileDimensions[ 2 ];
@@ -153,6 +154,11 @@ public class TextureCache implements Texture3D
 		for ( i = 1; i < len; ++i )
 			lruOrdered.add( tiles[ i ] );
 		numUnblockedTiles = len - 1;
+	}
+
+	public CacheSpec spec()
+	{
+		return spec;
 	}
 
 	public Tile get( final ImageBlockKey< ? > key )
@@ -254,6 +260,33 @@ public class TextureCache implements Texture3D
 	};
 
 
+
+	/*
+	 * static helpers
+	 */
+
+	/**
+	 * Find suitable size of a 3D texture (in multiples of {@code cacheSpec.paddedBlockSize()})
+	 * such that it requires less than {@code maxMemoryInMB}, the texture is
+	 * roughly square, and fits as many blocks as possible.
+	 *
+	 * @param cacheSpec
+	 *            provides voxel type and size of an individual block.
+	 * @param maxMemoryInMB
+	 * @return size of 3D texture in multiples of {@code acheSpec.paddedBlockSize()}.
+	 */
+	public static int[] findSuitableGridSize( final CacheSpec cacheSpec, final int maxMemoryInMB )
+	{
+		final double numVoxels = maxMemoryInMB * 1024 * 1024 / cacheSpec.format().getBytesPerElement();
+		final double sideLength = Math.pow( numVoxels, 1.0 / 3.0 );
+		final int[] gridSize = new int[ 3 ];
+		for ( int d = 0; d < 3; ++d )
+			gridSize[ d ] = ( int ) ( sideLength / cacheSpec.paddedBlockSize()[ d ] );
+		return gridSize;
+	}
+
+
+
 	/*
 	 * ... implements Texture3D
 	 */
@@ -261,7 +294,7 @@ public class TextureCache implements Texture3D
 	@Override
 	public InternalFormat texInternalFormat()
 	{
-		return InternalFormat.R16;
+		return spec.format();
 	}
 
 	@Override

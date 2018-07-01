@@ -8,6 +8,7 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import net.imglib2.util.Intervals;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.TextureCache.TileFillTask;
@@ -52,11 +53,29 @@ public class PboChain
 	 *
 	 * @param numBufs number of PBOs to create
 	 * @param bufSize size in blocks of each PBO
+	 * @param cache texture to upload to
+	 */
+	public PboChain(
+			final int numBufs,
+			final int bufSize,
+			final TextureCache cache )
+	{
+		this( numBufs, bufSize,
+				cache.spec().format().getBytesPerElement() * ( int ) Intervals.numElements( cache.spec().paddedBlockSize() ),
+				cache.spec().paddedBlockSize(),
+				cache );
+	}
+
+	/**
+	 *
+	 * @param numBufs number of PBOs to create
+	 * @param bufSize size in blocks of each PBO
 	 * @param blockSize size in bytes of each block
 	 * @param blockDimensions dimensions of each block
 	 * @param cache texture to upload to
 	 */
-	public PboChain(
+	// TODO: remove? (inline into other constructor)
+	PboChain(
 			final int numBufs,
 			final int bufSize,
 			final int blockSize,

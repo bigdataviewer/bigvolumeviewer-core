@@ -27,6 +27,7 @@ import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import tpietzsch.backend.Texture;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blockmath4.MipmapSizes;
 import tpietzsch.blocks.ByteUtils;
@@ -36,6 +37,7 @@ import tpietzsch.blocks.ByteUtils.Address;
 import tpietzsch.blocks.CopySubArrayImp2;
 import tpietzsch.blocks.GridDataAccess;
 import tpietzsch.blocks.GridDataAccessImp;
+import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.DefaultFillTask;
 import tpietzsch.cache.FillTask;
 import tpietzsch.cache.ImageBlockKey;
@@ -90,11 +92,10 @@ public class Example5 implements GLEventListener
 
 	private ScreenPlane1 screenPlane;
 
-	private final int[] blockSize = { 32, 32, 32 };
-
-	private final int[] paddedBlockSize = { 34, 34, 34 };
-
-	private final int[] cachePadOffset = { 1, 1, 1 };
+	private final CacheSpec cacheSpec = new CacheSpec( Texture.InternalFormat.R16, new int[] { 32, 32, 32 } );
+//	private final int[] blockSize = { 32, 32, 32 };
+//	private final int[] paddedBlockSize = { 34, 34, 34 };
+//	private final int[] cachePadOffset = { 1, 1, 1 };
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
@@ -139,9 +140,9 @@ public class Example5 implements GLEventListener
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
 
 		final int maxMemoryInMB = 200;
-		final int[] cacheGridDimensions = LRUBlockCache.findSuitableGridSize( paddedBlockSize, 2, maxMemoryInMB );
-		textureCache = new TextureCache( cacheGridDimensions, paddedBlockSize );
-		pboChain = new PboChain( 5, 100, 2 * ( int ) Intervals.numElements( paddedBlockSize ), paddedBlockSize, textureCache );
+		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxMemoryInMB );
+		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
+		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
 
@@ -294,21 +295,22 @@ public class Example5 implements GLEventListener
 			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( textureCache ) );
 
 		// TODO: fix hacks (initialize OOB block init)
-			Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( paddedBlockSize ) );
-			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( paddedBlockSize ) );
-			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, paddedBlockSize[ 0 ], paddedBlockSize[ 1 ], paddedBlockSize[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
+			final int[] ts = cacheSpec.paddedBlockSize();
+			Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
+			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
+			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		modeprog.getUniform3f( "blockSize" ).set( blockSize[ 0 ], blockSize[ 1 ], blockSize[ 2 ] );
-		modeprog.getUniform3f( "paddedBlockSize" ).set( paddedBlockSize[ 0 ], paddedBlockSize[ 1 ], paddedBlockSize[ 2 ] );
-		modeprog.getUniform3f( "cachePadOffset" ).set( cachePadOffset[ 0 ], cachePadOffset[ 1 ], cachePadOffset[ 2 ] );
+		modeprog.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
+		modeprog.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
+		modeprog.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
 		modeprog.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
 		modeprog.getUniform3fv( "blockScales" ).set( lookupBlockScales );
 		final int[] lutSize = lookupTexture.getSize();
 
 		modeprog.getUniform3f( "lutScale" ).set(
-				( float ) ( 1.0 / ( blockSize[ 0 ] * lutSize[ 0 ] ) ),
-				( float ) ( 1.0 / ( blockSize[ 1 ] * lutSize[ 1 ] ) ),
-				( float ) ( 1.0 / ( blockSize[ 2 ] * lutSize[ 2 ] ) ) );
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * lutSize[ 0 ] ) ),
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * lutSize[ 1 ] ) ),
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * lutSize[ 2 ] ) ) );
 		modeprog.getUniform3f( "lutOffset" ).set(
 				( float ) ( ( double ) lutOffset[ 0 ] / lutSize[ 0 ] ),
 				( float ) ( ( double ) lutOffset[ 1 ] / lutSize[ 1 ] ),
@@ -380,17 +382,17 @@ public class Example5 implements GLEventListener
 		fbbmin.max( sourceLevelMin );
 		fbbmax.min( sourceLevelMax );
 		final long[] gridMin = {
-				( long ) ( fbbmin.x() / blockSize[ 0 ] ),
-				( long ) ( fbbmin.y() / blockSize[ 1 ] ),
-				( long ) ( fbbmin.z() / blockSize[ 2 ] )
+				( long ) ( fbbmin.x() / cacheSpec.blockSize()[ 0 ] ),
+				( long ) ( fbbmin.y() / cacheSpec.blockSize()[ 1 ] ),
+				( long ) ( fbbmin.z() / cacheSpec.blockSize()[ 2 ] )
 		};
 		final long[] gridMax = {
-				( long ) ( fbbmax.x() / blockSize[ 0 ] ),
-				( long ) ( fbbmax.y() / blockSize[ 1 ] ),
-				( long ) ( fbbmax.z() / blockSize[ 2 ] )
+				( long ) ( fbbmax.x() / cacheSpec.blockSize()[ 0 ] ),
+				( long ) ( fbbmax.y() / cacheSpec.blockSize()[ 1 ] ),
+				( long ) ( fbbmax.z() / cacheSpec.blockSize()[ 2 ] )
 		};
 
-		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, blockSize, gridMin, gridMax );
+		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, cacheSpec.blockSize(), gridMin, gridMax );
 //		System.out.println( "requiredBlocks = " + requiredBlocks );
 		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
 	}
@@ -408,8 +410,8 @@ public class Example5 implements GLEventListener
 		final int[] gridPos = key.pos();
 		final int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
-			min[ d ] = gridPos[ d ] * blockSize[ d ] - cachePadOffset[ d ];
-		return new Copier( rai, paddedBlockSize ).canLoadCompletely( min );
+			min[ d ] = gridPos[ d ] * cacheSpec.blockSize()[ d ] - cacheSpec.padOffset()[ d ];
+		return new Copier( rai, cacheSpec.paddedBlockSize() ).canLoadCompletely( min );
 	}
 
 	//	... ImageBlockKey< ResolutionLevel3D< VolatileUnsignedShortType > > key ...
@@ -419,8 +421,8 @@ public class Example5 implements GLEventListener
 		final int[] gridPos = key.pos();
 		final int[] min = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
-			min[ d ] = gridPos[ d ] * blockSize[ d ] - cachePadOffset[ d ];
-		return new Copier( rai, paddedBlockSize ).toBuffer( buffer, min );
+			min[ d ] = gridPos[ d ] * cacheSpec.blockSize()[ d ] - cacheSpec.padOffset()[ d ];
+		return new Copier( rai, cacheSpec.paddedBlockSize() ).toBuffer( buffer, min );
 	}
 
 	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, final MipmapSizes sizes )
@@ -471,7 +473,7 @@ public class Example5 implements GLEventListener
 		for ( final int[] g0 : gridPositions )
 		{
 			for ( int d = 0; d < 3; ++d )
-				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
+				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * cacheSpec.blockSize()[ d ] * r[ d ] );
 			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
 			for ( int level = bestLevel; level <= maxLevel; ++level )
 			{
@@ -514,7 +516,7 @@ public class Example5 implements GLEventListener
 		for ( final int[] g0 : gridPositions )
 		{
 			for ( int d = 0; d < 3; ++d )
-				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * blockSize[ d ] * r[ d ] );
+				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * cacheSpec.blockSize()[ d ] * r[ d ] );
 			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
 			for ( int level = bestLevel; level <= maxLevel; ++level )
 			{

@@ -4,7 +4,19 @@ public interface Texture
 {
 	enum InternalFormat
 	{
-		R16
+		R16( 2 );
+
+		InternalFormat( final int bytesPerElement )
+		{
+			this.bytesPerElement = bytesPerElement;
+		}
+
+		public int getBytesPerElement()
+		{
+			return bytesPerElement;
+		}
+
+		private int bytesPerElement;
 	}
 
 	enum MagFilter
