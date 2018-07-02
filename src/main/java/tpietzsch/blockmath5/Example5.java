@@ -19,7 +19,6 @@ import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
-import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
@@ -27,16 +26,10 @@ import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
-import tpietzsch.backend.Texture;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blockmath4.MipmapSizes;
 import tpietzsch.blocks.ByteUtils;
-import tpietzsch.blocks.CopyGridBlock;
-import tpietzsch.blocks.CopySubArray;
-import tpietzsch.blocks.ByteUtils.Address;
-import tpietzsch.blocks.CopySubArrayImp2;
-import tpietzsch.blocks.GridDataAccess;
-import tpietzsch.blocks.GridDataAccessImp;
+import tpietzsch.blocks.TileAccess;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.DefaultFillTask;
 import tpietzsch.cache.FillTask;
@@ -46,7 +39,6 @@ import tpietzsch.cache.ProcessFillTasks;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.UploadBuffer;
-import tpietzsch.day10.LRUBlockCache;
 import tpietzsch.day10.OffScreenFrameBuffer;
 import tpietzsch.day4.InputFrame;
 import tpietzsch.day4.ScreenPlane1;
@@ -73,6 +65,7 @@ import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
+import static tpietzsch.backend.Texture.InternalFormat.R16;
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
 /**
@@ -92,10 +85,7 @@ public class Example5 implements GLEventListener
 
 	private ScreenPlane1 screenPlane;
 
-	private final CacheSpec cacheSpec = new CacheSpec( Texture.InternalFormat.R16, new int[] { 32, 32, 32 } );
-//	private final int[] blockSize = { 32, 32, 32 };
-//	private final int[] paddedBlockSize = { 34, 34, 34 };
-//	private final int[] cachePadOffset = { 1, 1, 1 };
+	private final CacheSpec cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
@@ -169,40 +159,6 @@ public class Example5 implements GLEventListener
 		lookupTexture = new LookupTextureARGB( new int[] { 64, 64, 64 } );
 
 		gl.glEnable( GL_DEPTH_TEST );
-	}
-
-	public static class Copier
-	{
-		private final CopyGridBlock gcopy = new CopyGridBlock();
-
-		private final GridDataAccess< short[] > dataAccess;
-
-		private final CopySubArray< short[], Address > subArrayCopy = new CopySubArrayImp2.ShortToAddress();
-
-		private final int[] blocksize;
-
-		public Copier( final RandomAccessibleInterval< VolatileUnsignedShortType > rai, final int[] blocksize )
-		{
-			dataAccess = new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) rai );
-			this.blocksize = blocksize;
-		}
-
-		/**
-		 * @return {@code true}, if this block can be completely loaded from data currently in the cache
-		 */
-		public boolean canLoadCompletely( final int[] min )
-		{
-			return gcopy.canLoadCompletely( min, blocksize, dataAccess );
-		}
-
-		/**
-		 * @return {@code true}, if this block was completely loaded
-		 */
-		public boolean toBuffer( final UploadBuffer buffer, final int[] min )
-		{
-			final boolean complete = gcopy.copy( min, blocksize, buffer, dataAccess, subArrayCopy );
-			return complete;
-		}
 	}
 
 	@Override
@@ -296,7 +252,7 @@ public class Example5 implements GLEventListener
 
 		// TODO: fix hacks (initialize OOB block init)
 			final int[] ts = cacheSpec.paddedBlockSize();
-			Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
+			final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
 			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
@@ -345,7 +301,7 @@ public class Example5 implements GLEventListener
 	private final Vector3f sourceLevelMin = new Vector3f();
 	private final Vector3f sourceLevelMax = new Vector3f();
 
-	private long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
+	private final long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
 
 	private void updateBlocks( final GL3 gl, final Matrix4f pvm )
 	{
@@ -403,26 +359,16 @@ public class Example5 implements GLEventListener
 	// offset into lut (source block to lut coords)
 	final int[] lutOffset = { 1, 1, 1 };
 
-	//	... ImageBlockKey< ResolutionLevel3D< VolatileUnsignedShortType > > key ...
-	private boolean isCompletable( final ImageBlockKey< ? > key )
+	TileAccess.Cache tileAccess = new TileAccess.Cache();
+
+	private boolean canLoadCompletely( final ImageBlockKey< ResolutionLevel3D< ? > > key )
 	{
-		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = ( ( ResolutionLevel3D< VolatileUnsignedShortType > ) key.image() ).getImage();
-		final int[] gridPos = key.pos();
-		final int[] min = new int[ 3 ];
-		for ( int d = 0; d < 3; ++d )
-			min[ d ] = gridPos[ d ] * cacheSpec.blockSize()[ d ] - cacheSpec.padOffset()[ d ];
-		return new Copier( rai, cacheSpec.paddedBlockSize() ).canLoadCompletely( min );
+		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
 	}
 
-	//	... ImageBlockKey< ResolutionLevel3D< VolatileUnsignedShortType > > key ...
-	private boolean loadBlock( final ImageBlockKey< ? > key, final UploadBuffer buffer )
+	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )
 	{
-		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = ( ( ResolutionLevel3D< VolatileUnsignedShortType > ) key.image() ).getImage();
-		final int[] gridPos = key.pos();
-		final int[] min = new int[ 3 ];
-		for ( int d = 0; d < 3; ++d )
-			min[ d ] = gridPos[ d ] * cacheSpec.blockSize()[ d ] - cacheSpec.padOffset()[ d ];
-		return new Copier( rai, cacheSpec.paddedBlockSize() ).toBuffer( buffer, min );
+		return tileAccess.get( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
 	}
 
 	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, final MipmapSizes sizes )
@@ -467,8 +413,8 @@ public class Example5 implements GLEventListener
 				lookupBlockScales[ i ][ d ] = ( float ) ( sj[ d ] * r[ d ] );
 		}
 
-		HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
-		ArrayList< FillTask > fillTasks = new ArrayList<>();
+		final HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
+		final ArrayList< FillTask > fillTasks = new ArrayList<>();
 
 		for ( final int[] g0 : gridPositions )
 		{
@@ -485,14 +431,14 @@ public class Example5 implements GLEventListener
 					gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
 				}
 
-				final ImageBlockKey< ? > key = new ImageBlockKey<>( resolution, gj );
+				final ImageBlockKey< ResolutionLevel3D< ? > > key = new ImageBlockKey<>( resolution, gj );
 				if ( !existingKeys.contains( key ) )
 				{
 					existingKeys.add( key );
 					final Tile tile = textureCache.get( key );
-					if ( tile != null || level == maxLevel || isCompletable( key ) )
+					if ( tile != null || level == maxLevel || canLoadCompletely( key ) )
 					{
-						fillTasks.add( new DefaultFillTask( key, buf -> loadBlock( key, buf ) ) );
+						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ) ) );
 						break;
 					}
 				}
@@ -505,7 +451,7 @@ public class Example5 implements GLEventListener
 		{
 			ProcessFillTasks.parallel( textureCache, pboChain, JoglGpuContext.get( gl ), forkJoinPool, fillTasks );
 		}
-		catch ( InterruptedException e )
+		catch ( final InterruptedException e )
 		{
 			e.printStackTrace();
 		}

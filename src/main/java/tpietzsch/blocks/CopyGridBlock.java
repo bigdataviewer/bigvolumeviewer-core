@@ -181,11 +181,12 @@ public class CopyGridBlock
 	public boolean canLoadCompletely(
 			final int[] min,
 			final int[] dim,
-			final GridDataAccess< ? > srca )
+			final GridDataAccess< ? > srca,
+			final boolean failfast )
 	{
 		for ( int d = 0; d < 3; ++d )
 		{
-			final int srcsize = ( int ) srca.imgSize( d );
+			final int srcsize = srca.imgSize( d );
 			nmin[ d ] = min[ d ];
 			ndim[ d ] = dim[ d ];
 			if ( min[ d ] < 0 )
@@ -199,13 +200,14 @@ public class CopyGridBlock
 		}
 		// TODO check whether dst is completely outside of src
 
-		return canLoadCompletelyNoOob( nmin, ndim, srca );
+		return canLoadCompletelyNoOob( nmin, ndim, srca, failfast );
 	}
 
 	private boolean canLoadCompletelyNoOob(
 			final int[] min,
 			final int[] dim,
-			final GridDataAccess< ? > srca )
+			final GridDataAccess< ? > srca,
+			final boolean failfast )
 	{
 		boolean complete = true;
 		for ( int d = 0; d < 3; ++d )
@@ -228,8 +230,11 @@ public class CopyGridBlock
 				for ( int gx = 0; gx < gsx; ++gx )
 				{
 					if ( srca.get() == null )
+					{
 						complete = false;
-//						return false;
+						if( failfast )
+							return false;
+					}
 					if ( gx < gsx - 1 )
 						srca.fwd( 0 );
 				}
@@ -245,6 +250,15 @@ public class CopyGridBlock
 		}
 
 		return complete;
-//		return true;
+	}
+
+	// TODO: remove
+	@Deprecated
+	public boolean canLoadCompletely(
+			final int[] min,
+			final int[] dim,
+			final GridDataAccess< ? > srca )
+	{
+		return canLoadCompletely( min, dim, srca, false );
 	}
 }
