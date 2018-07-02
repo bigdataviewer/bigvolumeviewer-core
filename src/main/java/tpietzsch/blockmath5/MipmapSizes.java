@@ -1,9 +1,11 @@
-package tpietzsch.blockmath3;
+package tpietzsch.blockmath5;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import net.imglib2.algorithm.kdtree.ConvexPolytope;
 import net.imglib2.algorithm.kdtree.HyperPlane;
+
 import org.apache.commons.math3.optim.PointValuePair;
 import org.apache.commons.math3.optim.linear.LinearConstraint;
 import org.apache.commons.math3.optim.linear.LinearConstraintSet;
@@ -17,6 +19,8 @@ import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
+
+import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.util.MatrixMath;
 
 public class MipmapSizes
@@ -39,11 +43,12 @@ public class MipmapSizes
 
 	/**
 	 * @param sourceToNDC
-	 * 		Projection * View * Model matrix@param viewportWidth
+	 * 		{@code Projection * View * Model} matrix
 	 * @param viewportWidth
-	 * @param raiLevels
+	 * @param viewportWidth
+	 * @param resolutions
 	 */
-	public void init( final Matrix4fc sourceToNDC, final int viewportWidth, final List< RaiLevel > raiLevels )
+	public void init( final Matrix4fc sourceToNDC, final int viewportWidth, final List< ? extends ResolutionLevel3D< ? > > resolutions )
 	{
 		final Matrix4f NDCtoSource = sourceToNDC.invert( new Matrix4f() );
 		final float w = 2f / viewportWidth;
@@ -59,19 +64,16 @@ public class MipmapSizes
 		v0y = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 1, 0 ) );
 		v0z = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 0, 1 ) );
 
-		sls = new float[ raiLevels.size() ];
-		for ( int i = 0; i < raiLevels.size(); i++ )
-		{
-			RaiLevel raiLevel = raiLevels.get( i );
-			sls[ i ] = sl( raiLevel.r );
-		}
+		sls = new float[ resolutions.size() ];
+		for ( int i = 0; i < resolutions.size(); i++ )
+			sls[ i ] = sl( resolutions.get( i ).getR() );
 
 		/*
 		 * Closest visible source point to near clipping plane.
 		 * TODO: Solving this with LP simplex seems a bit insane. Is there a more closed-form solution???
 		 */
 		final long[] imgSize = new long[ 3 ];
-		raiLevels.get( 0 ).rai.dimensions( imgSize );
+		resolutions.get( 0 ).getImage().dimensions( imgSize );
 		final Matrix4f T = sourceToNDC.transpose( new Matrix4f() );
 		final ConvexPolytope sourceRegion = new ConvexPolytope(
 				// planes bounding the view frustum, normals facing inwards, transformed to source coordinates
@@ -90,16 +92,16 @@ public class MipmapSizes
 				new HyperPlane( 0, 0, -1, -imgSize[ 2 ] ) ); // TODO: 0.5 offsets?
 
 		pFarMinusNear.mul( drels, dir );
-		LinearObjectiveFunction f = new LinearObjectiveFunction( new double[] { dir.x(), dir.y(), dir.z() }, -dir.dot( pNear ) );
-		List< LinearConstraint > constraints = new ArrayList<>();
-		for ( HyperPlane plane : sourceRegion.getHyperplanes() )
+		final LinearObjectiveFunction f = new LinearObjectiveFunction( new double[] { dir.x(), dir.y(), dir.z() }, -dir.dot( pNear ) );
+		final List< LinearConstraint > constraints = new ArrayList<>();
+		for ( final HyperPlane plane : sourceRegion.getHyperplanes() )
 			constraints.add( new LinearConstraint( plane.getNormal(), Relationship.GEQ, plane.getDistance() ) );
 		try
 		{
-			PointValuePair sln = new SimplexSolver().optimize( f, new LinearConstraintSet( constraints ), GoalType.MINIMIZE );
+			final PointValuePair sln = new SimplexSolver().optimize( f, new LinearConstraintSet( constraints ), GoalType.MINIMIZE );
 			drelClosestSourcePoint = Math.max( Math.min( sln.getValue().floatValue(), 1.0f ), 0.0f );
 		}
-		catch ( NoFeasibleSolutionException e )
+		catch ( final NoFeasibleSolutionException e )
 		{
 			isVisible = false;
 		}
@@ -107,7 +109,7 @@ public class MipmapSizes
 		baseLevel = bestLevel( drelClosestSourcePoint );
 	}
 
-	private static HyperPlane sourceHyperPlane( Matrix4fc sourceToNDCTransposed, double nx, double ny, double nz, double d )
+	private static HyperPlane sourceHyperPlane( final Matrix4fc sourceToNDCTransposed, final double nx, final double ny, final double nz, final double d )
 	{
 		return MatrixMath.hyperPlane( new Vector4f( ( float ) nx, ( float ) ny, ( float ) nz, ( float ) -d ).mul( sourceToNDCTransposed ).normalize3() );
 	}
@@ -140,7 +142,7 @@ public class MipmapSizes
 		return Math.max( x * v0x, Math.max( y * v0y, z * v0z ) );
 	}
 
-	public int bestLevel( Vector3fc x, Vector3f temp )
+	public int bestLevel( final Vector3fc x, final Vector3f temp )
 	{
 		final float drel = x.sub( pNear, temp ).dot( pFarMinusNear ) * drels;
 		return bestLevel( drel );
@@ -165,7 +167,7 @@ public class MipmapSizes
 
 	// DEBUG...
 
-	public float getDrel( Vector3fc x, Vector3f temp )
+	public float getDrel( final Vector3fc x, final Vector3f temp )
 	{
 		final float drel = x.sub( pNear, temp ).dot( pFarMinusNear ) * drels;
 		return drel;

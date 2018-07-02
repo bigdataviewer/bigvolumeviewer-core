@@ -73,32 +73,4 @@ public class ByteUtils
 	{
 		long getAddress();
 	}
-
-	public static void main( final String[] args )
-	{
-		System.out.println( "BUFFER_ADDRESS_OFFSET = " + BUFFER_ADDRESS_OFFSET );
-		System.out.println( "BYTE_ARRAY_OFFSET = " + BYTE_ARRAY_OFFSET );
-
-		final ByteBuffer buf = ByteBuffer.allocateDirect( 10 );
-		buf.order( ByteOrder.nativeOrder() );
-		for ( int i = 0; i < 10; ++i )
-			System.out.println( "buf.get( " + i + " ) = " + buf.get( i ) );
-		System.out.println();
-
-		final long address = addressOf( buf );
-		UNSAFE.putByte( address, ( byte  ) 255 );
-		UNSAFE.putByte( address + 1 , ( byte  ) 55 );
-		for ( int i = 0; i < 10; ++i )
-			System.out.println( "buf.get( " + i + " ) = " + buf.get( i ) );
-		System.out.println();
-
-		final short[] a = { 0x0002, 0x0004 };
-		copyShorts( a, address + 2, 0, 2 );
-		for ( int i = 0; i < 10; ++i )
-			System.out.println( "buf.get( " + i + " ) = " + buf.get( i ) );
-		System.out.println();
-		for ( int i = 0; i < 5; ++i )
-			System.out.println( "buf.get( " + i + " ) = " + buf.asShortBuffer().get( i ) );
-		System.out.println();
-	}
 }

@@ -2,8 +2,8 @@ package tpietzsch.util;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+
 import net.imglib2.realtransform.AffineTransform3D;
-import tpietzsch.blockmath3.RaiLevels;
 
 public class Syncd<T>
 {
@@ -13,14 +13,14 @@ public class Syncd<T>
 
 	private final Function< T, T > getter;
 
-	public Syncd( T t, BiConsumer< T, T > setter, Function< T, T > getter )
+	public Syncd( final T t, final BiConsumer< T, T > setter, final Function< T, T > getter )
 	{
 		this.t = t;
 		this.setter = setter;
 		this.getter = getter;
 	}
 
-	public synchronized void set( T t )
+	public synchronized void set( final T t )
 	{
 		setter.accept( this.t, t );
 	}
@@ -44,13 +44,5 @@ public class Syncd<T>
 				new SourceIntervalAndTransform(),
 				SourceIntervalAndTransform::set,
 				SourceIntervalAndTransform::copy );
-	}
-
-	public static Syncd< RaiLevels > raiLevels()
-	{
-		return new Syncd<>(
-				new RaiLevels(),
-				RaiLevels::set,
-				RaiLevels::copy );
 	}
 }

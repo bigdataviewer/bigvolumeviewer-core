@@ -65,7 +65,7 @@ public class Example0 implements GLEventListener
 			public void display( final GLAutoDrawable drawable )
 			{
 				gl.glBindTexture( GL_TEXTURE_2D, texture );
-				int size = 512 * 512 * 2;
+				final int size = 512 * 512 * 2;
 				final ByteBuffer data = ByteBuffer.allocateDirect( size );
 				for ( int i = 0; i < size; ++i )
 					data.put( i, ( byte ) ( ( i + j ) & 0x00ff ) );
@@ -86,7 +86,7 @@ public class Example0 implements GLEventListener
 
 		// ..:: VERTEX BUFFER ::..
 
-		float vertices[] = {
+		final float vertices[] = {
 				 // positions         // texture coords
 				 0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   // top right
 				 0.5f, -0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   // bottom right
@@ -102,7 +102,7 @@ public class Example0 implements GLEventListener
 
 		// ..:: ELEMENT BUFFER ::..
 
-		int indices[] = {  // note that we start from 0!
+		final int indices[] = {  // note that we start from 0!
 				0, 1, 3,   // first triangle
 				1, 2, 3    // second triangle
 		};
@@ -129,7 +129,7 @@ public class Example0 implements GLEventListener
 
 		// ..:: SHADERS ::..
 
-		prog = new Shader( gl, "ex0", "ex0", tpietzsch.day5.Example0.class );
+		prog = new Shader( gl, "ex0", "ex0", Example0.class );
 
 		// ..:: VERTEX ARRAY OBJECT ::..
 
@@ -153,7 +153,7 @@ public class Example0 implements GLEventListener
 					offscreenAutoDrawable.display();
 				}
 			}
-			catch ( InterruptedException e )
+			catch ( final InterruptedException e )
 			{
 				e.printStackTrace();
 			}
@@ -192,7 +192,7 @@ public class Example0 implements GLEventListener
 		drawable.getGL().glViewport(0, 0, width, height );
 	}
 
-	public static void main( String[] args )
+	public static void main( final String[] args )
 	{
 		SimpleFrame.DEBUG = false;
 		final Example0 listener = new Example0();
