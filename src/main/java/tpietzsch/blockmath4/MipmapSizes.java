@@ -43,7 +43,8 @@ public class MipmapSizes
 
 	/**
 	 * @param sourceToNDC
-	 * 		Projection * View * Model matrix@param viewportWidth
+	 * 		{@code Projection * View * Model} matrix
+	 * @param viewportWidth
 	 * @param viewportWidth
 	 * @param resolutions
 	 */
