@@ -45,6 +45,7 @@ public class ProcessFillTasks
 			return;
 
 		pboChain.init( tileFillTasks );
+		context.bindTexture( textureCache );
 		forkJoinPool.execute( new RecursiveAction()
 		{
 			@Override

@@ -553,6 +553,8 @@ public class PboChain
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();
 
+			context.bindPbo( this );
+
 			int bi = 0; // index of next buffer
 			while ( bi < buffers.size() )
 			{
@@ -589,6 +591,8 @@ public class PboChain
 
 				bi += nb;
 			}	// repeat until bi == buffers.size()
+
+			context.bindPboId( 0 );
 
 			buffers.clear();
 			state = CLEAN;
