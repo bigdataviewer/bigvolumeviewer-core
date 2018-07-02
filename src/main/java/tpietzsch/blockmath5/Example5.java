@@ -13,10 +13,12 @@ import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -94,11 +96,8 @@ public class Example5 implements GLEventListener
 	private LookupTextureARGB lookupTexture;
 
 	private final TextureCache textureCache;
-
 	private final PboChain pboChain;
-
 	private final ForkJoinPool forkJoinPool;
-
 
 
 	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
@@ -315,7 +314,7 @@ public class Example5 implements GLEventListener
 		baseLevel = sizes.getBaseLevel();
 //		System.out.println( "baseLevel = " + baseLevel );
 
-		final ResolutionLevel3D< VolatileUnsignedShortType > baseResolution = multiResolutionStack.resolutions().get( baseLevel );
+		final ResolutionLevel3D< ? > baseResolution = multiResolutionStack.resolutions().get( baseLevel );
 
 		final int bsx = baseResolution.getR()[ 0 ];
 		final int bsy = baseResolution.getR()[ 1 ];
@@ -328,7 +327,7 @@ public class Example5 implements GLEventListener
 		final Matrix4fc pvms = pvm.mul( upscale, new Matrix4f() );
 		final Matrix4fc ipvms =	pvms.invert( new Matrix4f() );
 
-		final RandomAccessibleInterval< VolatileUnsignedShortType > rai = baseResolution.getImage();
+		final Interval rai = baseResolution.getImage();
 		sourceLevelMin.set( rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) ); // TODO -0.5 offset?
 		sourceLevelMax.set( rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) ); // TODO -0.5 offset?
 
@@ -350,7 +349,7 @@ public class Example5 implements GLEventListener
 
 		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, cacheSpec.blockSize(), gridMin, gridMax );
 //		System.out.println( "requiredBlocks = " + requiredBlocks );
-		updateLookupTexture( gl, requiredBlocks, baseLevel, sizes );
+		updateLookupTexture( gl, requiredBlocks, sizes );
 	}
 
 	// border around lut (points to oob blocks)
@@ -371,65 +370,69 @@ public class Example5 implements GLEventListener
 		return tileAccess.get( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
 	}
 
-	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final int baseLevel, final MipmapSizes sizes )
+
+	static class ReqiredBlock
 	{
-		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
+		final int[] gridPos;
 
-		final int[] lutSize = new int[ 3 ];
-		final int[] rmin = requiredBlocks.getMin();
-		final int[] rmax = requiredBlocks.getMax();
-		lutSize[ 0 ] = rmax[ 0 ] - rmin[ 0 ] + 1 + 2 * lutPadSize[ 0 ];
-		lutSize[ 1 ] = rmax[ 1 ] - rmin[ 1 ] + 1 + 2 * lutPadSize[ 1 ];
-		lutSize[ 2 ] = rmax[ 2 ] - rmin[ 2 ] + 1 + 2 * lutPadSize[ 2 ];
+		final int bestLevel;
 
-		final int dataSize = 4 * ( int ) Intervals.numElements( lutSize );
-		final byte[] lutData = new byte[ dataSize ];
+		public ReqiredBlock( final int[] gridPos, final int bestLevel )
+		{
+			this.gridPos = gridPos;
+			this.bestLevel = bestLevel;
+		}
+	}
 
+	/**
+	 * Determine best resolution level for each block.
+	 * Best resolution is capped at {@code sizes.getBaseLevel()}.
+	 */
+	private List< ReqiredBlock > bestLevels( final List< int[] > gridPositions, final MipmapSizes sizes )
+	{
+		ArrayList< ReqiredBlock > blocks = new ArrayList<>();
+
+		final int baseLevel = sizes.getBaseLevel();
 		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+		final int[] blockSize = cacheSpec.blockSize();
+		final int[] scale = new int[] {
+				blockSize[ 0 ] * r[ 0 ],
+				blockSize[ 1 ] * r[ 1 ],
+				blockSize[ 2 ] * r[ 2 ]
+		};
 		final Vector3f blockCenter = new Vector3f();
 		final Vector3f tmp = new Vector3f();
-
-		// offset for IntervalIndexer
-		lutOffset[ 0 ] = lutPadSize[ 0 ] - rmin[ 0 ];
-		lutOffset[ 1 ] = lutPadSize[ 1 ] - rmin[ 1 ];
-		lutOffset[ 2 ] = lutPadSize[ 2 ] - rmin[ 2 ];
-		final int[] padOffset = new int[] { -lutOffset[ 0 ], -lutOffset[ 1 ], -lutOffset[ 2 ] };
-
-		final ArrayList< int[] > gridPositions = requiredBlocks.getGridPositions();
-		final double[] sij = new double[ 3 ];
-		final int[] gj = new int[ 3 ];
-
-		// update lookupBlockScales
-		// lookupBlockScales[0] for oob
-		// lookupBlockScales[i+1] for relative scale between baseLevel and level baseLevel+i
-		for ( int d = 0; d < 3; ++d )
-			lookupBlockScales[ 0 ][ d ] = 0;
-		for ( int level = baseLevel; level <= maxLevel; ++level )
-		{
-			final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
-			final double[] sj = resolution.getS();
-			final int i = 1 + level - baseLevel;
-			for ( int d = 0; d < 3; ++d )
-				lookupBlockScales[ i ][ d ] = ( float ) ( sj[ d ] * r[ d ] );
-		}
-
-		final HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
-		final ArrayList< FillTask > fillTasks = new ArrayList<>();
-
 		for ( final int[] g0 : gridPositions )
 		{
-			for ( int d = 0; d < 3; ++d )
-				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * cacheSpec.blockSize()[ d ] * r[ d ] );
+			blockCenter.set(
+					( g0[ 0 ] + 0.5f ) * scale[ 0 ],
+					( g0[ 1 ] + 0.5f ) * scale[ 1 ],
+					( g0[ 2 ] + 0.5f ) * scale[ 2 ] );
 			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
-			for ( int level = bestLevel; level <= maxLevel; ++level )
+			blocks.add( new ReqiredBlock( g0, bestLevel ) );
+		}
+
+		return blocks;
+	}
+
+	private void updateCache( final GL3 gl, List< ReqiredBlock > blocks, final MipmapSizes sizes )
+	{
+		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
+		final int baseLevel = sizes.getBaseLevel();
+
+		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+		final HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
+		final ArrayList< FillTask > fillTasks = new ArrayList<>();
+		final int[] gj = new int[ 3 ];
+		for ( ReqiredBlock block : blocks )
+		{
+			final int[] g0 = block.gridPos;
+			for ( int level = block.bestLevel; level <= maxLevel; ++level )
 			{
-				final ResolutionLevel3D< VolatileUnsignedShortType > resolution = multiResolutionStack.resolutions().get( level );
+				final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
 				final double[] sj = resolution.getS();
 				for ( int d = 0; d < 3; ++d )
-				{
-					sij[ d ] = sj[ d ] * r[ d ];
-					gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
-				}
+					gj[ d ] = ( int ) ( g0[ d ] * sj[ d ] * r[ d ] );
 
 				final ImageBlockKey< ResolutionLevel3D< ? > > key = new ImageBlockKey<>( resolution, gj );
 				if ( !existingKeys.contains( key ) )
@@ -442,6 +445,8 @@ public class Example5 implements GLEventListener
 						break;
 					}
 				}
+				else
+					break; // TODO: is this always ok?
 			}
 		}
 
@@ -455,24 +460,60 @@ public class Example5 implements GLEventListener
 		{
 			e.printStackTrace();
 		}
+	}
 
-		// ============================================================
+	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
+	{
+		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
+		final int baseLevel = sizes.getBaseLevel();
+
+		final List< ReqiredBlock > blocks = bestLevels( requiredBlocks.getGridPositions(), sizes );
+		updateCache( gl, blocks, sizes );
+
+		final int[] lutSize = new int[ 3 ];
+		final int[] rmin = requiredBlocks.getMin();
+		final int[] rmax = requiredBlocks.getMax();
+		lutSize[ 0 ] = rmax[ 0 ] - rmin[ 0 ] + 1 + 2 * lutPadSize[ 0 ];
+		lutSize[ 1 ] = rmax[ 1 ] - rmin[ 1 ] + 1 + 2 * lutPadSize[ 1 ];
+		lutSize[ 2 ] = rmax[ 2 ] - rmin[ 2 ] + 1 + 2 * lutPadSize[ 2 ];
+
+		final int dataSize = 4 * ( int ) Intervals.numElements( lutSize );
+		final byte[] lutData = new byte[ dataSize ];
+
+		// offset for IntervalIndexer
+		lutOffset[ 0 ] = lutPadSize[ 0 ] - rmin[ 0 ];
+		lutOffset[ 1 ] = lutPadSize[ 1 ] - rmin[ 1 ];
+		lutOffset[ 2 ] = lutPadSize[ 2 ] - rmin[ 2 ];
+		final int[] padOffset = new int[] { -lutOffset[ 0 ], -lutOffset[ 1 ], -lutOffset[ 2 ] };
+
+
+		// update lookupBlockScales
+		// lookupBlockScales[0] for oob
+		// lookupBlockScales[i+1] for relative scale between baseLevel and level baseLevel+i
+		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+		for ( int d = 0; d < 3; ++d )
+			lookupBlockScales[ 0 ][ d ] = 0;
+		for ( int level = baseLevel; level <= maxLevel; ++level )
+		{
+			final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
+			final double[] sj = resolution.getS();
+			final int i = 1 + level - baseLevel;
+			for ( int d = 0; d < 3; ++d )
+				lookupBlockScales[ i ][ d ] = ( float ) ( sj[ d ] * r[ d ] );
+		}
+
 
 		boolean needsRepaint = false;
-		for ( final int[] g0 : gridPositions )
+		final int[] gj = new int[ 3 ];
+		for ( ReqiredBlock block : blocks )
 		{
-			for ( int d = 0; d < 3; ++d )
-				blockCenter.setComponent( d, ( g0[ d ] + 0.5f ) * cacheSpec.blockSize()[ d ] * r[ d ] );
-			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
-			for ( int level = bestLevel; level <= maxLevel; ++level )
+			final int[] g0 = block.gridPos;
+			for ( int level = block.bestLevel; level <= maxLevel; ++level )
 			{
 				final ResolutionLevel3D< VolatileUnsignedShortType > resolution = multiResolutionStack.resolutions().get( level );
 				final double[] sj = resolution.getS();
 				for ( int d = 0; d < 3; ++d )
-				{
-					sij[ d ] = sj[ d ] * r[ d ];
-					gj[ d ] = ( int ) ( g0[ d ] * sij[ d ] );
-				}
+					gj[ d ] = ( int ) ( g0[ d ] * sj[ d ] * r[ d ] );
 				final Tile tile = textureCache.get( new ImageBlockKey<>( resolution, gj ) );
 				if ( tile != null )
 				{
@@ -482,7 +523,7 @@ public class Example5 implements GLEventListener
 					lutData[ i * 4 + 2 ] = ( byte ) tile.z();
 					lutData[ i * 4 + 3 ] = ( byte ) ( level - baseLevel + 1 );
 
-					if ( level != bestLevel || tile.state() == INCOMPLETE )
+					if ( level != block.bestLevel || tile.state() == INCOMPLETE )
 						needsRepaint = true;
 
 					break;
