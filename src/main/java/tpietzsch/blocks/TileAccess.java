@@ -85,7 +85,7 @@ public class TileAccess< S >
 						volatil
 								? new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img )
 								: new GridDataAccessImp.Cells<>( ( AbstractCellImg ) img ),
-						new CopySubArrayImp2.ShortToAddress(),
+						new CopySubArrayImp.ShortToAddress(),
 						cacheSpec
 				);
 			}

@@ -1,24 +1,22 @@
 package tpietzsch.shadergen.example;
 
-import static com.jogamp.opengl.GL.GL_FLOAT;
-import static com.jogamp.opengl.GL.GL_TRIANGLES;
-
-// https://learnopengl.com/Getting-started/Hello-Triangle
-
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
-
 import java.nio.FloatBuffer;
-
-import tpietzsch.day1.SimpleFrame;
-import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.util.InputFrame;
+import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
+
+import static com.jogamp.opengl.GL.GL_FLOAT;
+import static com.jogamp.opengl.GL.GL_TRIANGLES;
+
+// https://learnopengl.com/Getting-started/Hello-Triangle
 
 /**
  * Paint a triangle
@@ -162,7 +160,9 @@ public class Example1 implements GLEventListener
 
 	public static void main( final String[] args )
 	{
-		SimpleFrame.DEBUG = false;
-		new SimpleFrame( "Example1", 640, 480, new Example1() );
+		InputFrame.DEBUG = false;
+		final InputFrame frame = new InputFrame( "Example1", 640, 480 );
+		frame.setGlEventListener( new Example1() );
+		frame.show();
 	}
 }

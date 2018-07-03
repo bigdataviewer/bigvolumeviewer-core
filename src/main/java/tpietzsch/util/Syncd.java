@@ -37,12 +37,4 @@ public class Syncd<T>
 				AffineTransform3D::set,
 				AffineTransform3D::copy );
 	}
-
-	public static Syncd< SourceIntervalAndTransform > intervalAndTransform()
-	{
-		return new Syncd<>(
-				new SourceIntervalAndTransform(),
-				SourceIntervalAndTransform::set,
-				SourceIntervalAndTransform::copy );
-	}
 }

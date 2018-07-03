@@ -58,11 +58,6 @@ public class ByteUtils
 		UNSAFE.copyMemory( src, SHORT_ARRAY_OFFSET + 2 * sox, null, dst, 2 * csx );
 	}
 
-	public static void copyShorts( final long src, final long dst, final long csx )
-	{
-		UNSAFE.copyMemory( null, src, null, dst, 2 * csx );
-	}
-
 	public static void setShorts( final short src, final long dst, final long csx )
 	{
 		for ( int i = 0; i < csx; ++i )
