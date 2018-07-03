@@ -3,6 +3,7 @@ package tpietzsch.blockmath;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import java.util.List;
 import net.imglib2.Localizable;
 
 public class RequiredBlocks
@@ -10,6 +11,8 @@ public class RequiredBlocks
 	private final int n;
 
 	private final ArrayList< int[] > gridPositions;
+
+	private final ArrayList< RequiredBlock > blocks;
 
 	private final int[] min;
 
@@ -19,6 +22,7 @@ public class RequiredBlocks
 	{
 		n = numDimensions;
 		gridPositions = new ArrayList<>();
+		blocks = new ArrayList<>();
 		min = new int[ n ];
 		max = new int[ n ];
 		Arrays.fill( min, Integer.MAX_VALUE );
@@ -33,6 +37,7 @@ public class RequiredBlocks
 			max[ d ] = Math.max( max[ d ], pos[ d ] );
 		}
 		gridPositions.add( pos );
+		blocks.add( new RequiredBlock( pos, -1 ) );
 	}
 
 	public void add( final Localizable pos )
@@ -42,9 +47,14 @@ public class RequiredBlocks
 		add( p );
 	}
 
-	public ArrayList< int[] > getGridPositions()
+	public List< int[] > getGridPositions()
 	{
 		return gridPositions;
+	}
+
+	public List< RequiredBlock > getBlocks()
+	{
+		return blocks;
 	}
 
 	@Override

@@ -1,11 +1,8 @@
-package tpietzsch.example;
+package tpietzsch.example2;
 
 import bdv.cache.CacheControl;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
-import tpietzsch.blockmath.LookupTextureARGB;
-import tpietzsch.blockmath.MipmapSizes;
-import tpietzsch.blockmath.RequiredBlocks;
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -18,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -30,6 +28,10 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.blockmath.LookupTextureARGB;
+import tpietzsch.blockmath.MipmapSizes;
+import tpietzsch.blockmath.RequiredBlock;
+import tpietzsch.blockmath.RequiredBlocks;
 import tpietzsch.blocks.ByteUtils;
 import tpietzsch.blocks.TileAccess;
 import tpietzsch.cache.CacheSpec;
@@ -41,22 +43,21 @@ import tpietzsch.cache.ProcessFillTasks;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.UploadBuffer;
-import tpietzsch.offscreen.OffScreenFrameBuffer;
-import tpietzsch.util.InputFrame;
-import tpietzsch.util.ScreenPlane;
-import tpietzsch.util.TransformHandler;
-import tpietzsch.util.WireframeBox;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
+import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
+import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
+import tpietzsch.util.ScreenPlane;
 import tpietzsch.util.Syncd;
+import tpietzsch.util.TransformHandler;
+import tpietzsch.util.WireframeBox;
 
-import static tpietzsch.blockmath.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -68,15 +69,14 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
+import static tpietzsch.blockmath.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
-public class Example5 implements GLEventListener
+public class Example implements GLEventListener
 {
 	private final OffScreenFrameBuffer offscreen;
 
 	private final Shader prog;
-
-	private final Shader progslice;
 
 	private final Shader progvol;
 
@@ -119,7 +119,7 @@ public class Example5 implements GLEventListener
 
 	private final Runnable requestRepaint;
 
-	public Example5( final CacheControl cacheControl, final Runnable requestRepaint )
+	public Example( final CacheControl cacheControl, final Runnable requestRepaint )
 	{
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
@@ -134,12 +134,10 @@ public class Example5 implements GLEventListener
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
-		final Segment ex2volfp = new SegmentTemplate("ex1vol.fp" ).instantiate();
-		final Segment ex1slicefp = new SegmentTemplate("ex2slice.fp" ).instantiate();
+		final Segment ex1volfp = new SegmentTemplate("ex1vol.fp" ).instantiate();
 
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
-		progvol = new DefaultShader( ex1vp.getCode(), ex2volfp.getCode() );
-		progslice = new DefaultShader( ex1vp.getCode(), ex1slicefp.getCode() );
+		progvol = new DefaultShader( ex1vp.getCode(), ex1volfp.getCode() );
 	}
 
 	@Override
@@ -220,21 +218,21 @@ public class Example5 implements GLEventListener
 		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
 		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
 
-		final Shader modeprog = mode == Mode.SLICE ? progslice : progvol;
-
-		modeprog.use( context );
-		modeprog.getUniformMatrix4f( "model" ).set( new Matrix4f() );
-		modeprog.getUniformMatrix4f( "view" ).set( new Matrix4f() );
-		modeprog.getUniformMatrix4f( "projection" ).set( projection );
-		modeprog.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
-		progslice.getUniformMatrix4f( "ip" ).set( ip );
-		progslice.getUniformMatrix4f( "ivm" ).set( ivm );
+		progvol.use( context );
+		progvol.getUniformMatrix4f( "model" ).set( new Matrix4f() );
+		progvol.getUniformMatrix4f( "view" ).set( new Matrix4f() );
+		progvol.getUniformMatrix4f( "projection" ).set( projection );
+		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
 		progvol.getUniformMatrix4f( "ipvm" ).set( ipvm );
-		modeprog.getUniform3f( "sourcemin" ).set( sourceLevelMin );
-		modeprog.getUniform3f( "sourcemax" ).set( sourceLevelMax );
 
-		modeprog.getUniform1i( "lut" ).set( 0 );
-		modeprog.getUniform1i( "volumeCache" ).set( 1 );
+		// for source box intersection
+		// for multiple sources, this will be bounding box of all of them (for first attempt at least...)
+		progvol.getUniform3f( "sourcemin" ).set( sourceLevelMin );
+		progvol.getUniform3f( "sourcemax" ).set( sourceLevelMax );
+
+		// textures
+		progvol.getUniform1i( "lut" ).set( 0 );
+		progvol.getUniform1i( "volumeCache" ).set( 1 );
 		lookupTexture.bindTextures( gl, GL_TEXTURE0 );
 
 		// TODO: fix hacks
@@ -248,18 +246,22 @@ public class Example5 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		modeprog.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
-		modeprog.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
-		modeprog.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
-		modeprog.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
-		modeprog.getUniform3fv( "blockScales" ).set( lookupBlockScales );
-		final int[] lutSize = lookupTexture.getSize();
+		// comes from CacheSpec
+		progvol.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
+		progvol.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
+		progvol.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
 
-		modeprog.getUniform3f( "lutScale" ).set(
+		// comes from TextureCache -- not really necessary
+		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
+
+		// comes from LUT
+		progvol.getUniform3fv( "blockScales" ).set( lookupBlockScales );
+		final int[] lutSize = lookupTexture.getSize();
+		progvol.getUniform3f( "lutScale" ).set(
 				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * lutSize[ 0 ] ) ),
 				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * lutSize[ 1 ] ) ),
 				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * lutSize[ 2 ] ) ) );
-		modeprog.getUniform3f( "lutOffset" ).set(
+		progvol.getUniform3f( "lutOffset" ).set(
 				( float ) ( ( double ) lutOffset[ 0 ] / lutSize[ 0 ] ),
 				( float ) ( ( double ) lutOffset[ 1 ] / lutSize[ 1 ] ),
 				( float ) ( ( double ) lutOffset[ 2 ] / lutSize[ 2 ] ) );
@@ -277,14 +279,14 @@ public class Example5 implements GLEventListener
 		final double fmax = max / 0xffff;
 		final double s = 1.0 / ( fmax - fmin );
 		final double o = -fmin * s;
-		modeprog.getUniform1f( "intensity_offset" ).set( ( float ) o );
-		modeprog.getUniform1f( "intensity_scale" ).set( ( float ) s );
+		progvol.getUniform1f( "intensity_offset" ).set( ( float ) o );
+		progvol.getUniform1f( "intensity_scale" ).set( ( float ) s );
 
 		screenPlane.updateVertices( gl, new FinalInterval( ( int ) screenWidth, ( int ) screenHeight ) );
 //		screenPlane.draw( gl );
 
-		modeprog.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
-		modeprog.setUniforms( context );
+		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
+		progvol.setUniforms( context );
 		screenPlane.draw( gl );
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
@@ -363,28 +365,12 @@ public class Example5 implements GLEventListener
 		return tileAccess.get( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
 	}
 
-
-	static class ReqiredBlock
-	{
-		final int[] gridPos;
-
-		final int bestLevel;
-
-		public ReqiredBlock( final int[] gridPos, final int bestLevel )
-		{
-			this.gridPos = gridPos;
-			this.bestLevel = bestLevel;
-		}
-	}
-
 	/**
 	 * Determine best resolution level for each block.
 	 * Best resolution is capped at {@code sizes.getBaseLevel()}.
 	 */
-	private List< ReqiredBlock > bestLevels( final List< int[] > gridPositions, final MipmapSizes sizes )
+	private void bestLevels( final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
 	{
-		ArrayList< ReqiredBlock > blocks = new ArrayList<>();
-
 		final int baseLevel = sizes.getBaseLevel();
 		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
 		final int[] blockSize = cacheSpec.blockSize();
@@ -395,20 +381,19 @@ public class Example5 implements GLEventListener
 		};
 		final Vector3f blockCenter = new Vector3f();
 		final Vector3f tmp = new Vector3f();
-		for ( final int[] g0 : gridPositions )
+		for ( final RequiredBlock block : requiredBlocks.getBlocks() )
 		{
+			final int[] g0 = block.getGridPos();
 			blockCenter.set(
 					( g0[ 0 ] + 0.5f ) * scale[ 0 ],
 					( g0[ 1 ] + 0.5f ) * scale[ 1 ],
 					( g0[ 2 ] + 0.5f ) * scale[ 2 ] );
 			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
-			blocks.add( new ReqiredBlock( g0, bestLevel ) );
+			block.setBestLevel( bestLevel );
 		}
-
-		return blocks;
 	}
 
-	private void updateCache( final GL3 gl, List< ReqiredBlock > blocks, final MipmapSizes sizes )
+	private void updateCache( final GL3 gl, final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
 	{
 		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
 		final int baseLevel = sizes.getBaseLevel();
@@ -417,10 +402,10 @@ public class Example5 implements GLEventListener
 		final HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
 		final ArrayList< FillTask > fillTasks = new ArrayList<>();
 		final int[] gj = new int[ 3 ];
-		for ( ReqiredBlock block : blocks )
+		for ( RequiredBlock block : requiredBlocks.getBlocks() )
 		{
-			final int[] g0 = block.gridPos;
-			for ( int level = block.bestLevel; level <= maxLevel; ++level )
+			final int[] g0 = block.getGridPos();
+			for ( int level = block.getBestLevel(); level <= maxLevel; ++level )
 			{
 				final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
 				final double[] sj = resolution.getS();
@@ -460,8 +445,8 @@ public class Example5 implements GLEventListener
 		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
 		final int baseLevel = sizes.getBaseLevel();
 
-		final List< ReqiredBlock > blocks = bestLevels( requiredBlocks.getGridPositions(), sizes );
-		updateCache( gl, blocks, sizes );
+		bestLevels( requiredBlocks, sizes );
+		updateCache( gl, requiredBlocks, sizes );
 
 		final int[] lutSize = new int[ 3 ];
 		final int[] rmin = requiredBlocks.getMin();
@@ -498,10 +483,10 @@ public class Example5 implements GLEventListener
 
 		boolean needsRepaint = false;
 		final int[] gj = new int[ 3 ];
-		for ( ReqiredBlock block : blocks )
+		for ( RequiredBlock block : requiredBlocks.getBlocks() )
 		{
-			final int[] g0 = block.gridPos;
-			for ( int level = block.bestLevel; level <= maxLevel; ++level )
+			final int[] g0 = block.getGridPos();
+			for ( int level = block.getBestLevel(); level <= maxLevel; ++level )
 			{
 				final ResolutionLevel3D< VolatileUnsignedShortType > resolution = multiResolutionStack.resolutions().get( level );
 				final double[] sj = resolution.getS();
@@ -516,7 +501,7 @@ public class Example5 implements GLEventListener
 					lutData[ i * 4 + 2 ] = ( byte ) tile.z();
 					lutData[ i * 4 + 3 ] = ( byte ) ( level - baseLevel + 1 );
 
-					if ( level != block.bestLevel || tile.state() == INCOMPLETE )
+					if ( level != block.getBestLevel() || tile.state() == INCOMPLETE )
 						needsRepaint = true;
 
 					break;
@@ -578,7 +563,7 @@ public class Example5 implements GLEventListener
 
 		final InputFrame frame = new InputFrame( "Example", 640, 480 );
 		InputFrame.DEBUG = false;
-		final Example5 glPainter = new Example5( stacks.getCacheControl(), frame::requestRepaint );
+		final Example glPainter = new Example( stacks.getCacheControl(), frame::requestRepaint );
 		frame.setGlEventListener( glPainter );
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
 		frame.getDefaultActions().runnableAction( () -> {
