@@ -8,6 +8,7 @@ import com.jogamp.opengl.GLOffscreenAutoDrawable;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.concurrent.locks.ReentrantLock;
 import tpietzsch.day1.SimpleFrame;
 import tpietzsch.day2.Shader;
 
@@ -24,6 +25,7 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2GL3.GL_R16;
+import static tpietzsch.day1.SimpleFrame.dbgln;
 
 /**
  * Texture upload in separate thread with GLAutoDrawable
@@ -36,27 +38,43 @@ public class Example0 implements GLEventListener
 
 	private int texture;
 
+	private int texture2;
+
 	private SimpleFrame frame;
+
+	private GLOffscreenAutoDrawable offscreenAutoDrawable;
+
+	private ReentrantLock lock = new ReentrantLock();
 
 	@Override
 	public void init( final GLAutoDrawable drawable )
 	{
 		final GL3 gl = drawable.getGL().getGL3();
 
-		final GLOffscreenAutoDrawable offscreenAutoDrawable = drawable.getFactory().createOffscreenAutoDrawable( null, drawable.getRequestedGLCapabilities(), null, 1, 1 );
+		offscreenAutoDrawable = drawable.getFactory().createOffscreenAutoDrawable( null, drawable.getRequestedGLCapabilities(), null, 1, 1 );
 		offscreenAutoDrawable.setSharedAutoDrawable( drawable );
 		offscreenAutoDrawable.addGLEventListener( new GLEventListener()
 		{
 			@Override
 			public void init( final GLAutoDrawable drawable )
 			{
-				System.out.println( "Example0.init" );
+				dbgln( "  offscreen.init" );
+//				final GL3 gl = drawable.getGL().getGL3();
+//
+//				final int[] tmp = new int[ 1 ];
+//				gl.glGenTextures( 1, tmp, 0 );
+//				texture2 = tmp[ 0 ];
+//				gl.glBindTexture( GL_TEXTURE_2D, texture2 );
+//				gl.glTexStorage2D( GL_TEXTURE_2D, 1, GL_R16, 512, 512 );
+//				gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+//				gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+//				gl.glBindTexture( GL_TEXTURE_2D, 0 );
 			}
 
 			@Override
 			public void dispose( final GLAutoDrawable drawable )
 			{
-				System.out.println( "Example0.dispose" );
+				dbgln( "  offscreen.dispose" );
 			}
 
 			int j = 0;
@@ -64,24 +82,38 @@ public class Example0 implements GLEventListener
 			@Override
 			public void display( final GLAutoDrawable drawable )
 			{
-				gl.glBindTexture( GL_TEXTURE_2D, texture );
-				final int size = 512 * 512 * 2;
-				final ByteBuffer data = ByteBuffer.allocateDirect( size );
-				for ( int i = 0; i < size; ++i )
-					data.put( i, ( byte ) ( ( i + j ) & 0x00ff ) );
-				gl.glTexSubImage2D( GL_TEXTURE_2D, 0,0,0, 512, 512, GL_RED, GL_UNSIGNED_SHORT, data );
-				gl.glBindTexture( GL_TEXTURE_2D, 0 );
-				gl.glFlush();
-				j += 1;
+				lock.lock();
+				try
+				{
+					dbgln( "  offscreen.display" );
+					final GL3 gl = drawable.getGL().getGL3();
+					gl.glBindTexture( GL_TEXTURE_2D, texture );
+					final int size = 512 * 512 * 2;
+					final ByteBuffer data = ByteBuffer.allocateDirect( size );
+					for ( int i = 0; i < size; ++i )
+						data.put( i, ( byte ) ( ( i + j ) & 0x00ff ) );
+					dbgln( "  offscreen.display -- 1" );
+					gl.glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, 512, 512, GL_RED, GL_UNSIGNED_SHORT, data );
+					dbgln( "  offscreen.display -- 2" );
+					gl.glBindTexture( GL_TEXTURE_2D, 0 );
+					dbgln( "  offscreen.display -- 3" );
+					gl.glFlush();
+					j += 1;
+					dbgln( "  offscreen.display -- end" );
+				}
+				finally
+				{
+					lock.unlock();
+				}
 			}
 
 			@Override
 			public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 			{
-				System.out.println( "Example0.reshape" );
+				dbgln( "  offscreen.reshape" );
 			}
 		} );
-		System.out.println( "offscreenAutoDrawable = " + offscreenAutoDrawable );
+		dbgln( "offscreenAutoDrawable = " + offscreenAutoDrawable );
 
 
 		// ..:: VERTEX BUFFER ::..
@@ -144,6 +176,8 @@ public class Example0 implements GLEventListener
 		gl.glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ebo );
 		gl.glBindVertexArray( 0 );
 
+		gl.glFinish();
+
 		new Thread( () -> {
 			try
 			{
@@ -170,26 +204,41 @@ public class Example0 implements GLEventListener
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
-		final GL gl = drawable.getGL();
-		final GL3 gl3 = drawable.getGL().getGL3();
+		lock.lock();
+		try
+		{
+			dbgln( "Example0.display" );
+			final GL3 gl = drawable.getGL().getGL3();
 
-		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
-		gl.glClear( GL_COLOR_BUFFER_BIT );
+			gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
+			gl.glClear( GL_COLOR_BUFFER_BIT );
 
-		prog.use( gl3 );
-		gl3.glBindTexture( GL_TEXTURE_2D, texture );
-		gl3.glBindVertexArray( vao );
-		gl3.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
-		gl.glBindTexture( GL_TEXTURE_2D, 0 );
-		gl3.glBindVertexArray( 0 );
+			dbgln( "Example0.display -- 1" );
+			prog.use( gl );
+			dbgln( "Example0.display -- 2" );
+			gl.glBindTexture( GL_TEXTURE_2D, texture );
+			dbgln( "Example0.display -- 2.5" );
+			gl.glBindVertexArray( vao );
+			gl.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
+			dbgln( "Example0.display -- 3" );
+			gl.glBindTexture( GL_TEXTURE_2D, 0 );
+			gl.glBindVertexArray( 0 );
 
-		frame.painterThread.requestRepaint();
+			gl.glFlush();
+
+			frame.painterThread.requestRepaint();
+		}
+		finally
+		{
+			lock.unlock();
+		}
 	}
 
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 	{
-		drawable.getGL().glViewport(0, 0, width, height );
+//		System.out.println( "Example0.reshape" );
+//		drawable.getGL().glViewport(0, 0, width, height );
 	}
 
 	public static void main( final String[] args )

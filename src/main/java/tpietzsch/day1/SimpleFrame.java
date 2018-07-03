@@ -68,7 +68,9 @@ public class SimpleFrame
 	{
 		this.glEventListener = glEventListener;
 
-		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
+//		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL4ES3() );
+//		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
+		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
 		canvas = new GLCanvas( capsReqUser );
 		canvas.addGLEventListener( wrapper );
 		canvas.setPreferredSize( new Dimension( width, height ) );
