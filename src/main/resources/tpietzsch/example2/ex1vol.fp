@@ -94,7 +94,7 @@ void main()
 		for ( int i = 0; i < numSteps; ++i, pos += posStep )
 		{
 //			vec3 q = ( pos + blockSize * padSize ) / ( blockSize * lutSize );
-			vec3 q = pos * lutScale + lutOffset;
+			vec3 q = pos * lutScale - lutOffset;
 
 			uvec4 lutv = texture( lut, q );
 			vec3 B0 = lutv.xyz * paddedBlockSize + cachePadOffset;

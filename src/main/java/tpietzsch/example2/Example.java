@@ -10,45 +10,30 @@ import com.jogamp.opengl.GLEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
-import org.joml.Matrix4fc;
-import org.joml.Vector3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.blockmath.LookupTextureARGB;
-import tpietzsch.blockmath.MipmapSizes;
-import tpietzsch.blockmath.RequiredBlock;
-import tpietzsch.blockmath.RequiredBlocks;
 import tpietzsch.blocks.ByteUtils;
-import tpietzsch.blocks.TileAccess;
 import tpietzsch.cache.CacheSpec;
-import tpietzsch.cache.DefaultFillTask;
 import tpietzsch.cache.FillTask;
-import tpietzsch.cache.ImageBlockKey;
 import tpietzsch.cache.PboChain;
 import tpietzsch.cache.ProcessFillTasks;
 import tpietzsch.cache.TextureCache;
-import tpietzsch.cache.TextureCache.Tile;
-import tpietzsch.cache.UploadBuffer;
 import tpietzsch.multires.MultiResolutionStack3D;
-import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
+import tpietzsch.shadergen.Uniform3f;
+import tpietzsch.shadergen.Uniform3fv;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.util.InputFrame;
@@ -69,8 +54,6 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
-import static tpietzsch.blockmath.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
-import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
 public class Example implements GLEventListener
 {
@@ -88,9 +71,8 @@ public class Example implements GLEventListener
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
-	private final float[][] lookupBlockScales = new float[ NUM_BLOCK_SCALES ][ 3 ];
-
 	private LookupTextureARGB lookupTexture;
+	private VolumeBlocks volume;
 
 	private final TextureCache textureCache;
 	private final PboChain pboChain;
@@ -106,8 +88,6 @@ public class Example implements GLEventListener
 	private int viewportWidth = 100;
 
 	private int viewportHeight = 100;
-
-	private int baseLevel;
 
 	enum Mode { VOLUME, SLICE }
 
@@ -131,6 +111,8 @@ public class Example implements GLEventListener
 		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
+		lookupTexture = new LookupTextureARGB();
+		volume = new VolumeBlocks( textureCache );
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
@@ -150,8 +132,6 @@ public class Example implements GLEventListener
 		screenPlane = new ScreenPlane();
 		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
 
-		lookupTexture = new LookupTextureARGB( new int[] { 64, 64, 64 } );
-
 		gl.glEnable( GL_DEPTH_TEST );
 	}
 
@@ -160,7 +140,6 @@ public class Example implements GLEventListener
 	{}
 
 	private final double screenPadding = 0;
-
 	private final double dCam = 2000;
 	private final double dClip = 1000;
 	private double screenWidth = 640;
@@ -183,14 +162,15 @@ public class Example implements GLEventListener
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
-		if ( !freezeRequiredBlocks )
-		{
-			final Matrix4f pvm = new Matrix4f( projection ).mul( view ).mul( model );
-			updateBlocks( gl, pvm );
-		}
-
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 
+		final Matrix4f pv = new Matrix4f( projection ).mul( view );
+		if ( !freezeRequiredBlocks )
+		{
+			updateBlocks( context, pv );
+		}
+
+		// TODO: revise: model shouldn't be needed here
 		prog.getUniformMatrix4f( "model" ).set( model );
 		prog.getUniformMatrix4f( "view" ).set( view );
 		prog.getUniformMatrix4f( "projection" ).set( projection );
@@ -201,39 +181,27 @@ public class Example implements GLEventListener
 		box.updateVertices( gl, multiResolutionStack.resolutions().get( 0 ).getImage() );
 		box.draw( gl );
 
-
-
-		final int[] baseScale = multiResolutionStack.resolutions().get( baseLevel ).getR();
-		final int x = baseScale[ 0 ];
-		final int y = baseScale[ 1 ];
-		final int z = baseScale[ 2 ];
-		final Matrix4f upscale = new Matrix4f(
-				x, 0, 0, 0,
-				0, y, 0, 0,
-				0, 0, z, 0,
-				0.5f * ( x - 1 ), 0.5f * ( y - 1 ), 0.5f * ( z - 1 ), 1 );
-		model.mul( upscale );
-
-		final Matrix4f ip = new Matrix4f( projection ).invert();
-		final Matrix4f ivm = new Matrix4f( view ).mul( model ).invert();
-		final Matrix4f ipvm = new Matrix4f( projection ).mul( view ).mul( model ).invert();
-
 		progvol.use( context );
 		progvol.getUniformMatrix4f( "model" ).set( new Matrix4f() );
 		progvol.getUniformMatrix4f( "view" ).set( new Matrix4f() );
 		progvol.getUniformMatrix4f( "projection" ).set( projection );
 		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
-		progvol.getUniformMatrix4f( "ipvm" ).set( ipvm );
+
+		progvol.getUniformMatrix4f( "ipvm" ).set( volume.getIpvms( pv ) );
 
 		// for source box intersection
 		// for multiple sources, this will be bounding box of all of them (for first attempt at least...)
-		progvol.getUniform3f( "sourcemin" ).set( sourceLevelMin );
-		progvol.getUniform3f( "sourcemax" ).set( sourceLevelMax );
+		progvol.getUniform3f( "sourcemin" ).set( volume.getSourceLevelMin() );
+		progvol.getUniform3f( "sourcemax" ).set( volume.getSourceLevelMax() );
 
 		// textures
 		progvol.getUniform1i( "lut" ).set( 0 );
 		progvol.getUniform1i( "volumeCache" ).set( 1 );
-		lookupTexture.bindTextures( gl, GL_TEXTURE0 );
+
+		// TODO: fix hacks
+//			lookupTexture.bindTextures( gl, GL_TEXTURE0 );
+			gl.glActiveTexture( GL_TEXTURE0 );
+			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( lookupTexture ) );
 
 		// TODO: fix hacks
 //			blockCache.bindTextures( gl, GL_TEXTURE1 );
@@ -255,17 +223,10 @@ public class Example implements GLEventListener
 		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
 
 		// comes from LUT
-		progvol.getUniform3fv( "blockScales" ).set( lookupBlockScales );
-		final int[] lutSize = lookupTexture.getSize();
-		progvol.getUniform3f( "lutScale" ).set(
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * lutSize[ 0 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * lutSize[ 1 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * lutSize[ 2 ] ) ) );
-		progvol.getUniform3f( "lutOffset" ).set(
-				( float ) ( ( double ) lutOffset[ 0 ] / lutSize[ 0 ] ),
-				( float ) ( ( double ) lutOffset[ 1 ] / lutSize[ 1 ] ),
-				( float ) ( ( double ) lutOffset[ 2 ] / lutSize[ 2 ] ) );
-
+		final Uniform3fv uniformBlockScales = progvol.getUniform3fv( "blockScales" );
+		final Uniform3f uniformLutScale = progvol.getUniform3f( "lutScale" );
+		final Uniform3f uniformLutOffset = progvol.getUniform3f( "lutOffset" );
+		volume.setUniforms( lookupTexture, NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
 
 		final double min = 962; // weber
 		final double max = 6201;
@@ -292,227 +253,33 @@ public class Example implements GLEventListener
 		offscreen.drawQuad( gl );
 	}
 
-	private final Vector3f sourceLevelMin = new Vector3f();
-	private final Vector3f sourceLevelMax = new Vector3f();
-
 	private final long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
 
-	private void updateBlocks( final GL3 gl, final Matrix4f pvm )
+	private void updateBlocks( final JoglGpuContext context, final Matrix4f pv )
 	{
 		CacheIoTiming.getIoTimeBudget().reset( iobudget );
 		cacheControl.prepareNextFrame();
 
 		final int vw = offscreen.getWidth();
 //		final int vw = viewportWidth;
-		final MipmapSizes sizes = new MipmapSizes();
-		sizes.init( pvm, vw, multiResolutionStack.resolutions() );
-		baseLevel = sizes.getBaseLevel();
-//		System.out.println( "baseLevel = " + baseLevel );
 
-		final ResolutionLevel3D< ? > baseResolution = multiResolutionStack.resolutions().get( baseLevel );
-
-		final int bsx = baseResolution.getR()[ 0 ];
-		final int bsy = baseResolution.getR()[ 1 ];
-		final int bsz = baseResolution.getR()[ 2 ];
-		final Matrix4f upscale = new Matrix4f(
-				bsx, 0, 0, 0,
-				0, bsy, 0, 0,
-				0, 0, bsz, 0,
-				0.5f * ( bsx - 1 ), 0.5f * ( bsy - 1 ), 0.5f * ( bsz - 1 ), 1 );
-		final Matrix4fc pvms = pvm.mul( upscale, new Matrix4f() );
-		final Matrix4fc ipvms =	pvms.invert( new Matrix4f() );
-
-		final Interval rai = baseResolution.getImage();
-		sourceLevelMin.set( rai.min( 0 ), rai.min( 1 ), rai.min( 2 ) ); // TODO -0.5 offset?
-		sourceLevelMax.set( rai.max( 0 ), rai.max( 1 ), rai.max( 2 ) ); // TODO -0.5 offset?
-
-		final Vector3f fbbmin = new Vector3f();
-		final Vector3f fbbmax = new Vector3f();
-		ipvms.frustumAabb( fbbmin, fbbmax );
-		fbbmin.max( sourceLevelMin );
-		fbbmax.min( sourceLevelMax );
-		final long[] gridMin = {
-				( long ) ( fbbmin.x() / cacheSpec.blockSize()[ 0 ] ),
-				( long ) ( fbbmin.y() / cacheSpec.blockSize()[ 1 ] ),
-				( long ) ( fbbmin.z() / cacheSpec.blockSize()[ 2 ] )
-		};
-		final long[] gridMax = {
-				( long ) ( fbbmax.x() / cacheSpec.blockSize()[ 0 ] ),
-				( long ) ( fbbmax.y() / cacheSpec.blockSize()[ 1 ] ),
-				( long ) ( fbbmax.z() / cacheSpec.blockSize()[ 2 ] )
-		};
-
-		final RequiredBlocks requiredBlocks = getRequiredLevelBlocksFrustum( pvms, cacheSpec.blockSize(), gridMin, gridMax );
-//		System.out.println( "requiredBlocks = " + requiredBlocks );
-		updateLookupTexture( gl, requiredBlocks, sizes );
-	}
-
-	// border around lut (points to oob blocks)
-	final int[] lutPadSize = { 1, 1, 1 };
-
-	// offset into lut (source block to lut coords)
-	final int[] lutOffset = { 1, 1, 1 };
-
-	TileAccess.Cache tileAccess = new TileAccess.Cache();
-
-	private boolean canLoadCompletely( final ImageBlockKey< ResolutionLevel3D< ? > > key )
-	{
-		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
-	}
-
-	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )
-	{
-		return tileAccess.get( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
-	}
-
-	/**
-	 * Determine best resolution level for each block.
-	 * Best resolution is capped at {@code sizes.getBaseLevel()}.
-	 */
-	private void bestLevels( final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
-	{
-		final int baseLevel = sizes.getBaseLevel();
-		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
-		final int[] blockSize = cacheSpec.blockSize();
-		final int[] scale = new int[] {
-				blockSize[ 0 ] * r[ 0 ],
-				blockSize[ 1 ] * r[ 1 ],
-				blockSize[ 2 ] * r[ 2 ]
-		};
-		final Vector3f blockCenter = new Vector3f();
-		final Vector3f tmp = new Vector3f();
-		for ( final RequiredBlock block : requiredBlocks.getBlocks() )
-		{
-			final int[] g0 = block.getGridPos();
-			blockCenter.set(
-					( g0[ 0 ] + 0.5f ) * scale[ 0 ],
-					( g0[ 1 ] + 0.5f ) * scale[ 1 ],
-					( g0[ 2 ] + 0.5f ) * scale[ 2 ] );
-			final int bestLevel = Math.max( baseLevel, sizes.bestLevel( blockCenter, tmp ) );
-			block.setBestLevel( bestLevel );
-		}
-	}
-
-	private void updateCache( final GL3 gl, final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
-	{
-		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
-		final int baseLevel = sizes.getBaseLevel();
-
-		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
-		final HashSet< ImageBlockKey< ? > > existingKeys = new HashSet<>();
-		final ArrayList< FillTask > fillTasks = new ArrayList<>();
-		final int[] gj = new int[ 3 ];
-		for ( RequiredBlock block : requiredBlocks.getBlocks() )
-		{
-			final int[] g0 = block.getGridPos();
-			for ( int level = block.getBestLevel(); level <= maxLevel; ++level )
-			{
-				final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
-				final double[] sj = resolution.getS();
-				for ( int d = 0; d < 3; ++d )
-					gj[ d ] = ( int ) ( g0[ d ] * sj[ d ] * r[ d ] );
-
-				final ImageBlockKey< ResolutionLevel3D< ? > > key = new ImageBlockKey<>( resolution, gj );
-				if ( !existingKeys.contains( key ) )
-				{
-					existingKeys.add( key );
-					final Tile tile = textureCache.get( key );
-					if ( tile != null || level == maxLevel || canLoadCompletely( key ) )
-					{
-						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ) ) );
-						break;
-					}
-				}
-				else
-					break; // TODO: is this always ok?
-			}
-		}
-
-		// ============================================================
+		volume.init( multiResolutionStack, vw, pv );
+		final List< FillTask > fillTasks = volume.getFillTasks();
 
 		try
 		{
-			ProcessFillTasks.parallel( textureCache, pboChain, JoglGpuContext.get( gl ), forkJoinPool, fillTasks );
+			ProcessFillTasks.parallel( textureCache, pboChain, context, forkJoinPool, fillTasks );
 		}
 		catch ( final InterruptedException e )
 		{
 			e.printStackTrace();
 		}
-	}
 
-	private void updateLookupTexture( final GL3 gl, final RequiredBlocks requiredBlocks, final MipmapSizes sizes )
-	{
-		final int maxLevel = multiResolutionStack.resolutions().size() - 1;
-		final int baseLevel = sizes.getBaseLevel();
-
-		bestLevels( requiredBlocks, sizes );
-		updateCache( gl, requiredBlocks, sizes );
-
-		final int[] lutSize = new int[ 3 ];
-		final int[] rmin = requiredBlocks.getMin();
-		final int[] rmax = requiredBlocks.getMax();
-		lutSize[ 0 ] = rmax[ 0 ] - rmin[ 0 ] + 1 + 2 * lutPadSize[ 0 ];
-		lutSize[ 1 ] = rmax[ 1 ] - rmin[ 1 ] + 1 + 2 * lutPadSize[ 1 ];
-		lutSize[ 2 ] = rmax[ 2 ] - rmin[ 2 ] + 1 + 2 * lutPadSize[ 2 ];
-
-		final int dataSize = 4 * ( int ) Intervals.numElements( lutSize );
-		final byte[] lutData = new byte[ dataSize ];
-
-		// offset for IntervalIndexer
-		lutOffset[ 0 ] = lutPadSize[ 0 ] - rmin[ 0 ];
-		lutOffset[ 1 ] = lutPadSize[ 1 ] - rmin[ 1 ];
-		lutOffset[ 2 ] = lutPadSize[ 2 ] - rmin[ 2 ];
-		final int[] padOffset = new int[] { -lutOffset[ 0 ], -lutOffset[ 1 ], -lutOffset[ 2 ] };
-
-
-		// update lookupBlockScales
-		// lookupBlockScales[0] for oob
-		// lookupBlockScales[i+1] for relative scale between baseLevel and level baseLevel+i
-		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
-		for ( int d = 0; d < 3; ++d )
-			lookupBlockScales[ 0 ][ d ] = 0;
-		for ( int level = baseLevel; level <= maxLevel; ++level )
-		{
-			final ResolutionLevel3D< ? > resolution = multiResolutionStack.resolutions().get( level );
-			final double[] sj = resolution.getS();
-			final int i = 1 + level - baseLevel;
-			for ( int d = 0; d < 3; ++d )
-				lookupBlockScales[ i ][ d ] = ( float ) ( sj[ d ] * r[ d ] );
-		}
-
-
-		boolean needsRepaint = false;
-		final int[] gj = new int[ 3 ];
-		for ( RequiredBlock block : requiredBlocks.getBlocks() )
-		{
-			final int[] g0 = block.getGridPos();
-			for ( int level = block.getBestLevel(); level <= maxLevel; ++level )
-			{
-				final ResolutionLevel3D< VolatileUnsignedShortType > resolution = multiResolutionStack.resolutions().get( level );
-				final double[] sj = resolution.getS();
-				for ( int d = 0; d < 3; ++d )
-					gj[ d ] = ( int ) ( g0[ d ] * sj[ d ] * r[ d ] );
-				final Tile tile = textureCache.get( new ImageBlockKey<>( resolution, gj ) );
-				if ( tile != null )
-				{
-					final int i = IntervalIndexer.positionWithOffsetToIndex( g0, lutSize, padOffset );
-					lutData[ i * 4 ]     = ( byte ) tile.x();
-					lutData[ i * 4 + 1 ] = ( byte ) tile.y();
-					lutData[ i * 4 + 2 ] = ( byte ) tile.z();
-					lutData[ i * 4 + 3 ] = ( byte ) ( level - baseLevel + 1 );
-
-					if ( level != block.getBestLevel() || tile.state() == INCOMPLETE )
-						needsRepaint = true;
-
-					break;
-				}
-			}
-		}
-
-		lookupTexture.resize( gl, lutSize );
-		lookupTexture.set( gl, lutData );
+		boolean needsRepaint = !volume.makeLut( lookupTexture );
 		if ( needsRepaint )
 			requestRepaint.run();
+
+		lookupTexture.upload( context );
 	}
 
 	@Override

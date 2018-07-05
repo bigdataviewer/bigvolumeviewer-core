@@ -44,8 +44,14 @@ public interface GpuContext
 	// previous pbo binding is restored when done
 	void unmap( Pbo pbo );
 
-	// upload texture block fomr pbo
+	// delete a texture (if it has already been allocated)
+	// used to redefine a texture that has changed size
+	void delete( Texture texture );
+
+	// upload texture block from pbo
 	// previous pbo binding is restored when done
 	void texSubImage3D( Pbo pbo, Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, long pixels_buffer_offset );
 
+	// upload texture block from Buffer
+	void texSubImage3D( Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, Buffer pixels );
 }

@@ -10,6 +10,7 @@ import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
+import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL.GL_WRITE_ONLY;
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
@@ -21,6 +22,8 @@ import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_WRAP_R;
 import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
 import static com.jogamp.opengl.GL2ES3.GL_PIXEL_UNPACK_BUFFER;
 import static com.jogamp.opengl.GL2ES3.GL_PIXEL_UNPACK_BUFFER_BINDING;
+import static com.jogamp.opengl.GL2ES3.GL_RGBA8UI;
+import static com.jogamp.opengl.GL2ES3.GL_RGBA_INTEGER;
 import static com.jogamp.opengl.GL2GL3.GL_R16;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_1D;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_BINDING_1D;
@@ -148,6 +151,14 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
+	public void delete( final Texture texture )
+	{
+		final TexId texId = textures.remove( texture );
+		if ( texId != null )
+			gl.glDeleteTextures( 1, new int[] { texId.id }, 0 );
+	}
+
+	@Override
 	public void texSubImage3D( final Pbo pbo, final Texture3D texture, final int xoffset, final int yoffset, final int zoffset, final int width, final int height, final int depth, final long pixels_buffer_offset )
 	{
 		final int pboId = getPboId( pbo );
@@ -170,6 +181,24 @@ public class JoglGpuContext implements GpuContext
 
 		if ( restorePboId != pboId )
 			gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, restorePboId );
+
+		if ( restoreTextureId != textureId )
+			gl.glBindTexture( GL_TEXTURE_3D, restoreTextureId );
+	}
+
+	@Override
+	public void texSubImage3D( final Texture3D texture, final int xoffset, final int yoffset, final int zoffset, final int width, final int height, final int depth, final Buffer pixels )
+	{
+		final int textureId = getTextureId( texture ).id;
+
+		final int[] tmp = new int[ 1 ];
+		gl.glGetIntegerv( GL_TEXTURE_BINDING_3D, tmp, 0 );
+		final int restoreTextureId = tmp[ 0 ];
+
+		if ( restoreTextureId != textureId )
+			gl.glBindTexture( GL_TEXTURE_3D, textureId );
+
+		gl.glTexSubImage3D( GL_TEXTURE_3D, 0, xoffset, yoffset, zoffset, width, height, depth, format( texture ), type( texture ), pixels );
 
 		if ( restoreTextureId != textureId )
 			gl.glBindTexture( GL_TEXTURE_3D, restoreTextureId );
@@ -334,6 +363,8 @@ public class JoglGpuContext implements GpuContext
 		{
 		case R16:
 			return GL_R16;
+		case RGBA8UI:
+			return GL_RGBA8UI;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -345,6 +376,8 @@ public class JoglGpuContext implements GpuContext
 		{
 		case R16:
 			return GL_RED;
+		case RGBA8UI:
+			return GL_RGBA_INTEGER;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -356,6 +389,8 @@ public class JoglGpuContext implements GpuContext
 		{
 		case R16:
 			return GL_UNSIGNED_SHORT;
+		case RGBA8UI:
+			return GL_UNSIGNED_BYTE;
 		default:
 			throw new IllegalArgumentException();
 		}
