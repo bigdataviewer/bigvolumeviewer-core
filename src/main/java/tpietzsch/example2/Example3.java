@@ -34,6 +34,7 @@ import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
 import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.Uniform3fv;
+import tpietzsch.shadergen.UniformMatrix4f;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
@@ -73,7 +74,6 @@ public class Example3 implements GLEventListener
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
-	private LookupTextureARGB lookupTexture;
 	private VolumeBlocks volume;
 
 	private final TextureCache textureCache;
@@ -113,7 +113,6 @@ public class Example3 implements GLEventListener
 		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
-		lookupTexture = new LookupTextureARGB();
 		volume = new VolumeBlocks( textureCache );
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
@@ -148,6 +147,48 @@ public class Example3 implements GLEventListener
 		System.out.println( "fragementShaderCode = " + fragementShaderCode );
 		System.out.println( "\n\n--------------------------------\n\n");
 	}
+
+	static class VolumeSegment
+	{
+		private final SegmentedShader prog;
+		private final Segment volume;
+
+		private final Uniform3fv uniformBlockScales;
+		private final Uniform3f uniformLutScale;
+		private final Uniform3f uniformLutOffset;
+		private final UniformMatrix4f uniformIm;
+		private final Uniform3f uniformSourcemin;
+		private final Uniform3f uniformSourcemax;
+
+		//"im", "sourcemin", "sourcemax",
+//"lutSampler", "blockScales", "lutScale", "lutOffset"
+
+		public VolumeSegment( final SegmentedShader prog, final Segment volume )
+		{
+			this.prog = prog;
+			this.volume = volume;
+
+			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
+			uniformLutScale = prog.getUniform3f( volume, "lutScale" );
+			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
+			uniformIm = prog.getUniformMatrix4f( volume, "im" );
+			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
+			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
+		}
+
+		public void setData( VolumeBlocks blocks )
+		{
+			// TODO
+			// TODO
+			// TODO
+			// TODO
+			// TODO
+			// TODO
+			// TODO
+			// TODO
+		}
+	}
+
 
 	@Override
 	public void init( final GLAutoDrawable drawable )
@@ -227,7 +268,7 @@ public class Example3 implements GLEventListener
 		// TODO: fix hacks
 //			lookupTexture.bindTextures( gl, GL_TEXTURE0 );
 			gl.glActiveTexture( GL_TEXTURE0 );
-			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( lookupTexture ) );
+			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( volume.getLookupTexture() ) );
 
 		// TODO: fix hacks
 //			blockCache.bindTextures( gl, GL_TEXTURE1 );
@@ -252,7 +293,7 @@ public class Example3 implements GLEventListener
 		final Uniform3fv uniformBlockScales = progvol.getUniform3fv( "blockScales" );
 		final Uniform3f uniformLutScale = progvol.getUniform3f( "lutScale" );
 		final Uniform3f uniformLutOffset = progvol.getUniform3f( "lutOffset" );
-		volume.setUniforms( lookupTexture, NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
+		volume.setUniforms( NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
 
 		final double min = 962; // weber
 		final double max = 6201;
@@ -301,11 +342,11 @@ public class Example3 implements GLEventListener
 			e.printStackTrace();
 		}
 
-		boolean needsRepaint = !volume.makeLut( lookupTexture );
+		boolean needsRepaint = !volume.makeLut();
 		if ( needsRepaint )
 			requestRepaint.run();
 
-		lookupTexture.upload( context );
+		volume.getLookupTexture().upload( context );
 	}
 
 	@Override

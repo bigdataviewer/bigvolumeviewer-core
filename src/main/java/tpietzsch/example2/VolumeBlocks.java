@@ -7,6 +7,7 @@ import net.imglib2.Interval;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import tpietzsch.backend.Texture;
 import tpietzsch.blockmath.MipmapSizes;
 import tpietzsch.blockmath.RequiredBlock;
 import tpietzsch.blockmath.RequiredBlocks;
@@ -32,7 +33,7 @@ import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
  * <ol>
  *     <li>{@link #init(MultiResolutionStack3D, int, Matrix4fc)}</li>
  *     <li>{@link #getFillTasks()}</li>
- *     <li>{@link #makeLut(LookupTextureARGB)}</li>
+ *     <li>{@link #makeLut()}</li>
  * </ol>
  * {@link #getLutBlockScales(int)} can be called at any point after {@code init()}.
  * <p>
@@ -42,6 +43,7 @@ public class VolumeBlocks
 {
 	private final TextureCache textureCache;
 	private final CacheSpec cacheSpec;
+	private final LookupTextureARGB lut;
 	private final TileAccess.Cache tileAccess;
 	private final MipmapSizes sizes;
 
@@ -49,6 +51,7 @@ public class VolumeBlocks
 	{
 		this.textureCache = textureCache;
 		this.cacheSpec = textureCache.spec();
+		this.lut = new LookupTextureARGB();
 		this.tileAccess = new TileAccess.Cache();
 		this.sizes = new MipmapSizes();
 	}
@@ -102,13 +105,10 @@ public class VolumeBlocks
 	}
 
 	/**
-	 * @param lut
-	 * 		the LUT texture to fill
-	 *
 	 * @return whether every required block was completely available at the desired resolution level.
 	 * I.e., if {@code false} is returned, the frame should be repainted until the remaining incomplete blocks are loaded.
 	 */
-	public boolean makeLut( LookupTextureARGB lut )
+	public boolean makeLut()
 	{
 		final int[] rmin = requiredBlocks.getMin();
 		final int[] rmax = requiredBlocks.getMax();
@@ -172,8 +172,8 @@ public class VolumeBlocks
 		return lutBlockScales;
 	}
 
+	// TODO: revise / remove
 	public void setUniforms(
-			final LookupTextureARGB lut,
 			final int NUM_BLOCK_SCALES, // TODO: should this be here?
 			final Uniform3fv uniformBlockScales,
 			final Uniform3f uniformLutScale,
@@ -219,6 +219,32 @@ public class VolumeBlocks
 		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
 		final Vector3f sourceLevelMax = new Vector3f( lbb.max( 0 ), lbb.max( 1 ), lbb.max( 2 ) );
 		return sourceLevelMax;
+	}
+
+	// TODO: revise / remove
+	public Vector3f getLutScale()
+	{
+		final int[] size = lut.getSize();
+		return new Vector3f(
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * size[ 0 ] ) ),
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * size[ 1 ] ) ),
+				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * size[ 2 ] ) ) );
+	}
+
+	// TODO: revise / remove
+	public Vector3f getLutOffset()
+	{
+		final int[] size = lut.getSize();
+		final int[] offset = lut.getOffset();
+		return new Vector3f(
+				( float ) ( ( double ) offset[ 0 ] / size[ 0 ] ),
+				( float ) ( ( double ) offset[ 1 ] / size[ 1 ] ),
+				( float ) ( ( double ) offset[ 2 ] / size[ 2 ] ) );
+	}
+
+	public LookupTextureARGB getLookupTexture()
+	{
+		return lut;
 	}
 
 

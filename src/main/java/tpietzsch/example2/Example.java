@@ -71,7 +71,6 @@ public class Example implements GLEventListener
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
-	private LookupTextureARGB lookupTexture;
 	private VolumeBlocks volume;
 
 	private final TextureCache textureCache;
@@ -111,7 +110,6 @@ public class Example implements GLEventListener
 		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
-		lookupTexture = new LookupTextureARGB();
 		volume = new VolumeBlocks( textureCache );
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
@@ -201,7 +199,7 @@ public class Example implements GLEventListener
 		// TODO: fix hacks
 //			lookupTexture.bindTextures( gl, GL_TEXTURE0 );
 			gl.glActiveTexture( GL_TEXTURE0 );
-			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( lookupTexture ) );
+			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( volume.getLookupTexture() ) );
 
 		// TODO: fix hacks
 //			blockCache.bindTextures( gl, GL_TEXTURE1 );
@@ -226,7 +224,7 @@ public class Example implements GLEventListener
 		final Uniform3fv uniformBlockScales = progvol.getUniform3fv( "blockScales" );
 		final Uniform3f uniformLutScale = progvol.getUniform3f( "lutScale" );
 		final Uniform3f uniformLutOffset = progvol.getUniform3f( "lutOffset" );
-		volume.setUniforms( lookupTexture, NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
+		volume.setUniforms( NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
 
 		final double min = 962; // weber
 		final double max = 6201;
@@ -275,11 +273,11 @@ public class Example implements GLEventListener
 			e.printStackTrace();
 		}
 
-		boolean needsRepaint = !volume.makeLut( lookupTexture );
+		boolean needsRepaint = !volume.makeLut();
 		if ( needsRepaint )
 			requestRepaint.run();
 
-		lookupTexture.upload( context );
+		volume.getLookupTexture().upload( context );
 	}
 
 	@Override
