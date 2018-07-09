@@ -12,16 +12,6 @@ uniform vec3 cachePadOffset;
 // -- comes from TextureCache --
 uniform vec3 cacheSize; // TODO: get from texture!?
 
-
-
-uniform float intensity_offset;
-uniform float intensity_scale;
-vec4 convert( float v )
-{
-	return vec4( vec3( intensity_offset + intensity_scale * v ), 1 );
-}
-
-
 void main()
 {
 	// frag coord in NDC
@@ -38,13 +28,32 @@ void main()
 	wback *= 1 / wback.w;
 
 
-	// -- bounding box intersection for volume X ---------------------------------------
-	float tnear, tfar;
-	intersectBoundingBox( wfront, wback, tnear, tfar );
-	tnear = max( 0, tnear );
-	tfar = min( 1, tfar );
+	// -- bounding box intersection for all volumes ----------
+	float tnear = 1, tfar = 0;
+	float n, f;
+	bool vis1 = false, vis2 = false, vis3 = false;
+	intersectBoundingBox1( wfront, wback, n, f );
+	if ( n < f )
+	{
+		tnear = min( tnear, max( 0, n ) );
+		tfar = max( tfar, min( 1, f ) );
+		vis1 = true;
+	}
+	intersectBoundingBox2( wfront, wback, n, f );
+	if ( n < f )
+	{
+		tnear = min( tnear, max( 0, n ) );
+		tfar = max( tfar, min( 1, f ) );
+		vis2 = true;
+	}
+	intersectBoundingBox3( wfront, wback, n, f );
+	if ( n < f )
+	{
+		tnear = min( tnear, max( 0, n ) );
+		tfar = max( tfar, min( 1, f ) );
+		vis3 = true;
+	}
 	// -------------------------------------------------------
-
 
 
 	if ( tnear < tfar )
@@ -54,15 +63,26 @@ void main()
 		vec4 wstep = normalize( fb );
 		int numSteps = int( trunc( ( tfar - tnear ) * length( fb ) ) + 1 );
 
-		float v = 0;
+		vec4 v = vec4( 0 );
 		for ( int i = 0; i < numSteps; ++i, wpos += wstep )
 		{
-			float x1 = blockTexture1( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
-			v = max( v, x1 );
-			float x2 = blockTexture2( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
-			v = max( v, x2 );
+			if ( vis1 )
+			{
+				float x = blockTexture1( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
+				v = max( v, convert1( x ) );
+			}
+			if ( vis2 )
+			{
+				float x = blockTexture2( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
+				v = max( v, convert2( x ) );
+			}
+			if ( vis3 )
+			{
+				float x = blockTexture3( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
+				v = max( v, convert3( x ) );
+			}
 		}
-		FragColor = convert( v );
+		FragColor = v;
 	}
 	else
 		discard;
