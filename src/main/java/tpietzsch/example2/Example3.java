@@ -35,6 +35,7 @@ import tpietzsch.shadergen.Shader;
 import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.Uniform3fv;
 import tpietzsch.shadergen.UniformMatrix4f;
+import tpietzsch.shadergen.UniformSampler;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
@@ -50,8 +51,6 @@ import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_RGB8;
-import static com.jogamp.opengl.GL.GL_TEXTURE0;
-import static com.jogamp.opengl.GL.GL_TEXTURE1;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
@@ -142,6 +141,12 @@ public class Example3 implements GLEventListener
 				.build();
 		volumeSegment = new VolumeSegment( progvol, blkVol1 );
 
+		progvol.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
+		progvol.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
+		progvol.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
+		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
+		progvol.getUniformSampler( "volumeCache" ).set( textureCache );
+
 		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
 		System.out.println( "vertexShaderCode = " + vertexShaderCode );
 		System.out.println( "\n\n--------------------------------\n\n");
@@ -150,12 +155,13 @@ public class Example3 implements GLEventListener
 		System.out.println( "\n\n--------------------------------\n\n");
 	}
 
-	static class VolumeSegment
+	public static class VolumeSegment
 	{
 		private final SegmentedShader prog;
 		private final Segment volume;
 
 		private final Uniform3fv uniformBlockScales;
+		private final UniformSampler uniformLutSampler;
 		private final Uniform3f uniformLutScale;
 		private final Uniform3f uniformLutOffset;
 		private final UniformMatrix4f uniformIm;
@@ -168,6 +174,7 @@ public class Example3 implements GLEventListener
 			this.volume = volume;
 
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
+			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
 			uniformLutScale = prog.getUniform3f( volume, "lutScale" );
 			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
@@ -178,6 +185,7 @@ public class Example3 implements GLEventListener
 		public void setData( VolumeBlocks blocks )
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
+			uniformLutSampler.set( blocks.getLookupTexture() );
 			uniformLutScale.set( blocks.getLutScale() );
 			uniformLutOffset.set( blocks.getLutOffset() );
 			uniformIm.set( blocks.getIms() );
@@ -185,7 +193,6 @@ public class Example3 implements GLEventListener
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
 		}
 	}
-
 
 	@Override
 	public void init( final GLAutoDrawable drawable )
@@ -253,9 +260,6 @@ public class Example3 implements GLEventListener
 		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
 		progvol.getUniformMatrix4f( "ipv" ).set( pv.invert( new Matrix4f() ) );
 
-		// textures
-		progvol.getUniformSampler( "lutSampler" ).set( volume.getLookupTexture() );
-		progvol.getUniformSampler( "volumeCache" ).set( textureCache );
 
 		// TODO: fix hacks (initialize OOB block init)
 			context.bindTexture( textureCache );
@@ -263,17 +267,6 @@ public class Example3 implements GLEventListener
 			final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
 			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
-
-		// comes from CacheSpec
-		progvol.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
-		progvol.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
-		progvol.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
-
-		// comes from TextureCache -- not really necessary
-		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
-
-		// comes from LUT
-		volumeSegment.setData( this.volume );
 
 		final double min = 962; // weber
 		final double max = 6201;
@@ -292,6 +285,8 @@ public class Example3 implements GLEventListener
 
 		screenPlane.updateVertices( gl, new FinalInterval( ( int ) screenWidth, ( int ) screenHeight ) );
 //		screenPlane.draw( gl );
+
+		volumeSegment.setData( this.volume );
 
 		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
 		progvol.bindSamplers( context );
