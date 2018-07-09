@@ -18,17 +18,6 @@ public class StringTemplateUtils
 			final List< String > keys )
 			throws IOException
 	{
-		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
-		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
-		final StringBuilder builder = new StringBuilder();
-		String line;
-		while ( ( line = reader.readLine() ) != null )
-		{
-			builder.append( line );
-			builder.append( "\n" );
-		}
-		final String snippet = builder.toString();
-
 		final ArrayList< String > searchList = new ArrayList<>();
 		final ArrayList< String > replacementList = new ArrayList<>();
 		for ( final String key : keys )
@@ -36,13 +25,58 @@ public class StringTemplateUtils
 			searchList.add( key );
 			replacementList.add( "$" + key + "$" );
 		}
+		final String[] search = searchList.toArray( new String[ 0 ] );
+		final String[] replace = replacementList.toArray( new String[ 0 ] );
 
-		final String patched = StringUtils.replaceEach(
-				snippet,
-				searchList.toArray( new String[ 0 ] ),
-				replacementList.toArray( new String[ 0 ] ) );
+		searchList.add( "}" );
+		replacementList.add( "\\}" );
+		final String[] searchInRepeat = searchList.toArray( new String[ 0 ] );
+		final String[] replaceInRepeat = replacementList.toArray( new String[ 0 ] );
 
-		return new ST( patched, '$', '$' );
+		final String REPEAT = "repeat";
+		final String PAT_REPEAT = "$"+REPEAT+":{";
+		final int REPEAT_START = 1;
+
+		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
+		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
+		final StringBuilder builder = new StringBuilder();
+		String line;
+		boolean inRepeatBlock = false;
+		while ( ( line = reader.readLine() ) != null )
+		{
+			final int ri = line.indexOf( PAT_REPEAT );
+			if ( ri != -1 )
+			{
+				if ( inRepeatBlock )
+					throw new IllegalArgumentException();
+				final int re = line.indexOf( "|", ri + PAT_REPEAT.length() );
+				if ( re == -1 )
+					throw new IllegalArgumentException();
+				final String args = line.substring( ri + PAT_REPEAT.length(), re );
+				System.out.println( "args = " + args );
+				line = line.substring( 0, ri + REPEAT_START )
+						+ args
+						+ line.substring( ri + REPEAT_START + REPEAT.length(), re + 1 )
+						+ "\n";
+				builder.append( line );
+				inRepeatBlock = true;
+			}
+			else if ( inRepeatBlock )
+			{
+				if ( line.contains( "}$" ) )
+					inRepeatBlock = false;
+				else
+					builder.append( StringUtils.replaceEach( line, searchInRepeat, replaceInRepeat ) );
+			}
+
+			if ( !inRepeatBlock )
+				builder.append( StringUtils.replaceEach( line, search, replace ) );
+
+			builder.append( "\n" );
+		}
+		final String snippet = builder.toString();
+
+		return new ST( snippet, '$', '$' );
 	}
 
 	public static void clearAttributes( final ST st )
