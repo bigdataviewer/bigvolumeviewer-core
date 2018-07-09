@@ -39,56 +39,56 @@ public class SegmentedShader extends AbstractShader
 
 	public Uniform1i getUniform1i( final Segment segment, final String key )
 	{
-		return getUniform1i( segment.getIdentifier( key ) );
+		return getUniform1i( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform2i getUniform2i( final Segment segment, final String key )
 	{
-		return getUniform2i( segment.getIdentifier( key ) );
+		return getUniform2i( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform3i getUniform3i( final Segment segment, final String key )
 	{
-		return getUniform3i( segment.getIdentifier( key ) );
+		return getUniform3i( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform4i getUniform4i( final Segment segment, final String key )
 	{
-		return getUniform4i( segment.getIdentifier( key ) );
+		return getUniform4i( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform1f getUniform1f( final Segment segment, final String key )
 	{
-		return getUniform1f( segment.getIdentifier( key ) );
+		return getUniform1f( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform2f getUniform2f( final Segment segment, final String key )
 	{
-		return getUniform2f( segment.getIdentifier( key ) );
+		return getUniform2f( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform3f getUniform3f( final Segment segment, final String key )
 	{
-		return getUniform3f( segment.getIdentifier( key ) );
+		return getUniform3f( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform4f getUniform4f( final Segment segment, final String key )
 	{
-		return getUniform4f( segment.getIdentifier( key ) );
+		return getUniform4f( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform3fv getUniform3fv( final Segment segment, final String key )
 	{
-		return getUniform3fv( segment.getIdentifier( key ) );
+		return getUniform3fv( segment.getSingleIdentifier( key ) );
 	}
 
 	public UniformMatrix4f getUniformMatrix4f( final Segment segment, final String key )
 	{
-		return getUniformMatrix4f( segment.getIdentifier( key ) );
+		return getUniformMatrix4f( segment.getSingleIdentifier( key ) );
 	}
 
 	public UniformSampler getUniformSampler( final Segment segment, final String key )
 	{
-		return getUniformSampler( segment.getIdentifier( key ) );
+		return getUniformSampler( segment.getSingleIdentifier( key ) );
 	}
 }

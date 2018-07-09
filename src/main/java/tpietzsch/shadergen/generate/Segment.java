@@ -1,16 +1,17 @@
 package tpietzsch.shadergen.generate;
 
 import java.util.Map;
+import tpietzsch.shadergen.generate.SegmentTemplate.Identifier;
 
 public class Segment
 {
 	private final SegmentTemplate template;
 
-	private final Map< String, String > keyToIdentifier;
+	private final Map< String, Identifier > keyToIdentifier;
 
 	private String code = null;
 
-	Segment( final SegmentTemplate template, final Map< String, String > keyToIdentifier )
+	Segment( final SegmentTemplate template, final Map< String, Identifier > keyToIdentifier )
 	{
 		this.template = template;
 		this.keyToIdentifier = keyToIdentifier;
@@ -31,15 +32,25 @@ public class Segment
 		return this;
 	}
 
-	String getIdentifier( final String key )
+	Identifier getIdentifier( final String key )
 	{
-		final String s = keyToIdentifier.get( key );
-		if ( s == null )
-			throw new IllegalArgumentException( "Key '" + key + "' does not exist.");
-		return s;
+		final Identifier identifier = keyToIdentifier.get( key );
+		if ( identifier == null )
+			throw new IllegalArgumentException( "Key '" + key + "' does not exist." );
+		return identifier;
 	}
 
-	Map< String, String > getKeyToIdentifierMap()
+	String getSingleIdentifier( final String key )
+	{
+		final Identifier identifier = keyToIdentifier.get( key );
+		if ( identifier == null )
+			throw new IllegalArgumentException( "Key '" + key + "' does not exist." );
+		if ( identifier.isList() )
+			throw new IllegalArgumentException( "Key '" + key + "' maps to a list of identifiers. Expected single identifier." );
+		return ( String ) identifier.value();
+	}
+
+	Map< String, Identifier > getKeyToIdentifierMap()
 	{
 		return keyToIdentifier;
 	}

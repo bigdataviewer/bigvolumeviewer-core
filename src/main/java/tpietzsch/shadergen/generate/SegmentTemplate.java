@@ -3,6 +3,7 @@ package tpietzsch.shadergen.generate;
 import static tpietzsch.shadergen.generate.StringTemplateUtils.clearAttributes;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -49,32 +50,67 @@ public class SegmentTemplate
 		}
 	}
 
+	static class Identifier
+	{
+		private final boolean isList;
+
+		private ArrayList< String > values = new ArrayList<>();
+
+		public Identifier( final String identifier )
+		{
+			this.isList = false;
+			values.add( identifier );
+		}
+
+		public Identifier()
+		{
+			this.isList = true;
+		}
+
+		public void put( int index, String identifier )
+		{
+			while ( index >= values.size() )
+				values.add( "" );
+			values.set( index, identifier );
+		}
+
+		public Object value()
+		{
+			return isList ? values : values.get( 0 );
+		}
+
+		public boolean isList()
+		{
+			return isList;
+		}
+	}
+
 	public Segment instantiate()
 	{
 		return instantiate( proposeKeyToIdentifierMap() );
 	}
 
-	private Segment instantiate( final Map< String, String > keyToIdentifier )
+	private Segment instantiate( final Map< String, Identifier > keyToIdentifier )
 	{
 		return new Segment( this, keyToIdentifier );
 	}
 
-	private Map< String, String > proposeKeyToIdentifierMap()
+	private Map< String, Identifier > proposeKeyToIdentifierMap()
 	{
-		final Map< String, String > keyToIdentifier = new HashMap<>();
+		final Map< String, Identifier > keyToIdentifier = new HashMap<>();
 		int baseId = idGen.getAndAdd( keys.size() );
 		for ( final String key : keys )
 		{
 			final String instance = String.format( "%s__%d__", key, baseId++ );
-			keyToIdentifier.put( key, instance );
+			keyToIdentifier.put( key, new Identifier( instance ) );
 		}
 		return keyToIdentifier;
 	}
 
-	String render( final Map< String, String > keyToIdentifier )
+	String render( final Map< String, Identifier > keyToIdentifier )
 	{
 		clearAttributes( st );
-		keys.forEach( key -> st.add( key, keyToIdentifier.get( key ) ) );
+		keys.forEach( key -> st.add( key, keyToIdentifier.get( key ).value() ) );
 		return st.render();
 	}
 

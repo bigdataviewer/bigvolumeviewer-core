@@ -2,6 +2,7 @@ package tpietzsch.shadergen.generate;
 
 import java.util.HashMap;
 import java.util.Map;
+import tpietzsch.shadergen.generate.SegmentTemplate.Identifier;
 
 public class SegmentedShaderBuilder
 {
@@ -16,9 +17,14 @@ public class SegmentedShaderBuilder
 
 	private void add( final Segment segment, final StringBuilder code )
 	{
-		final Map< String, String > map = segment.getKeyToIdentifierMap();
+		final Map< String, Identifier > map = segment.getKeyToIdentifierMap();
 		map.forEach( ( name, identifier ) -> {
-			uniforms.compute( name, ( n, value ) -> value == null ? identifier : NOT_UNIQUE );
+			uniforms.compute( name, ( n, value ) -> {
+				if ( value == null && !identifier.isList() )
+					return ( String ) identifier.value();
+				else
+					return NOT_UNIQUE;
+			} );
 		} );
 
 		code.append( segment.getCode() );
