@@ -107,6 +107,18 @@ public class SegmentTemplate
 		return keyToIdentifier;
 	}
 
+	static Identifier proposeIdentifiers( String key, int num )
+	{
+		final Identifier identifier = new Identifier();
+		int baseId = idGen.getAndAdd( num );
+		for ( int i = 0; i < num; i++ )
+		{
+			final String instance = String.format( "%s__%d__", key, baseId++ );
+			identifier.put( i, instance );
+		}
+		return identifier;
+	}
+
 	String render( final Map< String, Identifier > keyToIdentifier )
 	{
 		clearAttributes( st );

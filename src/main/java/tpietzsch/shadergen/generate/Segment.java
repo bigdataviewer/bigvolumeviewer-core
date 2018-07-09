@@ -49,6 +49,12 @@ public class Segment
 		return this;
 	}
 
+	public synchronized Segment repeat( final String key, final int num )
+	{
+		keyToIdentifier.put( key, SegmentTemplate.proposeIdentifiers( key, num ) );
+		return this;
+	}
+
 	Identifier getIdentifier( final String key )
 	{
 		final Identifier identifier = keyToIdentifier.get( key );
