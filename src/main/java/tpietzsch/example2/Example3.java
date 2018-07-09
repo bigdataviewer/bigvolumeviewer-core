@@ -254,20 +254,11 @@ public class Example3 implements GLEventListener
 		progvol.getUniformMatrix4f( "ipv" ).set( pv.invert( new Matrix4f() ) );
 
 		// textures
-		progvol.getUniform1i( "lutSampler" ).set( 0 );
-		progvol.getUniform1i( "volumeCache" ).set( 1 );
-
-		// TODO: fix hacks
-//			lookupTexture.bindTextures( gl, GL_TEXTURE0 );
-			gl.glActiveTexture( GL_TEXTURE0 );
-			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( volume.getLookupTexture() ) );
-
-		// TODO: fix hacks
-//			blockCache.bindTextures( gl, GL_TEXTURE1 );
-			gl.glActiveTexture( GL_TEXTURE1 );
-			gl.glBindTexture( GL_TEXTURE_3D, context.getTextureIdHack( textureCache ) );
+		progvol.getUniformSampler( "lutSampler" ).set( volume.getLookupTexture() );
+		progvol.getUniformSampler( "volumeCache" ).set( textureCache );
 
 		// TODO: fix hacks (initialize OOB block init)
+			context.bindTexture( textureCache );
 			final int[] ts = cacheSpec.paddedBlockSize();
 			final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
 			ByteUtils.setShorts( ( short ) 0x0fff, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
@@ -303,6 +294,7 @@ public class Example3 implements GLEventListener
 //		screenPlane.draw( gl );
 
 		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
+		progvol.bindSamplers( context );
 		progvol.setUniforms( context );
 		screenPlane.draw( gl );
 		offscreen.unbind( gl, false );

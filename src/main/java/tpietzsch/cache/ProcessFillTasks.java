@@ -45,7 +45,7 @@ public class ProcessFillTasks
 			return;
 
 		pboChain.init( tileFillTasks );
-		context.bindTexture( textureCache );
+		final int restoreId = context.bindTexture( textureCache );
 		forkJoinPool.execute( new RecursiveAction()
 		{
 			@Override
@@ -84,5 +84,6 @@ public class ProcessFillTasks
 
 //		System.out.println( "{{ numTasks = " + numTasks + " }}" );
 		pboChain.maintain( context );
+		context.bindTextureId( restoreId, 3 );
 	}
 }

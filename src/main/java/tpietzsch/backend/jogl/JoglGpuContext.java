@@ -1,9 +1,26 @@
 package tpietzsch.backend.jogl;
 
+import com.jogamp.opengl.GL3;
+import com.jogamp.opengl.util.glsl.ShaderCode;
+import com.jogamp.opengl.util.glsl.ShaderProgram;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
+import tpietzsch.backend.GpuContext;
+import tpietzsch.backend.Pbo;
+import tpietzsch.backend.SetUniforms;
+import tpietzsch.backend.Texture;
+import tpietzsch.backend.Texture3D;
+import tpietzsch.shadergen.Shader;
+
+import static com.jogamp.opengl.GL.GL_ACTIVE_TEXTURE;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
 import static com.jogamp.opengl.GL.GL_REPEAT;
+import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_BINDING_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
@@ -27,23 +44,6 @@ import static com.jogamp.opengl.GL2ES3.GL_RGBA_INTEGER;
 import static com.jogamp.opengl.GL2GL3.GL_R16;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_1D;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_BINDING_1D;
-
-import com.jogamp.opengl.GL3;
-import com.jogamp.opengl.util.glsl.ShaderCode;
-import com.jogamp.opengl.util.glsl.ShaderProgram;
-
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-
-import java.util.WeakHashMap;
-import tpietzsch.backend.Pbo;
-import tpietzsch.backend.Texture;
-import tpietzsch.backend.Texture3D;
-import tpietzsch.shadergen.Shader;
-import tpietzsch.backend.GpuContext;
-import tpietzsch.backend.SetUniforms;
 
 public class JoglGpuContext implements GpuContext
 {
@@ -97,6 +97,23 @@ public class JoglGpuContext implements GpuContext
 		gl.glBindTexture( texId.target, texId.id );
 
 		return restoreId;
+	}
+
+	@Override
+	public void bindTexture( final Texture texture, final int unit )
+	{
+		final TexId texId = getTextureId( texture );
+
+		final int[] tmp = new int[ 1 ];
+		gl.glGetIntegerv( GL_ACTIVE_TEXTURE, tmp, 0 );
+		final int restoreActiveTextureId = tmp[ 0 ];
+
+		gl.glActiveTexture( GL_TEXTURE0 + unit );
+
+		gl.glGetIntegerv( texId.binding, tmp, 0 );
+		final int restoreId = tmp[ 0 ];
+
+		gl.glBindTexture( texId.target, texId.id );
 	}
 
 	@Override

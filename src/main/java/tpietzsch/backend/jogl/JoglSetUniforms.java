@@ -1,9 +1,7 @@
 package tpietzsch.backend.jogl;
 
 import com.jogamp.opengl.GL2ES2;
-
 import java.nio.FloatBuffer;
-
 import tpietzsch.backend.SetUniforms;
 
 public class JoglSetUniforms implements SetUniforms

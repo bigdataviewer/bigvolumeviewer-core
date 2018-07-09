@@ -1,6 +1,7 @@
 package tpietzsch.backend;
 
 import java.nio.Buffer;
+import java.util.List;
 import tpietzsch.shadergen.Shader;
 
 public interface GpuContext
@@ -28,6 +29,12 @@ public interface GpuContext
 	 * @return id of previously bound texture
 	 */
 	int bindTexture( Texture texture );
+
+	/**
+	 * @param texture texture to bind
+	 * @param unit texture unit to bind to
+	 */
+	void bindTexture( Texture texture, int unit );
 
 	/**
 	 * @param id texture id to bind

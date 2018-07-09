@@ -24,7 +24,11 @@ public interface Shader
 
 	UniformMatrix4f getUniformMatrix4f( final String key );
 
+	UniformSampler getUniformSampler( final String key );
+
 	void use( final GpuContext gpu );
+
+	void bindSamplers( final GpuContext gpu );
 
 	void setUniforms( final GpuContext gpu );
 

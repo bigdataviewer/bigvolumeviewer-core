@@ -13,6 +13,7 @@ import tpietzsch.shadergen.Uniform3i;
 import tpietzsch.shadergen.Uniform4f;
 import tpietzsch.shadergen.Uniform4i;
 import tpietzsch.shadergen.UniformMatrix4f;
+import tpietzsch.shadergen.UniformSampler;
 
 public class SegmentedShader extends AbstractShader
 {
@@ -84,5 +85,10 @@ public class SegmentedShader extends AbstractShader
 	public UniformMatrix4f getUniformMatrix4f( final Segment segment, final String key )
 	{
 		return getUniformMatrix4f( segment.getIdentifier( key ) );
+	}
+
+	public UniformSampler getUniformSampler( final Segment segment, final String key )
+	{
+		return getUniformSampler( segment.getIdentifier( key ) );
 	}
 }

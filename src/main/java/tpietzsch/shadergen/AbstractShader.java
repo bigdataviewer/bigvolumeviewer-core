@@ -3,7 +3,9 @@ package tpietzsch.shadergen;
 import com.jogamp.common.nio.Buffers;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -11,6 +13,7 @@ import org.joml.Matrix4fc;
 
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.SetUniforms;
+import tpietzsch.backend.Texture;
 
 public abstract class AbstractShader implements Shader
 {
@@ -19,6 +22,8 @@ public abstract class AbstractShader implements Shader
 	private final StringBuilder fpCode;
 
 	private final Map< String, UniformImp > uniforms = new HashMap<>();
+
+	private final List< UniformImpSampler > samplers = new ArrayList<>();
 
 	public AbstractShader( final String vpCode, final String fpCode )
 	{
@@ -95,9 +100,43 @@ public abstract class AbstractShader implements Shader
 	}
 
 	@Override
+	public UniformSampler getUniformSampler( final String key )
+	{
+		return getUniform( getUniqueName( key ), UniformImpSampler.class, UniformImpSampler::new );
+	}
+
+
+	@Override
 	public void use( final GpuContext gpu )
 	{
 		gpu.use( this );
+	}
+
+	@Override
+	public void bindSamplers( final GpuContext gpu )
+	{
+		final int firstTextureUnit = 1;
+		int nextUnit = firstTextureUnit;
+		HashMap< Texture, Integer > units = new HashMap<>();
+		for ( final UniformImpSampler uniform : samplers )
+		{
+			synchronized ( uniform )
+			{
+				int unit = units.getOrDefault( uniform.texture, -1 );
+				if ( unit == -1 )
+				{
+					unit = nextUnit++;
+					gpu.bindTexture( uniform.texture, unit );
+					units.put( uniform.texture, unit );
+				}
+				if ( uniform.v0 != unit )
+				{
+					uniform.v0 = unit;
+					uniform.modified = true;
+				}
+				uniform.valid = true;
+			}
+		}
 	}
 
 	@Override
@@ -140,6 +179,8 @@ public abstract class AbstractShader implements Shader
 		{
 			final T u = create.apply( name );
 			uniforms.put( name, u );
+			if ( UniformImpSampler.class.isInstance( u ) )
+				samplers.add( ( UniformImpSampler ) u );
 			return u;
 		}
 		else if ( klass.isInstance( uniform )  )
@@ -300,7 +341,7 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final float v0 )
+		public synchronized void set( final float v0 )
 		{
 			if ( this.v0 != v0 )
 			{
@@ -327,7 +368,7 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final float v0, final float v1 )
+		public synchronized void set( final float v0, final float v1 )
 		{
 			if ( this.v0 != v0 || this.v1 != v1 )
 			{
@@ -356,7 +397,7 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final float v0, final float v1, final float v2 )
+		public synchronized void set( final float v0, final float v1, final float v2 )
 		{
 			if ( this.v0 != v0 || this.v1 != v1 || this.v2 != v2 )
 			{
@@ -387,7 +428,7 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final float v0, final float v1, final float v2, final float v3 )
+		public synchronized void set( final float v0, final float v1, final float v2, final float v3 )
 		{
 			if ( this.v0 != v0 || this.v1 != v1 || this.v2 != v2 || this.v3 != v3 )
 			{
@@ -423,7 +464,7 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final float[] value )
+		public synchronized void set( final float[] value )
 		{
 			this.v = value.clone();
 			modified = true;
@@ -440,16 +481,47 @@ public abstract class AbstractShader implements Shader
 		}
 
 		@Override
-		public void set( final Matrix4fc m44 )
+		void setInShader( final SetUniforms visitor )
+		{
+			visitor.setUniformMatrix4f( name, false, value );
+		}
+
+		@Override
+		public synchronized void set( final Matrix4fc m44 )
 		{
 			m44.get( 0, value );
+			modified = true;
+		}
+	}
+
+	static class UniformImpSampler extends UniformImp implements UniformSampler
+	{
+		private Texture texture;
+
+		private boolean valid;
+
+		private int v0;
+
+		UniformImpSampler( final String name )
+		{
+			super( name );
+			valid = false;
+		}
+
+		@Override
+		public synchronized void set( final Texture texture )
+		{
+			this.texture = texture;
+			valid = false;
 			modified = true;
 		}
 
 		@Override
 		void setInShader( final SetUniforms visitor )
 		{
-			visitor.setUniformMatrix4f( name, false, value );
+			if ( !valid )
+				throw new IllegalStateException( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
+			visitor.setUniform1i( name, v0 );
 		}
 	}
 }
