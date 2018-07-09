@@ -75,6 +75,7 @@ public class Example3 implements GLEventListener
 	private static final int NUM_BLOCK_SCALES = 10;
 
 	private VolumeBlocks volume;
+	private final VolumeSegment volumeSegment;
 
 	private final TextureCache textureCache;
 	private final PboChain pboChain;
@@ -139,6 +140,7 @@ public class Example3 implements GLEventListener
 				.fragment( ex3Vol )
 				.vertex( ex1vp )
 				.build();
+		volumeSegment = new VolumeSegment( progvol, blkVol1 );
 
 		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
 		System.out.println( "vertexShaderCode = " + vertexShaderCode );
@@ -160,9 +162,6 @@ public class Example3 implements GLEventListener
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
 
-		//"im", "sourcemin", "sourcemax",
-//"lutSampler", "blockScales", "lutScale", "lutOffset"
-
 		public VolumeSegment( final SegmentedShader prog, final Segment volume )
 		{
 			this.prog = prog;
@@ -178,14 +177,12 @@ public class Example3 implements GLEventListener
 
 		public void setData( VolumeBlocks blocks )
 		{
-			// TODO
-			// TODO
-			// TODO
-			// TODO
-			// TODO
-			// TODO
-			// TODO
-			// TODO
+			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
+			uniformLutScale.set( blocks.getLutScale() );
+			uniformLutOffset.set( blocks.getLutOffset() );
+			uniformIm.set( blocks.getIms() );
+			uniformSourcemin.set( blocks.getSourceLevelMin() );
+			uniformSourcemax.set( blocks.getSourceLevelMax() );
 		}
 	}
 
@@ -256,11 +253,6 @@ public class Example3 implements GLEventListener
 		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
 		progvol.getUniformMatrix4f( "ipv" ).set( pv.invert( new Matrix4f() ) );
 
-		// for source box intersection
-		progvol.getUniformMatrix4f( "im" ).set( volume.getIms() );
-		progvol.getUniform3f( "sourcemin" ).set( volume.getSourceLevelMin() );
-		progvol.getUniform3f( "sourcemax" ).set( volume.getSourceLevelMax() );
-
 		// textures
 		progvol.getUniform1i( "lutSampler" ).set( 0 );
 		progvol.getUniform1i( "volumeCache" ).set( 1 );
@@ -290,10 +282,7 @@ public class Example3 implements GLEventListener
 		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
 
 		// comes from LUT
-		final Uniform3fv uniformBlockScales = progvol.getUniform3fv( "blockScales" );
-		final Uniform3f uniformLutScale = progvol.getUniform3f( "lutScale" );
-		final Uniform3f uniformLutOffset = progvol.getUniform3f( "lutOffset" );
-		volume.setUniforms( NUM_BLOCK_SCALES, uniformBlockScales, uniformLutScale, uniformLutOffset );
+		volumeSegment.setData( this.volume );
 
 		final double min = 962; // weber
 		final double max = 6201;
