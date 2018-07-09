@@ -32,6 +32,23 @@ public class Segment
 		return this;
 	}
 
+	public synchronized Segment bind( final String key, final int index, final Segment segment, final String segmentKey )
+	{
+		if ( code != null )
+			throw new IllegalStateException( "trying to bind identifiers after code has been already generated." );
+		Identifier identifier = keyToIdentifier.get( key );
+		if ( !identifier.isList() )
+		{
+			identifier = new Identifier();
+			keyToIdentifier.put( key, identifier );
+		}
+		final Identifier value = segment.getIdentifier( segmentKey );
+		if ( value.isList() )
+			throw new IllegalArgumentException( "Key '" + key + "' in the segment maps to a list of identifiers. Expected single identifier." );
+		identifier.put( index, ( String ) value.value() );
+		return this;
+	}
+
 	Identifier getIdentifier( final String key )
 	{
 		final Identifier identifier = keyToIdentifier.get( key );
