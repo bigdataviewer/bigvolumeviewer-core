@@ -49,7 +49,6 @@ import tpietzsch.shadergen.UniformSampler;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
-import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 import tpietzsch.util.DefaultQuad;
 import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
@@ -73,7 +72,7 @@ public class Example5 implements GLEventListener
 
 	private final Shader prog;
 
-	private final SegmentedShader progvol;
+	private MultiVolumeShaderMip progvol;
 
 	private final WireframeBox box;
 
@@ -81,29 +80,23 @@ public class Example5 implements GLEventListener
 
 	private final CacheSpec cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
 
-	private static final int NUM_BLOCK_SCALES = 10;
-
-	private final ArrayList< VolumeBlocks > volumes;
-
-	private final ArrayList< VolumeSegment > volumeSegments = new ArrayList<>();
-	private final ArrayList< ConverterSegment >converterSegments = new ArrayList<>();
-
 	private final TextureCache textureCache;
 	private final PboChain pboChain;
 	private final ForkJoinPool forkJoinPool;
 
+	private final ArrayList< VolumeBlocks > volumes;
 
-	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
-
-	final ArrayList< AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > > aMultiResolutionStacks = new ArrayList<>( Arrays.asList(
-			new AtomicReference<>(),
-			new AtomicReference<>(),
-			new AtomicReference<>() ) );
-
-	final ArrayList< RealARGBColorConverter > convs = new ArrayList<>( Arrays.asList(
+	private final ArrayList< RealARGBColorConverter > convs = new ArrayList<>( Arrays.asList(
 			new RealARGBColorConverter.Imp0<>( 0, 1 ),
 			new RealARGBColorConverter.Imp0<>( 0, 1 ),
 			new RealARGBColorConverter.Imp0<>( 0, 1 ) ) );
+
+	private final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
+
+	private final ArrayList< AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > > aMultiResolutionStacks = new ArrayList<>( Arrays.asList(
+			new AtomicReference<>(),
+			new AtomicReference<>(),
+			new AtomicReference<>() ) );
 
 	private ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResolutionStacks = new ArrayList<>(
 			Arrays.asList( null, null, null ) );
@@ -126,7 +119,7 @@ public class Example5 implements GLEventListener
 	{
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
-		offscreen = new OffScreenFrameBuffer( 160, 120, GL_RGB8 );
+		offscreen = new OffScreenFrameBuffer( 320, 240, GL_RGB8 );
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
@@ -147,149 +140,8 @@ public class Example5 implements GLEventListener
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 
-
-		final Segment ex5VolVp = new SegmentTemplate("ex5vol.vp" ).instantiate();
-		final SegmentTemplate templateIntersectBox = new SegmentTemplate(
-				"intersectbox.fp" );
-		final SegmentTemplate templateBlkVol = new SegmentTemplate(
-				"blkvol.fp",
-				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
-				"lutSampler", "blockScales", "lutScale", "lutOffset", "blockTexture" );
-		final SegmentTemplate templateColConv = new SegmentTemplate(
-				"colconv.fp",
-				"convert", "offset", "scale" );
-		final SegmentTemplate templateEx4Vol = new SegmentTemplate(
-				"ex5vol.fp",
-				"intersectBoundingBox", "blockTexture", "convert", "vis" );
-
-		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-		builder.vertex( ex5VolVp );
-		builder.fragment( templateIntersectBox.instantiate() );
-
-		final Segment ex4Vol = templateEx4Vol.instantiate();
-		ex4Vol.repeat( "vis", numVolumes );
-		final ArrayList< Segment > blkVols = new ArrayList<>();
-		final ArrayList< Segment > colConvs = new ArrayList<>();
-		for ( int i = 0; i < numVolumes; ++i )
-		{
-			final Segment blkVol = templateBlkVol.instantiate();
-			builder.fragment( blkVol );
-			ex4Vol.bind( "intersectBoundingBox", i, blkVol, "intersectBoundingBox" );
-			ex4Vol.bind( "blockTexture", i, blkVol, "blockTexture" );
-			blkVols.add( blkVol );
-
-			final Segment colConv = templateColConv.instantiate();
-			builder.fragment( colConv );
-			ex4Vol.bind( "convert", i, colConv, "convert" );
-			colConvs.add( colConv );
-		}
-		builder.fragment( ex4Vol );
-		progvol = builder.build();
-
-		for ( int i = 0; i < numVolumes; ++i )
-		{
-			volumeSegments.add( new VolumeSegment( progvol, blkVols.get( i ) ) );
-			converterSegments.add( new ConverterSegment( progvol, colConvs.get( i ) ) );
-		}
-
-		progvol.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
-		progvol.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
-		progvol.getUniform3f( "cachePadOffset" ).set( cacheSpec.padOffset()[ 0 ], cacheSpec.padOffset()[ 1 ], cacheSpec.padOffset()[ 2 ] );
-		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
-		progvol.getUniformSampler( "volumeCache" ).set( textureCache );
-
-//		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
-//		System.out.println( "vertexShaderCode = " + vertexShaderCode );
-//		System.out.println( "\n\n--------------------------------\n\n");
-//		final StringBuilder fragementShaderCode = progvol.getFragementShaderCode();
-//		System.out.println( "fragementShaderCode = " + fragementShaderCode );
-//		System.out.println( "\n\n--------------------------------\n\n");
-	}
-
-	public static class MultiVolumeShaderMip
-	{
-
-	}
-
-	public static class ConverterSegment
-	{
-		private final SegmentedShader prog;
-		private final Segment segment;
-
-		private final Uniform4f uniformOffset;
-		private final Uniform4f uniformScale;
-
-		public ConverterSegment( final SegmentedShader prog, final Segment segment )
-		{
-			this.prog = prog;
-			this.segment = segment;
-
-			uniformOffset = prog.getUniform4f( segment,"offset" );
-			uniformScale = prog.getUniform4f( segment,"scale" );
-		}
-
-		public void setData( ColorConverter converter )
-		{
-			final double fmin = converter.getMin() / 0xffff;
-			final double fmax = converter.getMax() / 0xffff;
-			final double s = 1.0 / ( fmax - fmin );
-			final double o = -fmin * s;
-
-			final int color = converter.getColor().get();
-			final double r = ( double ) ARGBType.red( color ) / 255.0;
-			final double g = ( double ) ARGBType.green( color ) / 255.0;
-			final double b = ( double ) ARGBType.blue( color ) / 255.0;
-
-			uniformOffset.set(
-					( float ) ( o * r ),
-					( float ) ( o * g ),
-					( float ) ( o * b ),
-					1f );
-			uniformScale.set(
-					( float ) ( s * r ),
-					( float ) ( s * g ),
-					( float ) ( s * b ),
-					0f );
-		}
-	}
-
-	public static class VolumeSegment
-	{
-		private final SegmentedShader prog;
-		private final Segment volume;
-
-		private final Uniform3fv uniformBlockScales;
-		private final UniformSampler uniformLutSampler;
-		private final Uniform3f uniformLutScale;
-		private final Uniform3f uniformLutOffset;
-		private final UniformMatrix4f uniformIm;
-		private final Uniform3f uniformSourcemin;
-		private final Uniform3f uniformSourcemax;
-
-		public VolumeSegment( final SegmentedShader prog, final Segment volume )
-		{
-			this.prog = prog;
-			this.volume = volume;
-
-			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
-			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
-			uniformLutScale = prog.getUniform3f( volume, "lutScale" );
-			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
-			uniformIm = prog.getUniformMatrix4f( volume, "im" );
-			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
-			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
-		}
-
-		public void setData( VolumeBlocks blocks )
-		{
-			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
-			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutScale.set( blocks.getLutScale() );
-			uniformLutOffset.set( blocks.getLutOffset() );
-			uniformIm.set( blocks.getIms() );
-			uniformSourcemin.set( blocks.getSourceLevelMin() );
-			uniformSourcemax.set( blocks.getSourceLevelMax() );
-		}
+		progvol = new MultiVolumeShaderMip( numVolumes );
+		progvol.setTextureCache( textureCache );
 	}
 
 	@Override
@@ -354,10 +206,6 @@ public class Example5 implements GLEventListener
 		}
 
 
-		progvol.use( context );
-		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
-		progvol.getUniformMatrix4f( "ipv" ).set( pv.invert( new Matrix4f() ) );
-
 
 		// TODO: fix hacks (initialize OOB block init)
 			context.bindTexture( textureCache );
@@ -366,16 +214,18 @@ public class Example5 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		for ( int i = 0; i < volumes.size(); i++ )
-			converterSegments.get( i ).setData( convs.get( i ) );
+
 
 		for ( int i = 0; i < volumes.size(); i++ )
-			volumeSegments.get( i ).setData( volumes.get( i ) );
-
-		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
-		progvol.bindSamplers( context );
-		progvol.setUniforms( context );
+		{
+			progvol.setConverter( i, convs.get( i ) );
+			progvol.setVolume( i, volumes.get( i ) );
+		}
+		progvol.setViewportSize( offscreen.getWidth(), offscreen.getHeight() );
+		progvol.setProjectionViewMatrix( pv );
+		progvol.use( context );
 		quad.draw( gl );
+
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
 	}
