@@ -132,7 +132,6 @@ public class SegmentTemplate
 		try
 		{
 			final Class< ? > klass = SegmentTemplate.class.getClassLoader().loadClass( stackTrace[ 3 ].getClassName() );
-			System.out.println( "klass = " + klass );
 			return klass;
 		}
 		catch ( final ClassNotFoundException e )

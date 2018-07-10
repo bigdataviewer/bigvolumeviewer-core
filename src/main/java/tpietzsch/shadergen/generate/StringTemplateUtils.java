@@ -53,7 +53,6 @@ public class StringTemplateUtils
 				if ( re == -1 )
 					throw new IllegalArgumentException();
 				final String args = line.substring( ri + PAT_REPEAT.length(), re );
-				System.out.println( "args = " + args );
 				line = line.substring( 0, ri + REPEAT_START )
 						+ args
 						+ line.substring( ri + REPEAT_START + REPEAT.length(), re + 1 )
