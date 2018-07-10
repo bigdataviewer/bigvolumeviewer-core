@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
-import net.imglib2.FinalInterval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.display.ColorConverter;
 import net.imglib2.display.RealARGBColorConverter;
@@ -51,9 +50,9 @@ import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
+import tpietzsch.util.DefaultQuad;
 import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
-import tpietzsch.util.ScreenPlane;
 import tpietzsch.util.Syncd;
 import tpietzsch.util.TransformHandler;
 import tpietzsch.util.WireframeBox;
@@ -76,9 +75,9 @@ public class Example5 implements GLEventListener
 
 	private final SegmentedShader progvol;
 
-	private WireframeBox box;
+	private final WireframeBox box;
 
-	private ScreenPlane screenPlane;
+	private final DefaultQuad quad;
 
 	private final CacheSpec cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
 
@@ -128,6 +127,8 @@ public class Example5 implements GLEventListener
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
 		offscreen = new OffScreenFrameBuffer( 160, 120, GL_RGB8 );
+		box = new WireframeBox();
+		quad = new DefaultQuad();
 
 		final int maxMemoryInMB = 400;
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxMemoryInMB );
@@ -146,9 +147,10 @@ public class Example5 implements GLEventListener
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 
+
+		final Segment ex5VolVp = new SegmentTemplate("ex5vol.vp" ).instantiate();
 		final SegmentTemplate templateIntersectBox = new SegmentTemplate(
 				"intersectbox.fp" );
-		final Segment intersectBox = templateIntersectBox.instantiate();
 		final SegmentTemplate templateBlkVol = new SegmentTemplate(
 				"blkvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
@@ -161,8 +163,8 @@ public class Example5 implements GLEventListener
 				"intersectBoundingBox", "blockTexture", "convert", "vis" );
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-		builder.vertex( ex1vp );
-		builder.fragment( intersectBox );
+		builder.vertex( ex5VolVp );
+		builder.fragment( templateIntersectBox.instantiate() );
 
 		final Segment ex4Vol = templateEx4Vol.instantiate();
 		ex4Vol.repeat( "vis", numVolumes );
@@ -202,6 +204,11 @@ public class Example5 implements GLEventListener
 //		final StringBuilder fragementShaderCode = progvol.getFragementShaderCode();
 //		System.out.println( "fragementShaderCode = " + fragementShaderCode );
 //		System.out.println( "\n\n--------------------------------\n\n");
+	}
+
+	public static class MultiVolumeShaderMip
+	{
+
 	}
 
 	public static class ConverterSegment
@@ -290,11 +297,6 @@ public class Example5 implements GLEventListener
 	{
 		final GL3 gl = drawable.getGL().getGL3();
 		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
-
-		box = new WireframeBox();
-		screenPlane = new ScreenPlane();
-		screenPlane.updateVertices( gl, new FinalInterval( 640, 480 ) );
-
 		gl.glEnable( GL_DEPTH_TEST );
 	}
 
@@ -353,9 +355,6 @@ public class Example5 implements GLEventListener
 
 
 		progvol.use( context );
-		progvol.getUniformMatrix4f( "model" ).set( new Matrix4f() );
-		progvol.getUniformMatrix4f( "view" ).set( new Matrix4f() );
-		progvol.getUniformMatrix4f( "projection" ).set( projection );
 		progvol.getUniform2f( "viewportSize" ).set( viewportWidth, viewportHeight );
 		progvol.getUniformMatrix4f( "ipv" ).set( pv.invert( new Matrix4f() ) );
 
@@ -367,8 +366,6 @@ public class Example5 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		screenPlane.updateVertices( gl, new FinalInterval( ( int ) screenWidth, ( int ) screenHeight ) );
-
 		for ( int i = 0; i < volumes.size(); i++ )
 			converterSegments.get( i ).setData( convs.get( i ) );
 
@@ -378,7 +375,7 @@ public class Example5 implements GLEventListener
 		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
 		progvol.bindSamplers( context );
 		progvol.setUniforms( context );
-		screenPlane.draw( gl );
+		quad.draw( gl );
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
 	}
