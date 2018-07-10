@@ -17,6 +17,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
@@ -83,16 +84,10 @@ public class Example5 implements GLEventListener
 
 	private static final int NUM_BLOCK_SCALES = 10;
 
-	private final VolumeBlocks volume1;
-	private final VolumeBlocks volume2;
-	private final VolumeBlocks volume3;
-	private final VolumeSegment volumeSegment1;
-	private final VolumeSegment volumeSegment2;
-	private final VolumeSegment volumeSegment3;
+	private final ArrayList< VolumeBlocks > volumes;
 
-	private final ConverterSegment converterSegment1;
-	private final ConverterSegment converterSegment2;
-	private final ConverterSegment converterSegment3;
+	private final ArrayList< VolumeSegment > volumeSegments = new ArrayList<>();
+	private final ArrayList< ConverterSegment >converterSegments = new ArrayList<>();
 
 	private final TextureCache textureCache;
 	private final PboChain pboChain;
@@ -101,17 +96,18 @@ public class Example5 implements GLEventListener
 
 	final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
 
-	final AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > aMultiResolutionStack1 = new AtomicReference<>();
-	final AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > aMultiResolutionStack2 = new AtomicReference<>();
-	final AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > aMultiResolutionStack3 = new AtomicReference<>();
+	final ArrayList< AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > > aMultiResolutionStacks = new ArrayList<>( Arrays.asList(
+			new AtomicReference<>(),
+			new AtomicReference<>(),
+			new AtomicReference<>() ) );
 
-	final RealARGBColorConverter conv1 = new RealARGBColorConverter.Imp0<>( 0, 1 );
-	final RealARGBColorConverter conv2 = new RealARGBColorConverter.Imp0<>( 0, 1 );
-	final RealARGBColorConverter conv3 = new RealARGBColorConverter.Imp0<>( 0, 1 );
+	final ArrayList< RealARGBColorConverter > convs = new ArrayList<>( Arrays.asList(
+			new RealARGBColorConverter.Imp0<>( 0, 1 ),
+			new RealARGBColorConverter.Imp0<>( 0, 1 ),
+			new RealARGBColorConverter.Imp0<>( 0, 1 ) ) );
 
-	private MultiResolutionStack3D< VolatileUnsignedShortType > multiResolutionStack1;
-	private MultiResolutionStack3D< VolatileUnsignedShortType > multiResolutionStack2;
-	private MultiResolutionStack3D< VolatileUnsignedShortType > multiResolutionStack3;
+	private ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResolutionStacks = new ArrayList<>(
+			Arrays.asList( null, null, null ) );
 
 	private int viewportWidth = 100;
 
@@ -139,9 +135,12 @@ public class Example5 implements GLEventListener
 		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
-		volume1 = new VolumeBlocks( textureCache );
-		volume2 = new VolumeBlocks( textureCache );
-		volume3 = new VolumeBlocks( textureCache );
+
+		final int numVolumes = 3;
+
+		volumes = new ArrayList<>();
+		for ( int i = 0; i < numVolumes; i++ )
+			volumes.add( new VolumeBlocks( textureCache ) );
 
 		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
@@ -154,46 +153,42 @@ public class Example5 implements GLEventListener
 				"blkvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
 				"lutSampler", "blockScales", "lutScale", "lutOffset", "blockTexture" );
-		final Segment blkVol1 = templateBlkVol.instantiate();
-		final Segment blkVol2 = templateBlkVol.instantiate();
-		final Segment blkVol3 = templateBlkVol.instantiate();
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
-		final Segment colConv1 = templateColConv.instantiate();
-		final Segment colConv2 = templateColConv.instantiate();
-		final Segment colConv3 = templateColConv.instantiate();
 		final SegmentTemplate templateEx4Vol = new SegmentTemplate(
 				"ex5vol.fp",
 				"intersectBoundingBox", "blockTexture", "convert", "vis" );
-		final Segment ex4Vol = templateEx4Vol.instantiate()
-				.repeat( "vis", 3 )
-				.bind( "convert", 0, colConv1, "convert" )
-				.bind( "convert", 1, colConv2, "convert" )
-				.bind( "convert", 2, colConv3, "convert" )
-				.bind( "intersectBoundingBox", 0, blkVol1, "intersectBoundingBox" )
-				.bind( "intersectBoundingBox", 1, blkVol2, "intersectBoundingBox" )
-				.bind( "intersectBoundingBox", 2, blkVol3, "intersectBoundingBox" )
-				.bind( "blockTexture", 0, blkVol1, "blockTexture" )
-				.bind( "blockTexture", 1, blkVol2, "blockTexture" )
-				.bind( "blockTexture", 2, blkVol3, "blockTexture" );
-		progvol = new SegmentedShaderBuilder()
-				.fragment( intersectBox )
-				.fragment( colConv1 )
-				.fragment( colConv2 )
-				.fragment( colConv3 )
-				.fragment( blkVol1 )
-				.fragment( blkVol2 )
-				.fragment( blkVol3 )
-				.fragment( ex4Vol )
-				.vertex( ex1vp )
-				.build();
-		volumeSegment1 = new VolumeSegment( progvol, blkVol1 );
-		volumeSegment2 = new VolumeSegment( progvol, blkVol2 );
-		volumeSegment3 = new VolumeSegment( progvol, blkVol3 );
-		converterSegment1 = new ConverterSegment( progvol, colConv1 );
-		converterSegment2 = new ConverterSegment( progvol, colConv2 );
-		converterSegment3 = new ConverterSegment( progvol, colConv3 );
+
+		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
+		builder.vertex( ex1vp );
+		builder.fragment( intersectBox );
+
+		final Segment ex4Vol = templateEx4Vol.instantiate();
+		ex4Vol.repeat( "vis", numVolumes );
+		final ArrayList< Segment > blkVols = new ArrayList<>();
+		final ArrayList< Segment > colConvs = new ArrayList<>();
+		for ( int i = 0; i < numVolumes; ++i )
+		{
+			final Segment blkVol = templateBlkVol.instantiate();
+			builder.fragment( blkVol );
+			ex4Vol.bind( "intersectBoundingBox", i, blkVol, "intersectBoundingBox" );
+			ex4Vol.bind( "blockTexture", i, blkVol, "blockTexture" );
+			blkVols.add( blkVol );
+
+			final Segment colConv = templateColConv.instantiate();
+			builder.fragment( colConv );
+			ex4Vol.bind( "convert", i, colConv, "convert" );
+			colConvs.add( colConv );
+		}
+		builder.fragment( ex4Vol );
+		progvol = builder.build();
+
+		for ( int i = 0; i < numVolumes; ++i )
+		{
+			volumeSegments.add( new VolumeSegment( progvol, blkVols.get( i ) ) );
+			converterSegments.add( new ConverterSegment( progvol, colConvs.get( i ) ) );
+		}
 
 		progvol.getUniform3f( "blockSize" ).set( cacheSpec.blockSize()[ 0 ], cacheSpec.blockSize()[ 1 ], cacheSpec.blockSize()[ 2 ] );
 		progvol.getUniform3f( "paddedBlockSize" ).set( cacheSpec.paddedBlockSize()[ 0 ], cacheSpec.paddedBlockSize()[ 1 ], cacheSpec.paddedBlockSize()[ 2 ] );
@@ -201,12 +196,12 @@ public class Example5 implements GLEventListener
 		progvol.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
 		progvol.getUniformSampler( "volumeCache" ).set( textureCache );
 
-		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
-		System.out.println( "vertexShaderCode = " + vertexShaderCode );
-		System.out.println( "\n\n--------------------------------\n\n");
-		final StringBuilder fragementShaderCode = progvol.getFragementShaderCode();
-		System.out.println( "fragementShaderCode = " + fragementShaderCode );
-		System.out.println( "\n\n--------------------------------\n\n");
+//		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
+//		System.out.println( "vertexShaderCode = " + vertexShaderCode );
+//		System.out.println( "\n\n--------------------------------\n\n");
+//		final StringBuilder fragementShaderCode = progvol.getFragementShaderCode();
+//		System.out.println( "fragementShaderCode = " + fragementShaderCode );
+//		System.out.println( "\n\n--------------------------------\n\n");
 	}
 
 	public static class ConverterSegment
@@ -321,17 +316,13 @@ public class Example5 implements GLEventListener
 		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		multiResolutionStack1 = aMultiResolutionStack1.get();
-		if ( multiResolutionStack1 == null )
-			return;
-
-		multiResolutionStack2 = aMultiResolutionStack2.get();
-		if ( multiResolutionStack2 == null )
-			return;
-
-		multiResolutionStack3 = aMultiResolutionStack3.get();
-		if ( multiResolutionStack3 == null )
-			return;
+		for ( int i = 0; i < volumes.size(); i++ )
+		{
+			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = aMultiResolutionStacks.get( i ).get();
+			if ( stack == null )
+				return;
+			multiResolutionStacks.set( i, stack );
+		}
 
 		offscreen.bind( gl );
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
@@ -351,22 +342,14 @@ public class Example5 implements GLEventListener
 		prog.getUniformMatrix4f( "view" ).set( view );
 		prog.getUniformMatrix4f( "projection" ).set( projection );
 		prog.getUniform4f( "color" ).set( 1.0f, 0.5f, 0.2f, 1.0f );
-
-		prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( multiResolutionStack1.getSourceTransform(), new Matrix4f() ) );
-		prog.setUniforms( context );
-		box.updateVertices( gl, multiResolutionStack1.resolutions().get( 0 ).getImage() );
-		box.draw( gl );
-
-		prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( multiResolutionStack2.getSourceTransform(), new Matrix4f() ) );
-		prog.setUniforms( context );
-		box.updateVertices( gl, multiResolutionStack2.resolutions().get( 0 ).getImage() );
-		box.draw( gl );
-
-		prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( multiResolutionStack3.getSourceTransform(), new Matrix4f() ) );
-		prog.setUniforms( context );
-		box.updateVertices( gl, multiResolutionStack3.resolutions().get( 0 ).getImage() );
-		box.draw( gl );
-
+		for ( int i = 0; i < volumes.size(); i++ )
+		{
+			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = multiResolutionStacks.get( i );
+			prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( stack.getSourceTransform(), new Matrix4f() ) );
+			prog.setUniforms( context );
+			box.updateVertices( gl, stack.resolutions().get( 0 ).getImage() );
+			box.draw( gl );
+		}
 
 
 		progvol.use( context );
@@ -384,16 +367,13 @@ public class Example5 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		converterSegment1.setData( conv1 );
-		converterSegment2.setData( conv2 );
-		converterSegment3.setData( conv3 );
-
 		screenPlane.updateVertices( gl, new FinalInterval( ( int ) screenWidth, ( int ) screenHeight ) );
-//		screenPlane.draw( gl );
 
-		volumeSegment1.setData( volume1 );
-		volumeSegment2.setData( volume2 );
-		volumeSegment3.setData( volume3 );
+		for ( int i = 0; i < volumes.size(); i++ )
+			converterSegments.get( i ).setData( convs.get( i ) );
+
+		for ( int i = 0; i < volumes.size(); i++ )
+			volumeSegments.get( i ).setData( volumes.get( i ) );
 
 		progvol.getUniform2f( "viewportSize" ).set( offscreen.getWidth(), offscreen.getHeight() );
 		progvol.bindSamplers( context );
@@ -413,14 +393,13 @@ public class Example5 implements GLEventListener
 		final int vw = offscreen.getWidth();
 //		final int vw = viewportWidth;
 
-		volume1.init( multiResolutionStack1, vw, pv );
-		volume2.init( multiResolutionStack2, vw, pv );
-		volume3.init( multiResolutionStack3, vw, pv );
-
 		final ArrayList< FillTask > fillTasks = new ArrayList<>();
-		fillTasks.addAll( volume1.getFillTasks() );
-		fillTasks.addAll( volume2.getFillTasks() );
-		fillTasks.addAll( volume3.getFillTasks() );
+		for ( int i = 0; i < volumes.size(); i++ )
+		{
+			final VolumeBlocks volume = volumes.get( i );
+			volume.init( multiResolutionStacks.get( i ), vw, pv );
+			fillTasks.addAll( volume.getFillTasks() );
+		}
 
 		try
 		{
@@ -431,15 +410,18 @@ public class Example5 implements GLEventListener
 			e.printStackTrace();
 		}
 
-		final boolean v1complete = volume1.makeLut();
-		final boolean v2complete = volume2.makeLut();
-		final boolean v3complete = volume3.makeLut();
-		if ( !( v1complete && v2complete ) )
-			requestRepaint.run();
+		boolean repaint = false;
+		for ( int i = 0; i < volumes.size(); i++ )
+		{
+			final VolumeBlocks volume = volumes.get( i );
+			final boolean complete = volume.makeLut();
+			if ( !complete )
+				repaint = true;
+			volume.getLookupTexture().upload( context );
+		}
 
-		volume1.getLookupTexture().upload( context );
-		volume2.getLookupTexture().upload( context );
-		volume3.getLookupTexture().upload( context );
+		if ( repaint )
+			requestRepaint.run();
 	}
 
 	@Override
@@ -469,24 +451,15 @@ public class Example5 implements GLEventListener
 	@SuppressWarnings( "unchecked" )
 	void updateCurrentStack(final SpimDataStacks stacks)
 	{
-		aMultiResolutionStack1.set(
-				( MultiResolutionStack3D< VolatileUnsignedShortType > )
-						stacks.getStack(
-								stacks.timepointId( currentTimepoint ),
-								stacks.setupId( currentSetup ),
-								true ) );
-		aMultiResolutionStack2.set(
-				( MultiResolutionStack3D< VolatileUnsignedShortType > )
-						stacks.getStack(
-								stacks.timepointId( currentTimepoint ),
-								stacks.setupId( 1 ),
-								true ) );
-		aMultiResolutionStack3.set(
-				( MultiResolutionStack3D< VolatileUnsignedShortType > )
-						stacks.getStack(
-								stacks.timepointId( currentTimepoint ),
-								stacks.setupId( 2 ),
-								true ) );
+		for ( int i = 0; i < volumes.size(); i++ )
+		{
+			aMultiResolutionStacks.get( i ).set(
+					( MultiResolutionStack3D< VolatileUnsignedShortType > )
+							stacks.getStack(
+									stacks.timepointId( currentTimepoint ),
+									stacks.setupId( i ),
+									true ) );
+		}
 		requestRepaint.run();
 	}
 
@@ -546,18 +519,17 @@ public class Example5 implements GLEventListener
 
 
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
-		converterSetups.add( new RealARGBColorConverterSetup( 0, glPainter.conv1 ) );
-		converterSetups.add( new RealARGBColorConverterSetup( 1, glPainter.conv2 ) );
-		converterSetups.add( new RealARGBColorConverterSetup( 2, glPainter.conv3 ) );
+		for ( int i = 0; i < glPainter.convs.size(); i++ )
+			converterSetups.add( new RealARGBColorConverterSetup( i, glPainter.convs.get( i ) ) );
 		for ( ConverterSetup setup : converterSetups )
 		{
 			setup.setDisplayRange( 962, 6201 ); // weber
 			setup.setColor( new ARGBType( 0xffffffff ) );
 			setup.setViewer( frame::requestRepaint );
 		}
-		glPainter.conv2.setColor( new ARGBType( 0xff8888 ) );
-		glPainter.conv2.setColor( new ARGBType( 0x88ff88 ) );
-		glPainter.conv3.setColor( new ARGBType( 0x8888ff ) );
+		glPainter.convs.get( 0 ).setColor( new ARGBType( 0xff8888 ) );
+		glPainter.convs.get( 1 ).setColor( new ARGBType( 0x88ff88 ) );
+		glPainter.convs.get( 2 ).setColor( new ARGBType( 0x8888ff ) );
 		final SetupAssignments setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
 		{
