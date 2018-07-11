@@ -72,7 +72,7 @@ public class Example5 implements GLEventListener
 
 	private final Shader prog;
 
-	private MultiVolumeShaderMip progvol;
+	private final MultiVolumeShaderMip progvol;
 
 	private final WireframeBox box;
 
@@ -86,7 +86,7 @@ public class Example5 implements GLEventListener
 
 	private final ArrayList< VolumeBlocks > volumes;
 
-	private final ArrayList< RealARGBColorConverter > convs = new ArrayList<>( Arrays.asList(
+	private final ArrayList< ColorConverter > convs = new ArrayList<>( Arrays.asList(
 			new RealARGBColorConverter.Imp0<>( 0, 1 ),
 			new RealARGBColorConverter.Imp0<>( 0, 1 ),
 			new RealARGBColorConverter.Imp0<>( 0, 1 ) ) );
@@ -98,7 +98,7 @@ public class Example5 implements GLEventListener
 			new AtomicReference<>(),
 			new AtomicReference<>() ) );
 
-	private ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResolutionStacks = new ArrayList<>(
+	private final ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResolutionStacks = new ArrayList<>(
 			Arrays.asList( null, null, null ) );
 
 	private int viewportWidth = 100;
@@ -368,7 +368,7 @@ public class Example5 implements GLEventListener
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		for ( int i = 0; i < glPainter.convs.size(); i++ )
 			converterSetups.add( new RealARGBColorConverterSetup( i, glPainter.convs.get( i ) ) );
-		for ( ConverterSetup setup : converterSetups )
+		for ( final ConverterSetup setup : converterSetups )
 		{
 			setup.setDisplayRange( 962, 6201 ); // weber
 			setup.setColor( new ARGBType( 0xffffffff ) );

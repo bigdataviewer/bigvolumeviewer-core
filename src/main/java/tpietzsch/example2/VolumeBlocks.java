@@ -7,7 +7,6 @@ import net.imglib2.Interval;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
-import tpietzsch.backend.Texture;
 import tpietzsch.blockmath.MipmapSizes;
 import tpietzsch.blockmath.RequiredBlock;
 import tpietzsch.blockmath.RequiredBlocks;

@@ -1,7 +1,6 @@
 package tpietzsch.backend;
 
 import java.nio.Buffer;
-import java.util.List;
 import tpietzsch.shadergen.Shader;
 
 public interface GpuContext

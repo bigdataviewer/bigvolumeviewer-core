@@ -105,9 +105,9 @@ public class Example4 implements GLEventListener
 	final AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > aMultiResolutionStack2 = new AtomicReference<>();
 	final AtomicReference< MultiResolutionStack3D< VolatileUnsignedShortType > > aMultiResolutionStack3 = new AtomicReference<>();
 
-	final RealARGBColorConverter conv1 = new RealARGBColorConverter.Imp0<>( 0, 1 );
-	final RealARGBColorConverter conv2 = new RealARGBColorConverter.Imp0<>( 0, 1 );
-	final RealARGBColorConverter conv3 = new RealARGBColorConverter.Imp0<>( 0, 1 );
+	final RealARGBColorConverter< ? > conv1 = new RealARGBColorConverter.Imp0<>( 0, 1 );
+	final RealARGBColorConverter< ? > conv2 = new RealARGBColorConverter.Imp0<>( 0, 1 );
+	final RealARGBColorConverter< ? > conv3 = new RealARGBColorConverter.Imp0<>( 0, 1 );
 
 	private MultiResolutionStack3D< VolatileUnsignedShortType > multiResolutionStack1;
 	private MultiResolutionStack3D< VolatileUnsignedShortType > multiResolutionStack2;
@@ -227,7 +227,7 @@ public class Example4 implements GLEventListener
 			uniformScale = prog.getUniform4f( segment,"scale" );
 		}
 
-		public void setData( ColorConverter converter )
+		public void setData( final ColorConverter converter )
 		{
 			final double fmin = converter.getMin() / 0xffff;
 			final double fmax = converter.getMax() / 0xffff;
@@ -235,9 +235,9 @@ public class Example4 implements GLEventListener
 			final double o = -fmin * s;
 
 			final int color = converter.getColor().get();
-			final double r = ( double ) ARGBType.red( color ) / 255.0;
-			final double g = ( double ) ARGBType.green( color ) / 255.0;
-			final double b = ( double ) ARGBType.blue( color ) / 255.0;
+			final double r = ARGBType.red( color ) / 255.0;
+			final double g = ARGBType.green( color ) / 255.0;
+			final double b = ARGBType.blue( color ) / 255.0;
 
 			uniformOffset.set(
 					( float ) ( o * r ),
@@ -279,7 +279,7 @@ public class Example4 implements GLEventListener
 			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
 		}
 
-		public void setData( VolumeBlocks blocks )
+		public void setData( final VolumeBlocks blocks )
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
 			uniformLutSampler.set( blocks.getLookupTexture() );
@@ -435,7 +435,7 @@ public class Example4 implements GLEventListener
 		final boolean v1complete = volume1.makeLut();
 		final boolean v2complete = volume2.makeLut();
 		final boolean v3complete = volume3.makeLut();
-		if ( !( v1complete && v2complete ) )
+		if ( !( v1complete && v2complete && v3complete ) )
 			requestRepaint.run();
 
 		volume1.getLookupTexture().upload( context );
@@ -550,7 +550,7 @@ public class Example4 implements GLEventListener
 		converterSetups.add( new RealARGBColorConverterSetup( 0, glPainter.conv1 ) );
 		converterSetups.add( new RealARGBColorConverterSetup( 1, glPainter.conv2 ) );
 		converterSetups.add( new RealARGBColorConverterSetup( 2, glPainter.conv3 ) );
-		for ( ConverterSetup setup : converterSetups )
+		for ( final ConverterSetup setup : converterSetups )
 		{
 			setup.setDisplayRange( 962, 6201 ); // weber
 			setup.setColor( new ARGBType( 0xffffffff ) );

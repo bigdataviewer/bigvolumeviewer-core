@@ -67,6 +67,7 @@ public class TileAccess< S >
 		return gcopy.copy( min, cacheSpec.paddedBlockSize(), buffer, dataAccess, copySubArray );
 	}
 
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	static TileAccess< ? > create( final ResolutionLevel3D< ? > resolutionLevel3D, final CacheSpec cacheSpec )
 	{
 		final Object type = resolutionLevel3D.getType();

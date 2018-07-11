@@ -2,14 +2,9 @@ package tpietzsch.blockmath;
 
 import com.jogamp.opengl.GL3;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 
-import static com.jogamp.opengl.GL.GL_BYTE;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
-import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_NEAREST;
-import static com.jogamp.opengl.GL.GL_RGB;
-import static com.jogamp.opengl.GL.GL_RGB32F;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;

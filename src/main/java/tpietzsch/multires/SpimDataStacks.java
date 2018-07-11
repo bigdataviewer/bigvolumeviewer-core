@@ -51,6 +51,7 @@ public class SpimDataStacks
 		return setups.get( setupIndex ).getId();
 	}
 
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	public MultiResolutionStack3D< ? > getStack( final int timepointId, final int setupId, final boolean volatil )
 	{
 		final AffineTransform3D model = registrations.getViewRegistration( timepointId, setupId ).getModel();

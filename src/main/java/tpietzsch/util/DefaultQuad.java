@@ -3,8 +3,6 @@ package tpietzsch.util;
 import com.jogamp.opengl.GL3;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.util.Arrays;
-import net.imglib2.Interval;
 
 import static com.jogamp.opengl.GL.GL_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;

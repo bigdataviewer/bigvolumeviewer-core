@@ -1,10 +1,5 @@
 package tpietzsch.shadergen;
 
-import net.imglib2.RealInterval;
-import org.joml.Vector3fc;
-
-import static tpietzsch.shadergen.MinMax.MIN;
-
 public interface Uniform3fv
 {
 	void set( float[] value );
@@ -13,7 +8,7 @@ public interface Uniform3fv
 	 * DEFAULT METHODS
 	 */
 
-	default void set( float[][] v )
+	default void set( final float[][] v )
 	{
 		final int elemSize = 3;
 		final float[] data = new float[ elemSize * v.length ];

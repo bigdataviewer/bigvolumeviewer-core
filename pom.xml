@@ -31,7 +31,6 @@
 			<!-- only used for linear programming, get rid of this, we only need something extremely simple -->
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-math3</artifactId>
-			<version>3.6.1</version>
 		</dependency>
 
 		<!-- ImgLib2/BDV dependencies -->

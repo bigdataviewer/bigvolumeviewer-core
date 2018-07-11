@@ -2,8 +2,6 @@ package tpietzsch.blocks;
 
 import java.lang.reflect.Field;
 import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
