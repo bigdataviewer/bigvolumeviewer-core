@@ -28,7 +28,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Util;
 import org.joml.Matrix4f;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blocks.ByteUtils;
@@ -42,14 +41,8 @@ import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
-import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.Uniform3fv;
-import tpietzsch.shadergen.Uniform4f;
-import tpietzsch.shadergen.UniformMatrix4f;
-import tpietzsch.shadergen.UniformSampler;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
-import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.util.DefaultQuad;
 import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
@@ -67,13 +60,13 @@ import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
 
-public class Example5 implements GLEventListener
+public class Example6 implements GLEventListener
 {
 	private final OffScreenFrameBuffer offscreen;
 
 	private final Shader prog;
 
-	private final MultiVolumeShaderMip progvol;
+	private final MultiVolumeShaderMip6 progvol;
 
 	private final WireframeBox box;
 
@@ -116,7 +109,7 @@ public class Example5 implements GLEventListener
 
 	private final Runnable requestRepaint;
 
-	public Example5( final CacheControl cacheControl, final Runnable requestRepaint )
+	public Example6( final CacheControl cacheControl, final Runnable requestRepaint )
 	{
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
@@ -141,7 +134,7 @@ public class Example5 implements GLEventListener
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 
-		progvol = new MultiVolumeShaderMip( numVolumes );
+		progvol = new MultiVolumeShaderMip6( numVolumes );
 		progvol.setTextureCache( textureCache );
 	}
 
@@ -178,10 +171,6 @@ public class Example5 implements GLEventListener
 				return;
 			multiResolutionStacks.set( i, stack );
 		}
-
-		System.out.println( "size = " + Util.printInterval( multiResolutionStacks.get( 0 ).resolutions().get( 0 ).getImage() ) );
-
-
 
 		offscreen.bind( gl );
 		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
@@ -325,9 +314,9 @@ public class Example5 implements GLEventListener
 
 		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
-		final InputFrame frame = new InputFrame( "Example5", 640, 480 );
+		final InputFrame frame = new InputFrame( "Example6", 640, 480 );
 		InputFrame.DEBUG = false;
-		final Example5 glPainter = new Example5( stacks.getCacheControl(), frame::requestRepaint );
+		final Example6 glPainter = new Example6( stacks.getCacheControl(), frame::requestRepaint );
 		frame.setGlEventListener( glPainter );
 
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );

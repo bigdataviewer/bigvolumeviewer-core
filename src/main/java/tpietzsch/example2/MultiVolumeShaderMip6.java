@@ -4,9 +4,11 @@ import net.imglib2.display.ColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector4f;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.TextureCache;
+import tpietzsch.shadergen.Uniform1f;
 import tpietzsch.shadergen.Uniform2f;
 import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.Uniform3fv;
@@ -18,7 +20,7 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
-public class MultiVolumeShaderMip
+public class MultiVolumeShaderMip6
 {
 	private static final int NUM_BLOCK_SCALES = 10;
 
@@ -29,9 +31,11 @@ public class MultiVolumeShaderMip
 	private final ConverterSegment[] converterSegments;
 
 	private final UniformMatrix4f uniformIpv;
-	private final Uniform2f uniformViewportSize;
+	private final Uniform3f uniformViewportSize;
 
-	public MultiVolumeShaderMip( final int numVolumes )
+	private final Uniform1f uniformXf;
+
+	public MultiVolumeShaderMip6( final int numVolumes )
 	{
 		this.numVolumes = numVolumes;
 
@@ -50,7 +54,7 @@ public class MultiVolumeShaderMip
 				"colconv.fp",
 				"convert", "offset", "scale" );
 		final SegmentTemplate templateFp = new SegmentTemplate(
-				"ex5vol.fp",
+				"ex6vol.fp",
 				"intersectBoundingBox", "blockTexture", "convert", "vis" );
 		final Segment fp = templateFp.instantiate();
 		fp.repeat( "vis", numVolumes );
@@ -73,7 +77,8 @@ public class MultiVolumeShaderMip
 		prog = builder.build();
 
 		uniformIpv = prog.getUniformMatrix4f( "ipv" );
-		uniformViewportSize = prog.getUniform2f( "viewportSize" );
+		uniformXf = prog.getUniform1f( "xf" );
+		uniformViewportSize = prog.getUniform3f( "viewportSize" );
 
 		volumeSegments = new VolumeSegment[ numVolumes ];
 		converterSegments = new ConverterSegment[ numVolumes ];
@@ -123,11 +128,66 @@ public class MultiVolumeShaderMip
 	public void setProjectionViewMatrix( final Matrix4fc pv )
 	{
 		uniformIpv.set( pv.invert( new Matrix4f() ) );
+		stuff( pv );
+	}
+
+	private void stuff( final Matrix4fc pv )
+	{
+		final Matrix4f ipv = pv.invert( new Matrix4f() );
+		final Vector4f a = ipv.transform( new Vector4f( 0, 0, -1, 1 ) );
+		final Vector4f b = ipv.transform( new Vector4f( 0, 0,  0, 1 ) );
+		final Vector4f c = ipv.transform( new Vector4f( 0, 0,  1, 1 ) );
+		a.div( a.w() );
+		b.div( b.w() );
+		c.div( c.w() );
+		double f = b.sub( a ).length() / c.sub( a ).length();
+		uniformXf.set( ( float ) f );
+
+
+
+		final int width = 640;
+
+		Vector4f p0 = ipv.transform( new Vector4f( 0, 0, -1, 1 ) );
+		p0.div( p0.w );
+		Vector4f p1 = ipv.transform( new Vector4f( 0, 0, ( float ) ( -1.0 + 2.0 / width ), 1 ) );
+		p1.div( p1.w );
+
+		final float worldStepOnNear = p1.sub( p0 ).length();
+		System.out.println( "worldStepOnNear = " + worldStepOnNear );
+
+		p0 = ipv.transform( new Vector4f( 0, 0, ( float ) ( 1.0 - 2.0 / width ), 1 ) );
+		p0.div( p0.w );
+		p1 = ipv.transform( new Vector4f( 0, 0, 1, 1 ) );
+		p1.div( p1.w );
+
+		final float worldStepOnFar = p1.sub( p0 ).length();
+		System.out.println( "worldStepOnFar = " + worldStepOnFar );
+
+		p0 = ipv.transform( new Vector4f( 0, 0, -1, 1 ) );
+		p0.div( p0.w );
+		p1 = ipv.transform( new Vector4f( ( float ) ( 2.0 / width ), 0, -1, 1 ) );
+		p1.div( p1.w );
+
+		final float pixWidthOnNear = p1.sub( p0 ).length();
+		System.out.println( "pixWidthOnNear = " + pixWidthOnNear );
+
+
+		p0 = ipv.transform( new Vector4f( 0, 0, 1, 1 ) );
+		p0.div( p0.w );
+		p1 = ipv.transform( new Vector4f( ( float ) ( 2.0 / width ), 0, 1, 1 ) );
+		p1.div( p1.w );
+
+		final float pixWidthOnFar = p1.sub( p0 ).length();
+		System.out.println( "pixWidthOnFar = " + pixWidthOnFar );
+
+		System.out.println( "pixWidthOnFar / worldStepOnFar = " + pixWidthOnFar / worldStepOnFar );
+		System.out.println( "pixWidthOnNear / worldStepOnNear = " + pixWidthOnNear / worldStepOnNear );
 	}
 
 	public void setViewportSize( int width, int height )
 	{
-		uniformViewportSize.set( width, height );
+		int maxNumSteps = width;
+		uniformViewportSize.set( width, height, maxNumSteps );
 	}
 
 	public void use( GpuContext context )
