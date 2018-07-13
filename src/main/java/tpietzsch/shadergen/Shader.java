@@ -20,6 +20,8 @@ public interface Shader
 
 	Uniform4f getUniform4f( final String key );
 
+	Uniform1fv getUniform1fv( final String key );
+
 	Uniform3fv getUniform3fv( final String key );
 
 	UniformMatrix4f getUniformMatrix4f( final String key );
