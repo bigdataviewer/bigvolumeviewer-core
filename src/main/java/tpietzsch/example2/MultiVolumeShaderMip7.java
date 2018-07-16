@@ -105,6 +105,11 @@ public class MultiVolumeShaderMip7
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
+	public SegmentedShader getProg()
+	{
+		return prog;
+	}
+
 	public int getNumVolumes()
 	{
 		return numVolumes;

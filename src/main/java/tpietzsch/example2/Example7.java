@@ -39,6 +39,8 @@ import tpietzsch.cache.TextureCache;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
+import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
+import tpietzsch.scene.TexturedUnitCube;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.Shader;
 import tpietzsch.shadergen.generate.Segment;
@@ -50,10 +52,13 @@ import tpietzsch.util.Syncd;
 import tpietzsch.util.TransformHandler;
 import tpietzsch.util.WireframeBox;
 
+import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_RGB8;
+import static com.jogamp.opengl.GL.GL_TEXTURE10;
+import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
@@ -109,10 +114,16 @@ public class Example7 implements GLEventListener
 
 	private final Runnable requestRepaint;
 
+
+	// ... "pre-existing" scene...
+	private final TexturedUnitCube cube = new TexturedUnitCube();
+	private final OffScreenFrameBufferWithDepth sceneBuf;
+
 	public Example7( final CacheControl cacheControl, final Runnable requestRepaint )
 	{
 		this.cacheControl = cacheControl;
 		this.requestRepaint = requestRepaint;
+		sceneBuf = new OffScreenFrameBufferWithDepth( 640, 480, GL_RGB8 );
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
 		box = new WireframeBox();
 		quad = new DefaultQuad();
@@ -124,7 +135,7 @@ public class Example7 implements GLEventListener
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
 
-		final int numVolumes = 3;
+		final int numVolumes = 1;
 
 		volumes = new ArrayList<>();
 		for ( int i = 0; i < numVolumes; i++ )
@@ -164,6 +175,20 @@ public class Example7 implements GLEventListener
 		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
+		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
+		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
+		final Matrix4f pv = new Matrix4f( projection ).mul( view );
+
+
+
+
+		sceneBuf.bind( gl );
+		cube.draw( gl, new Matrix4f( pv ).translate( 300, 200, 200 ).scale( 250 ) );
+		sceneBuf.unbind( gl, false );
+
+
+
+
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = aMultiResolutionStacks.get( i ).get();
@@ -174,12 +199,9 @@ public class Example7 implements GLEventListener
 
 
 		offscreen.bind( gl );
-		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
-		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 
-		final Matrix4f pv = new Matrix4f( projection ).mul( view );
 		if ( !freezeRequiredBlocks )
 		{
 			updateBlocks( context, pv );
@@ -211,6 +233,12 @@ public class Example7 implements GLEventListener
 
 
 
+		progvol.getProg().getUniform1i( "sceneDepth" ).set( 10 );
+		gl.glActiveTexture( GL_TEXTURE10 );
+		gl.glBindTexture( GL_TEXTURE_2D, sceneBuf.getDepthTexId() );
+
+
+
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			progvol.setConverter( i, convs.get( i ) );
@@ -220,6 +248,9 @@ public class Example7 implements GLEventListener
 		progvol.setProjectionViewMatrix( pv );
 		progvol.use( context );
 		quad.draw( gl );
+
+//		gl.glDepthFunc( GL_ALWAYS );
+//		cube.draw( gl, new Matrix4f( pv ).translate( 300, 200, 0 ).scale( 250 ) );
 
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
@@ -369,9 +400,9 @@ public class Example7 implements GLEventListener
 			setup.setColor( new ARGBType( 0xffffffff ) );
 			setup.setViewer( frame::requestRepaint );
 		}
-		glPainter.convs.get( 0 ).setColor( new ARGBType( 0xff8888 ) );
-		glPainter.convs.get( 1 ).setColor( new ARGBType( 0x88ff88 ) );
-		glPainter.convs.get( 2 ).setColor( new ARGBType( 0x8888ff ) );
+//		glPainter.convs.get( 0 ).setColor( new ARGBType( 0xff8888 ) );
+//		glPainter.convs.get( 1 ).setColor( new ARGBType( 0x88ff88 ) );
+//		glPainter.convs.get( 2 ).setColor( new ARGBType( 0x8888ff ) );
 		final SetupAssignments setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
 		{

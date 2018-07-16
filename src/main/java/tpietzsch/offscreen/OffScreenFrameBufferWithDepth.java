@@ -223,6 +223,11 @@ public class OffScreenFrameBufferWithDepth
 		return depthImg;
 	}
 
+	public int getDepthTexId()
+	{
+		return texDepthBuffer;
+	}
+
 	/**
 	 * Get a value from the texture (downloaded by {@link #unbind(GL3)} or {@link #getTexture(GL3)})
 	 * @param c channel (rgb)

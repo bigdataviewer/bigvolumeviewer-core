@@ -14,6 +14,8 @@ uniform vec3 cachePadOffset;
 // -- comes from TextureCache --
 uniform vec3 cacheSize; // TODO: get from texture!?
 
+uniform sampler2D sceneDepth;
+
 void main()
 {
 	// frag coord in NDC
@@ -30,6 +32,11 @@ void main()
 	wback *= 1 / wback.w;
 
 
+	float dt = texture( sceneDepth, ( uv + 1 ) / 2 ).x;
+	vec4 dx = ipv * vec4( uv, dt * 2 - 1, 1 );
+	dx *= 1 / dx.w;
+	float dd = length( dx - wfront ) / length( wback - wfront );
+
 	// -- bounding box intersection for all volumes ----------
 	float tnear = 1, tfar = 0;
 	float n, f;
@@ -37,10 +44,11 @@ void main()
 	// $repeat:{vis,intersectBoundingBox|
 	bool vis = false;
 	intersectBoundingBox( wfront, wback, n, f );
+	f = min( dd, f );
 	if ( n < f )
 	{
 		tnear = min( tnear, max( 0, n ) );
-		tfar = max( tfar, min( 1, f ) );
+		tfar = max( tfar, f );
 		vis = true;
 	}
 	// }$
@@ -71,4 +79,5 @@ void main()
 	}
 	else
 		discard;
+
 }
