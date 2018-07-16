@@ -29,6 +29,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.CacheSpec;
@@ -53,10 +54,14 @@ import tpietzsch.util.TransformHandler;
 import tpietzsch.util.WireframeBox;
 
 import static com.jogamp.opengl.GL.GL_ALWAYS;
+import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
+import static com.jogamp.opengl.GL.GL_LESS;
+import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_RGB8;
+import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_TEXTURE10;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
@@ -155,6 +160,8 @@ public class Example7 implements GLEventListener
 		final GL3 gl = drawable.getGL().getGL3();
 		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
 		gl.glEnable( GL_DEPTH_TEST );
+		gl.glEnable( GL_BLEND );
+		gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
 	@Override
@@ -179,14 +186,11 @@ public class Example7 implements GLEventListener
 		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 		final Matrix4f pv = new Matrix4f( projection ).mul( view );
 
-
-
-
 		sceneBuf.bind( gl );
-		cube.draw( gl, new Matrix4f( pv ).translate( 300, 200, 200 ).scale( 250 ) );
-		sceneBuf.unbind( gl, false );
-
-
+		gl.glDepthFunc( GL_LESS );
+		cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
+		cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
+		cube.draw( gl, new Matrix4f( pv ).translate( 300, 50, 150 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 0, 1 ).normalize() ) );
 
 
 		for ( int i = 0; i < volumes.size(); i++ )
@@ -197,16 +201,7 @@ public class Example7 implements GLEventListener
 			multiResolutionStacks.set( i, stack );
 		}
 
-
-		offscreen.bind( gl );
-
 		final JoglGpuContext context = JoglGpuContext.get( gl );
-
-		if ( !freezeRequiredBlocks )
-		{
-			updateBlocks( context, pv );
-		}
-
 
 		// draw volume boxes
 		prog.use( context );
@@ -222,7 +217,14 @@ public class Example7 implements GLEventListener
 			box.draw( gl );
 		}
 
+		sceneBuf.unbind( gl, false );
+		offscreen.bind( gl );
+		sceneBuf.drawQuad( gl );
 
+		if ( !freezeRequiredBlocks )
+		{
+			updateBlocks( context, pv );
+		}
 
 		// TODO: fix hacks (initialize OOB block init)
 			context.bindTexture( textureCache );
@@ -231,12 +233,9 @@ public class Example7 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-
-
 		progvol.getProg().getUniform1i( "sceneDepth" ).set( 10 );
 		gl.glActiveTexture( GL_TEXTURE10 );
 		gl.glBindTexture( GL_TEXTURE_2D, sceneBuf.getDepthTexId() );
-
 
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
@@ -246,6 +245,8 @@ public class Example7 implements GLEventListener
 		progvol.setViewportSize( offscreen.getWidth(), offscreen.getHeight() );
 		progvol.setProjectionViewMatrix( pv );
 		progvol.use( context );
+
+		gl.glDepthFunc( GL_ALWAYS );
 		quad.draw( gl );
 
 //		gl.glDepthFunc( GL_ALWAYS );
