@@ -31,8 +31,8 @@ public class TexturedUnitCube
 
 	public TexturedUnitCube()
 	{
-		final Segment ex1vp = new SegmentTemplate(TexturedUnitCube.class, "ex1.vp", Collections.emptyList() ).instantiate();
-		final Segment ex1fp = new SegmentTemplate(TexturedUnitCube.class, "ex1.fp", Collections.emptyList() ).instantiate();
+		final Segment ex1vp = new SegmentTemplate(TexturedUnitCube.class, "cube.vp", Collections.emptyList() ).instantiate();
+		final Segment ex1fp = new SegmentTemplate(TexturedUnitCube.class, "cube.fp", Collections.emptyList() ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 	}
 

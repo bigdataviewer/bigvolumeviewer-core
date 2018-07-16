@@ -5,6 +5,7 @@ package tpietzsch.scene;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+import ij.ImageJ;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import org.joml.Matrix4f;
 import tpietzsch.contextsharing.SimpleFrame;
@@ -71,14 +72,15 @@ public class DrawCube implements GLEventListener
 
 		offscreen.bind( gl );
 		cube.draw( gl, pvm );
-		offscreen.unbind( gl );
+		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
 
-		ImageJFunctions.show( offscreen.getDepthImg() );
+//		ImageJFunctions.show( offscreen.getDepthImg() );
 	}
 
 	public static void main( final String[] args )
 	{
+//		new ImageJ();
 		new SimpleFrame( "DrawCube", 640, 480, new DrawCube() );
 	}
 
