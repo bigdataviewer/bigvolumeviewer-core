@@ -276,6 +276,8 @@ public class OffScreenFrameBuffer
 		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter );
 		gl.glBindVertexArray( vaoQuad );
 		gl.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
+		gl.glBindVertexArray( 0 );
+		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 	}
 
 	public void getTexture( GL3 gl )

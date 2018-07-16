@@ -112,6 +112,7 @@ public class TexturedUnitCube
 		gl.glBindTexture( GL_TEXTURE_2D, texId );
 		gl.glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, ByteBuffer.wrap( data ) );
 		gl.glGenerateMipmap( GL_TEXTURE_2D );
+		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 
 		// ..:: VERTEX ARRAY OBJECT ::..
 
@@ -141,6 +142,7 @@ public class TexturedUnitCube
 		gl.glBindTexture( GL_TEXTURE_2D, texId );
 		gl.glBindVertexArray( vao );
 		gl.glDrawArrays( GL_TRIANGLES, 0, 36 );
+		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 		gl.glBindVertexArray( 0 );
 	}
 }
