@@ -62,8 +62,6 @@ import static com.jogamp.opengl.GL.GL_LESS;
 import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_RGB8;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
-import static com.jogamp.opengl.GL.GL_TEXTURE10;
-import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
@@ -150,7 +148,7 @@ public class Example7 implements GLEventListener
 		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
 
-		progvol = new MultiVolumeShaderMip7( numVolumes, 1.0 );
+		progvol = new MultiVolumeShaderMip7( numVolumes, true, 1.0 );
 		progvol.setTextureCache( textureCache );
 	}
 
@@ -233,15 +231,13 @@ public class Example7 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-		progvol.getProg().getUniform1i( "sceneDepth" ).set( 10 );
-		gl.glActiveTexture( GL_TEXTURE10 );
-		gl.glBindTexture( GL_TEXTURE_2D, sceneBuf.getDepthTexId() );
 
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			progvol.setConverter( i, convs.get( i ) );
 			progvol.setVolume( i, volumes.get( i ) );
 		}
+		progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 		progvol.setViewportSize( offscreen.getWidth(), offscreen.getHeight() );
 		progvol.setProjectionViewMatrix( pv );
 		progvol.use( context );

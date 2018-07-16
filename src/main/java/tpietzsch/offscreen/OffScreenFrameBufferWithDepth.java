@@ -9,6 +9,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.real.FloatType;
+import tpietzsch.backend.Texture2D;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.shadergen.DefaultShader;
 import tpietzsch.shadergen.generate.Segment;
@@ -36,7 +37,6 @@ import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 import static com.jogamp.opengl.GL.GL_VIEWPORT;
 import static com.jogamp.opengl.GL2ES2.GL_DEPTH_COMPONENT;
-import static com.jogamp.opengl.GL2ES3.GL_DEPTH;
 
 /**
  * Render to texture. Print values. For debugging debugging shaders.
@@ -52,6 +52,8 @@ public class OffScreenFrameBufferWithDepth
 	private int texColorBuffer;
 
 	private int texDepthBuffer;
+
+	private final Texture2D depthTexture;
 
 	private final int fbWidth;
 
@@ -109,6 +111,8 @@ public class OffScreenFrameBufferWithDepth
 		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
 		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
 		progQuad = new DefaultShader( quadvp.getCode(), quadfp.getCode() );
+
+		depthTexture = new DepthTexture( fbWidth, fbHeight );
 	}
 
 	private void initFrameBuffer( GL3 gl )
@@ -142,6 +146,8 @@ public class OffScreenFrameBufferWithDepth
 		if ( gl.glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
 			System.err.println( "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" );
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, restoreFramebuffer );
+
+		JoglGpuContext.get( gl ).registerTexture( depthTexture, texDepthBuffer );
 	}
 
 	private void initQuad( GL3 gl )
@@ -189,6 +195,7 @@ public class OffScreenFrameBufferWithDepth
 
 	private void initImgs()
 	{
+		System.out.println( "OffScreenFrameBufferWithDepth.initImgs" );
 		if ( imgsInitialized )
 			return;
 		imgsInitialized = true;
@@ -223,9 +230,9 @@ public class OffScreenFrameBufferWithDepth
 		return depthImg;
 	}
 
-	public int getDepthTexId()
+	public Texture2D getDepthTexture()
 	{
-		return texDepthBuffer;
+		return depthTexture;
 	}
 
 	/**
@@ -319,5 +326,60 @@ public class OffScreenFrameBufferWithDepth
 	public int getHeight()
 	{
 		return fbHeight;
+	}
+
+
+	/*
+	 * ================================= TEXTURE WRAPPERS =============================================
+	 */
+
+
+	static class DepthTexture implements Texture2D
+	{
+		private final int width;
+
+		private final int height;
+
+		public DepthTexture( final int width, final int height )
+		{
+			this.width = width;
+			this.height = height;
+		}
+
+		@Override
+		public InternalFormat texInternalFormat()
+		{
+			return InternalFormat.UNKNOWN;
+		}
+
+		@Override
+		public int texWidth()
+		{
+			return width;
+		}
+
+		@Override
+		public int texHeight()
+		{
+			return height;
+		}
+
+		@Override
+		public MinFilter texMinFilter()
+		{
+			return MinFilter.LINEAR;
+		}
+
+		@Override
+		public MagFilter texMagFilter()
+		{
+			return MagFilter.LINEAR;
+		}
+
+		@Override
+		public Wrap texWrap()
+		{
+			return Wrap.CLAMP_TO_EDGE;
+		}
 	}
 }

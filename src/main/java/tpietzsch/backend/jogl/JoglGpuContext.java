@@ -333,6 +333,30 @@ public class JoglGpuContext implements GpuContext
 		} );
 	}
 
+	public void registerTexture( final Texture texture, final int id )
+	{
+		textures.computeIfAbsent( texture, tex -> {
+			final int[] tmp = new int[ 1 ];
+
+			final int target = target( tex );
+			gl.glGetIntegerv( targetBinding( tex ), tmp, 0 );
+			final int restoreId = tmp[ 0 ];
+
+			gl.glBindTexture( target, id );
+			gl.glTexParameteri( target, GL_TEXTURE_MIN_FILTER, minFilter( tex ) );
+			gl.glTexParameteri( target, GL_TEXTURE_MAG_FILTER, magFilter( tex ) );
+			gl.glTexParameteri( target, GL_TEXTURE_WRAP_S, wrap( tex ) );
+			if ( tex.texDims() > 1 )
+				gl.glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap( tex ) );
+			if ( tex.texDims() > 2 )
+				gl.glTexParameteri( target, GL_TEXTURE_WRAP_R, wrap( tex ) );
+
+			gl.glBindTexture( target, restoreId );
+
+			return new TexId( id, target, targetBinding( texture ) );
+		} );
+	}
+
 
 	private static int target( Texture texture )
 	{

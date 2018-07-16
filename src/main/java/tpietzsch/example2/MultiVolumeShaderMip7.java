@@ -6,6 +6,7 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import tpietzsch.backend.GpuContext;
+import tpietzsch.backend.Texture2D;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.shadergen.Uniform1f;
@@ -26,6 +27,8 @@ public class MultiVolumeShaderMip7
 
 	private final int numVolumes;
 
+	private final boolean useDepthTexture;
+
 	// step size on near plane = pixel_width
 	// step size on far plane = degrade * pixel_width
 	private final double degrade;
@@ -43,9 +46,10 @@ public class MultiVolumeShaderMip7
 
 	private int viewportWidth;
 
-	public MultiVolumeShaderMip7( final int numVolumes, final double degrade )
+	public MultiVolumeShaderMip7( final int numVolumes, final boolean useDepthTexture, final double degrade )
 	{
 		this.numVolumes = numVolumes;
+		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
@@ -62,6 +66,9 @@ public class MultiVolumeShaderMip7
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
+		final SegmentTemplate templateMaxDepth = new SegmentTemplate(
+				useDepthTexture ? "maxdepthtexture.fp" : "maxdepthone.fp" );
+		builder.fragment( templateMaxDepth.instantiate() );
 		final SegmentTemplate templateFp = new SegmentTemplate(
 				"ex7vol.fp",
 				"intersectBoundingBox", "blockTexture", "convert", "vis" );
@@ -107,11 +114,6 @@ public class MultiVolumeShaderMip7
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
-	public SegmentedShader getProg()
-	{
-		return prog;
-	}
-
 	public int getNumVolumes()
 	{
 		return numVolumes;
@@ -129,6 +131,14 @@ public class MultiVolumeShaderMip7
 
 		prog.getUniformSampler( "volumeCache" ).set( textureCache );
 		prog.getUniform3f( "cacheSize" ).set( textureCache.texWidth(), textureCache.texHeight(), textureCache.texDepth() );
+	}
+
+	public void setDepthTexture( Texture2D depth )
+	{
+		if ( !useDepthTexture )
+			throw new UnsupportedOperationException();
+
+		prog.getUniformSampler( "sceneDepth" ).set( depth );
 	}
 
 	public void setConverter( int index, ColorConverter converter )
