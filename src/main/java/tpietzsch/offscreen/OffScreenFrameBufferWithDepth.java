@@ -17,15 +17,15 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import static com.jogamp.opengl.GL.GL_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_COLOR_ATTACHMENT0;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_DEPTH24_STENCIL8;
+import static com.jogamp.opengl.GL.GL_DEPTH_ATTACHMENT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_DEPTH_COMPONENT24;
 import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_FRAMEBUFFER;
 import static com.jogamp.opengl.GL.GL_FRAMEBUFFER_BINDING;
 import static com.jogamp.opengl.GL.GL_FRAMEBUFFER_COMPLETE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
-import static com.jogamp.opengl.GL.GL_RENDERBUFFER;
 import static com.jogamp.opengl.GL.GL_RGB;
 import static com.jogamp.opengl.GL.GL_RGB32F;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
@@ -35,12 +35,13 @@ import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 import static com.jogamp.opengl.GL.GL_VIEWPORT;
-import static com.jogamp.opengl.GL2ES3.GL_DEPTH_STENCIL_ATTACHMENT;
+import static com.jogamp.opengl.GL2ES2.GL_DEPTH_COMPONENT;
+import static com.jogamp.opengl.GL2ES3.GL_DEPTH;
 
 /**
  * Render to texture. Print values. For debugging debugging shaders.
  */
-public class OffScreenFrameBuffer
+public class OffScreenFrameBufferWithDepth
 {
 	private int vaoQuad;
 
@@ -49,6 +50,8 @@ public class OffScreenFrameBuffer
 	private int framebuffer;
 
 	private int texColorBuffer;
+
+	private int texDepthBuffer;
 
 	private final int fbWidth;
 
@@ -63,14 +66,20 @@ public class OffScreenFrameBuffer
 	// downloaded texture data
 	private float[] rgb;
 
+	// downloaded texture data
+	private float[] depth;
+
 	// downloaded texture data as 3 * fwWidth * fbHeight image
-	private Img< FloatType > img;
+	private Img< FloatType > rgbImg;
+
+	// downloaded texture data as 3 * fwWidth * fbHeight image
+	private Img< FloatType > depthImg;
 
 	private boolean framebufferInitialized;
 
 	private boolean quadInitialized;
 
-	private boolean imgInitialized;
+	private boolean imgsInitialized;
 
 	private boolean imgValid;
 
@@ -81,7 +90,7 @@ public class OffScreenFrameBuffer
 	 * @param fbWidth width of offscreen framebuffer
 	 * @param fbHeight height of offscreen framebuffer
 	 */
-	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight )
+	public OffScreenFrameBufferWithDepth( final int fbWidth, final int fbHeight )
 	{
 		this( fbWidth, fbHeight, GL_RGB32F );
 	}
@@ -91,14 +100,14 @@ public class OffScreenFrameBuffer
 	 * @param fbHeight height of offscreen framebuffer
 	 * @param internalFormat internal texture format
 	 */
-	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat )
+	public OffScreenFrameBufferWithDepth( final int fbWidth, final int fbHeight, final int internalFormat )
 	{
 		this.fbWidth = fbWidth;
 		this.fbHeight = fbHeight;
 		this.internalFormat = internalFormat;
 
-		final Segment quadvp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
-		final Segment quadfp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
+		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
+		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
 		progQuad = new DefaultShader( quadvp.getCode(), quadfp.getCode() );
 	}
 
@@ -108,7 +117,7 @@ public class OffScreenFrameBuffer
 			return;
 		framebufferInitialized = true;
 
-		final int[] tmp = new int[ 1 ];
+		final int[] tmp = new int[ 2 ];
 		gl.glGenFramebuffers( 1, tmp, 0 );
 		framebuffer = tmp[ 0 ];
 
@@ -117,25 +126,19 @@ public class OffScreenFrameBuffer
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, framebuffer );
 
 		// generate texture
-		gl.glGenTextures( 1, tmp, 0 );
+		gl.glGenTextures( 2, tmp, 0 );
 		texColorBuffer = tmp[ 0 ];
 		gl.glBindTexture( GL_TEXTURE_2D, texColorBuffer );
 		gl.glTexStorage2D( GL_TEXTURE_2D, 1, internalFormat, fbWidth, fbHeight );
+		texDepthBuffer = tmp[ 1 ];
+		gl.glBindTexture( GL_TEXTURE_2D, texDepthBuffer );
+		gl.glTexStorage2D( GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT24, fbWidth, fbHeight );
 		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 
 		// attach it to currently bound framebuffer object
 		gl.glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0 );
+		gl.glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texDepthBuffer, 0 );
 
-		// create depth & stencil renderbuffer
-		int rbo;
-		gl.glGenRenderbuffers( 1, tmp, 0 );
-		rbo = tmp[ 0 ];
-		gl.glBindRenderbuffer( GL_RENDERBUFFER, rbo );
-		gl.glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbWidth, fbHeight );
-		gl.glBindRenderbuffer( GL_RENDERBUFFER, 0 );
-
-		// attach depth & stencil renderbuffer
-		gl.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo );
 		if ( gl.glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
 			System.err.println( "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" );
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, restoreFramebuffer );
@@ -184,14 +187,17 @@ public class OffScreenFrameBuffer
 		gl.glBindVertexArray( 0 );
 	}
 
-	private void initImg()
+	private void initImgs()
 	{
-		if ( imgInitialized )
+		if ( imgsInitialized )
 			return;
-		imgInitialized = true;
+		imgsInitialized = true;
 
 		rgb = new float[ fbWidth * fbHeight * 3 ];
-		img = ArrayImgs.floats( rgb, 3, fbWidth, fbHeight );
+		rgbImg = ArrayImgs.floats( rgb, 3, fbWidth, fbHeight );
+
+		depth = new float[ fbWidth * fbHeight ];
+		depthImg = ArrayImgs.floats( depth, fbWidth, fbHeight );
 	}
 
 	/**
@@ -212,6 +218,11 @@ public class OffScreenFrameBuffer
 		unbind( gl, true );
 	}
 
+	public Img< FloatType > getDepthImg()
+	{
+		return depthImg;
+	}
+
 	/**
 	 * Get a value from the texture (downloaded by {@link #unbind(GL3)} or {@link #getTexture(GL3)})
 	 * @param c channel (rgb)
@@ -224,7 +235,7 @@ public class OffScreenFrameBuffer
 		if ( !imgValid )
 			System.err.println( "Img not valid. Call getTexture() first." );
 
-		final RandomAccess< FloatType > a = img.randomAccess();
+		final RandomAccess< FloatType > a = rgbImg.randomAccess();
 		a.setPosition( new long[] { c, x, y } );
 		return a.get().get();
 	}
@@ -284,10 +295,12 @@ public class OffScreenFrameBuffer
 			return;
 		imgValid = true;
 
-		initImg();
+		initImgs();
 
 		gl.glBindTexture( GL_TEXTURE_2D, texColorBuffer );
 		gl.glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, FloatBuffer.wrap( rgb ) );
+		gl.glBindTexture( GL_TEXTURE_2D, texDepthBuffer );
+		gl.glGetTexImage( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, FloatBuffer.wrap( depth ) );
 		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 	}
 
