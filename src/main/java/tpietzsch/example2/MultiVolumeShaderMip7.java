@@ -208,16 +208,19 @@ public class MultiVolumeShaderMip7
 			final double g = ( double ) ARGBType.green( color ) / 255.0;
 			final double b = ( double ) ARGBType.blue( color ) / 255.0;
 
+			final double l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+//			final double l = 0.299 * r + 0.587 * g + 0.114 * b;
+
 			uniformOffset.set(
 					( float ) ( o * r ),
 					( float ) ( o * g ),
 					( float ) ( o * b ),
-					1f );
+					( float ) ( o * l ) );
 			uniformScale.set(
 					( float ) ( s * r ),
 					( float ) ( s * g ),
 					( float ) ( s * b ),
-					0f );
+					( float ) ( s * l ) );
 		}
 	}
 
