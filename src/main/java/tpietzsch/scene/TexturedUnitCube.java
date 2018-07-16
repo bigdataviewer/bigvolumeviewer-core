@@ -124,10 +124,6 @@ public class TexturedUnitCube
 		gl.glVertexAttribPointer( 1, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES );
 		gl.glEnableVertexAttribArray( 1 );
 		gl.glBindVertexArray( 0 );
-
-		// ..:: MISC ::..
-
-//		gl.glEnable( GL_DEPTH_TEST );
 	}
 
 	public void draw( GL3 gl, Matrix4fc pvm )

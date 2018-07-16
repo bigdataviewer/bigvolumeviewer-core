@@ -12,6 +12,7 @@ import tpietzsch.contextsharing.SimpleFrame;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
 
+import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
@@ -26,6 +27,8 @@ import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 public class DrawCube implements GLEventListener
 {
 	private final TexturedUnitCube cube = new TexturedUnitCube();
+
+	private final TexturedDepthRamp ramp = new TexturedDepthRamp();
 
 //	private OffScreenFrameBuffer offscreen = new OffScreenFrameBuffer( 160, 120, GL_RGBA8 );
 //	private OffScreenFrameBuffer offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGBA8 );
@@ -55,6 +58,8 @@ public class DrawCube implements GLEventListener
 		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 		gl.glEnable( GL_DEPTH_TEST );
+		gl.glDepthFunc( GL_ALWAYS );
+
 		gl.glEnable( GL_BLEND );
 		gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
@@ -71,16 +76,17 @@ public class DrawCube implements GLEventListener
 		final Matrix4f pvm = new Matrix4f( projection ).mul( view ).mul( model );
 
 		offscreen.bind( gl );
+		ramp.draw( gl );
 		cube.draw( gl, pvm );
-		offscreen.unbind( gl, false );
+		offscreen.unbind( gl, true );
 		offscreen.drawQuad( gl );
 
-//		ImageJFunctions.show( offscreen.getDepthImg() );
+		ImageJFunctions.show( offscreen.getDepthImg() );
 	}
 
 	public static void main( final String[] args )
 	{
-//		new ImageJ();
+		new ImageJ();
 		new SimpleFrame( "DrawCube", 640, 480, new DrawCube() );
 	}
 
