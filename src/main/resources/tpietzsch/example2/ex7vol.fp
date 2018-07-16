@@ -3,6 +3,7 @@ uniform vec2 viewportSize;
 uniform mat4 ipv;
 uniform float fwnw;
 uniform float nw;
+uniform float xf;
 
 uniform sampler3D volumeCache;
 
@@ -15,6 +16,11 @@ uniform vec3 cachePadOffset;
 uniform vec3 cacheSize; // TODO: get from texture!?
 
 uniform sampler2D sceneDepth;
+
+float tw( float zd )
+{
+	return ( xf * zd ) / ( 2 * xf * zd - xf - zd + 1 );
+}
 
 void main()
 {
@@ -31,11 +37,7 @@ void main()
 	vec4 wback = ipv * back;
 	wback *= 1 / wback.w;
 
-
-	float dt = texture( sceneDepth, ( uv + 1 ) / 2 ).x;
-	vec4 dx = ipv * vec4( uv, dt * 2 - 1, 1 );
-	dx *= 1 / dx.w;
-	float dd = length( dx - wfront ) / length( wback - wfront );
+	float dt = tw( texture( sceneDepth, ( uv + 1 ) / 2 ).x );
 
 	// -- bounding box intersection for all volumes ----------
 	float tnear = 1, tfar = 0;
@@ -44,7 +46,7 @@ void main()
 	// $repeat:{vis,intersectBoundingBox|
 	bool vis = false;
 	intersectBoundingBox( wfront, wback, n, f );
-	f = min( dd, f );
+	f = min( dt, f );
 	if ( n < f )
 	{
 		tnear = min( tnear, max( 0, n ) );

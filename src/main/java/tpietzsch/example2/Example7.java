@@ -238,7 +238,6 @@ public class Example7 implements GLEventListener
 		gl.glBindTexture( GL_TEXTURE_2D, sceneBuf.getDepthTexId() );
 
 
-
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			progvol.setConverter( i, convs.get( i ) );

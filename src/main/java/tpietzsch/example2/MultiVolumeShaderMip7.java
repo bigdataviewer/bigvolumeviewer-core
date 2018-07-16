@@ -39,6 +39,7 @@ public class MultiVolumeShaderMip7
 
 	private final Uniform1f uniformNw;
 	private final Uniform1f uniformFwnw;
+	private final Uniform1f uniformXf;
 
 	private int viewportWidth;
 
@@ -88,6 +89,7 @@ public class MultiVolumeShaderMip7
 		uniformViewportSize = prog.getUniform2f( "viewportSize" );
 		uniformNw = prog.getUniform1f( "nw" );
 		uniformFwnw = prog.getUniform1f( "fwnw" );
+		uniformXf = prog.getUniform1f( "xf" );
 
 		volumeSegments = new VolumeSegment[ numVolumes ];
 		converterSegments = new ConverterSegment[ numVolumes ];
@@ -141,41 +143,33 @@ public class MultiVolumeShaderMip7
 
 	public void setProjectionViewMatrix( final Matrix4fc pv )
 	{
-		uniformIpv.set( pv.invert( new Matrix4f() ) );
-		stuff( pv );
-	}
-
-	private void stuff( final Matrix4fc pv )
-	{
 		final Matrix4f ipv = pv.invert( new Matrix4f() );
-		Vector4f p0 = new Vector4f();
-		Vector4f p1 = new Vector4f();
-		Vector4f p2 = new Vector4f();
-		ipv.transform( p0.set( 0, 0, -1, 1 ) );
-		p0.div( p0.w );
-		ipv.transform( p1.set( ( float ) ( 2.0 / viewportWidth ), 0, -1, 1 ) );
-		p1.div( p1.w );
-		final double sNear = p1.sub( p0 ).length();
+		final float dx = ( float ) ( 2.0 / viewportWidth );
 
-		ipv.transform( p2.set( 0, 0, 1, 1 ) );
-		p2.div( p2.w );
-		ipv.transform( p1.set( ( float ) ( 2.0 / viewportWidth ), 0, 1, 1 ) );
-		p1.div( p1.w );
-		final double sFar = p1.sub( p2 ).length();
+		final Vector4f a = ipv.transform( new Vector4f( 0, 0, -1, 1 ) );
+		final Vector4f c = ipv.transform( new Vector4f( 0, 0,  1, 1 ) );
+		final Vector4f b = ipv.transform( new Vector4f( 0, 0,  0, 1 ) );
+		final Vector4f adx = ipv.transform( new Vector4f( dx, 0, -1, 1 ) );
+		final Vector4f cdx = ipv.transform( new Vector4f( dx, 0,  1, 1 ) );
+		a.div( a.w() );
+		b.div( b.w() );
+		c.div( c.w() );
+		adx.div( adx.w() );
+		cdx.div( cdx.w() );
 
-		final double scale = 1.0 / p2.sub( p0 ).length();
+		final double sNear = adx.sub( a ).length();
+		final double sFar = cdx.sub( c ).length();
+		final double ac = c.sub( a ).length();
+		final double scale = 1.0 / ac;
 		final double nw = sNear * scale;
 		final double fw = degrade * sFar * scale;
+		final double ab = b.sub( a, new Vector4f() ).length();
+		final double f = ab / ac;
 
-//		System.out.println( "sNear = " + sNear );
-//		System.out.println( "sFar = " + sFar );
-//		System.out.println( "nw = " + String.format( "%.5f", nw ) );
-//		System.out.println( "fw = " + String.format( "%.5f", fw ) );
-//		double mmax = Math.log( fw / nw ) / Math.log( 1 + fw - nw );
-//		System.out.println( "mmax = " + mmax );
-
+		uniformIpv.set( ipv );
 		uniformNw.set( ( float ) nw );
 		uniformFwnw.set( ( float ) ( fw - nw ) );
+		uniformXf.set( ( float ) f );
 	}
 
 	public void setViewportSize( int width, int height )
