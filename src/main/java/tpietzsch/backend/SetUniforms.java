@@ -24,6 +24,8 @@ public interface SetUniforms
 
 	void setUniform1fv( final String name, final int count, final float[] value );
 
+	void setUniform2fv( final String name, final int count, final float[] value );
+
 	void setUniform3fv( final String name, final int count, final float[] value );
 
 	// transpose==true: data is in row-major order
