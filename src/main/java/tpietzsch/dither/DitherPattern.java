@@ -50,10 +50,10 @@ public class DitherPattern
 
 		sb.append( "}\n" );
 
-		System.out.println( "-----------------------------------------------------------------" );
-		System.out.println( sb);
-		System.out.println( "-----------------------------------------------------------------" );
-		System.out.println();
+//		System.out.println( "-----------------------------------------------------------------" );
+//		System.out.println( sb);
+//		System.out.println( "-----------------------------------------------------------------" );
+//		System.out.println();
 		return sb.toString();
 	}
 
