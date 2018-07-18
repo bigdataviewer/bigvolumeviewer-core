@@ -1,7 +1,6 @@
 package tpietzsch.dither;
 
 import com.jogamp.opengl.GL3;
-import com.jogamp.opengl.GLAutoDrawable;
 import java.util.Collections;
 import java.util.function.IntFunction;
 import org.joml.Matrix4f;
@@ -14,9 +13,10 @@ import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.util.DefaultQuad;
 
+import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_NEAREST;
-import static com.jogamp.opengl.GL.GL_RGB8;
+import static com.jogamp.opengl.GL.GL_RGBA8;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
@@ -102,8 +102,8 @@ public class DitherBuffer
 		final Segment stichFp = new SegmentTemplate( DitherBuffer.class, "stitch.fp", Collections.emptyList() ).instantiate();
 		progStitch = new DefaultShader( stitchVp.getCode(), stichFp.getCode() );
 
-		dither = new OffScreenFrameBuffer( width, height, GL_RGB8 );
-		stitch = new OffScreenFrameBuffer( width, height, GL_RGB8 );
+		dither = new OffScreenFrameBuffer( width, height, GL_RGBA8 );
+		stitch = new OffScreenFrameBuffer( width, height, GL_RGBA8 );
 		this.we = width / spw;
 		this.he = height / spw;
 	}
@@ -149,11 +149,16 @@ public class DitherBuffer
 
 	public void dither( final GL3 gl, final int stepsCompleted, final int destWidth, final int destHeight )
 	{
+		final byte[] tmp = new byte[ 1 ];
+		gl.glGetBooleanv( GL_BLEND, tmp, 0 );
+		boolean restoreBlend = tmp[ 0 ] != 0;
+
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 
 		final int maxsp = stepsCompleted - 1;
 
 		stitch.bind( gl );
+		gl.glDisable( GL_BLEND );
 		gl.glActiveTexture( GL_TEXTURE0 );
 		gl.glBindTexture( GL_TEXTURE_2D, dither.getTexColorBuffer() );
 		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
@@ -194,6 +199,8 @@ public class DitherBuffer
 		progStitch.getUniform2f( "tls" ).set( we, he );
 		progStitch.setUniforms( context );
 		progStitch.use( context );
+		if ( restoreBlend )
+			gl.glEnable( GL_BLEND );
 		quad.draw( gl );
 
 		gl.glBindTexture( GL_TEXTURE_2D, 0 );
