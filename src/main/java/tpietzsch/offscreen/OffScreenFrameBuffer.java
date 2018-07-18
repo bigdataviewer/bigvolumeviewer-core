@@ -38,7 +38,7 @@ import static com.jogamp.opengl.GL.GL_VIEWPORT;
 import static com.jogamp.opengl.GL2ES3.GL_DEPTH_STENCIL_ATTACHMENT;
 
 /**
- * Render to texture. Print values. For debugging debugging shaders.
+ * Render to texture. Print values. For debugging shaders.
  */
 public class OffScreenFrameBuffer
 {
@@ -192,6 +192,16 @@ public class OffScreenFrameBuffer
 
 		rgb = new float[ fbWidth * fbHeight * 3 ];
 		img = ArrayImgs.floats( rgb, 3, fbWidth, fbHeight );
+	}
+
+	public Img< FloatType > getImg()
+	{
+		return img;
+	}
+
+	public int getTexColorBuffer()
+	{
+		return texColorBuffer;
 	}
 
 	/**
