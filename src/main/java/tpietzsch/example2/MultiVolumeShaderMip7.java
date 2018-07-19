@@ -151,7 +151,10 @@ public class MultiVolumeShaderMip7
 		volumeSegments[ index ].setData( volume );
 	}
 
-	public void setProjectionViewMatrix( final Matrix4fc pv )
+	/**
+	 * @param minWorldVoxelSize pass {@code 0} if unknown.
+	 */
+	public void setProjectionViewMatrix( final Matrix4fc pv, final double minWorldVoxelSize )
 	{
 		final Matrix4f ipv = pv.invert( new Matrix4f() );
 		final float dx = ( float ) ( 2.0 / viewportWidth );
@@ -167,14 +170,32 @@ public class MultiVolumeShaderMip7
 		adx.div( adx.w() );
 		cdx.div( cdx.w() );
 
-		final double sNear = adx.sub( a ).length();
-		final double sFar = cdx.sub( c ).length();
+		final double sNear = Math.max( adx.sub( a ).length(), minWorldVoxelSize );
+		final double sFar = Math.max( cdx.sub( c ).length(), minWorldVoxelSize );
 		final double ac = c.sub( a ).length();
 		final double scale = 1.0 / ac;
 		final double nw = sNear * scale;
 		final double fw = degrade * sFar * scale;
 		final double ab = b.sub( a, new Vector4f() ).length();
 		final double f = ab / ac;
+
+//		double fwnw = fw - nw;
+//		double tfar = 1;
+//		double tnear = 0;
+//		final double log1 = Math.log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) );
+//		final double log2 = Math.log( 1.0 + fwnw );
+//		double numSteps = log1 / log2;
+//		System.out.println( "sNear             = " + sNear );
+//		System.out.println( "sFar              = " + sFar );
+//		System.out.println( "minWorldVoxelSize = " + minWorldVoxelSize );
+//		System.out.println( "nw = " + nw );
+//		System.out.println( "fw = " + fw );
+//		System.out.println( "fwnw = " + fwnw );
+//		System.out.println( "f = " + f );
+//		System.out.println( "log1 = " + log1 );
+//		System.out.println( "log2 = " + log2 );
+//		System.out.println( "numSteps = " + numSteps );
+//		System.out.println();
 
 		uniformIpv.set( ipv );
 		uniformNw.set( ( float ) nw );

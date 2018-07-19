@@ -51,8 +51,10 @@ void main()
 	if ( tnear < tfar )
 	{
 		vec4 fb = wback - wfront;
-		float c = nw / fwnw;
-		int numSteps = int ( log( ( tfar + c ) / ( tnear + c ) ) / log ( 1 + fwnw ) );
+		int numSteps =
+			( fwnw > 0.00001 )
+			? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
+			: int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
 		float step = tnear;
 		vec4 v = vec4( 0 );

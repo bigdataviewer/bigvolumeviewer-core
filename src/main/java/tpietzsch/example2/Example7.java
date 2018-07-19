@@ -231,15 +231,16 @@ public class Example7 implements GLEventListener
 			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
 			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
 
-
+		double minWorldVoxelSize = Double.POSITIVE_INFINITY;
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			progvol.setConverter( i, convs.get( i ) );
 			progvol.setVolume( i, volumes.get( i ) );
+			minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
 		}
 		progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 		progvol.setViewportSize( offscreen.getWidth(), offscreen.getHeight() );
-		progvol.setProjectionViewMatrix( pv );
+		progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 		progvol.use( context );
 
 		gl.glDepthFunc( GL_ALWAYS );

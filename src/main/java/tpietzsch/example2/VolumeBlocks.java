@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.LinAlgHelpers;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -86,6 +88,35 @@ public class VolumeBlocks
 		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
 		pvm.set( pv ).mul( model );
 		sizes.init( pvm, viewportWidth, multiResolutionStack.resolutions() );
+		baseLevel = sizes.getBaseLevel();
+	}
+
+	/**
+	 * Get the size of a voxel at base resolution in world coordinates.
+	 * Take a source voxel (0,0,0)-(1,1,1) at the
+	 * base mipmap level and transform it to world coordinates.
+	 * Take the minimum of the transformed voxels edge lengths.
+	 */
+	public double getBaseLevelVoxelSizeInWorldCoordinates()
+	{
+		final AffineTransform3D sourceToWorld = multiResolutionStack.getSourceTransform();
+		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+
+		final double[] tzero = new double[ 3 ];
+		sourceToWorld.apply( new double[ 3 ], tzero );
+
+		final double[] one = new double[ 3 ];
+		final double[] tone = new double[ 3 ];
+		double voxelSize = Double.POSITIVE_INFINITY;
+		for ( int i = 0; i < 3; ++i )
+		{
+			for ( int d = 0; d < 3; ++d )
+				one[ d ] = d == i ? r[ d ] : 0;
+			sourceToWorld.apply( one, tone );
+			LinAlgHelpers.subtract( tone, tzero, tone );
+			voxelSize = Math.min( voxelSize, LinAlgHelpers.length( tone ) );
+		}
+		return voxelSize;
 	}
 
 	/**
@@ -95,7 +126,6 @@ public class VolumeBlocks
 	 */
 	public List< FillTask > getFillTasks()
 	{
-		baseLevel = sizes.getBaseLevel();
 		// block coordinates are grid coordinates of baseLevel resolution
 		requiredBlocks = getRequiredBlocks( baseLevel );
 		assignBestLevels( requiredBlocks, baseLevel, baseLevel );

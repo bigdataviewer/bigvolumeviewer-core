@@ -167,7 +167,10 @@ public class MultiVolumeShaderMip8
 		uniformDsp.set( dither.fragShift( step ) );
 	}
 
-	public void setProjectionViewMatrix( final Matrix4fc pv )
+	/**
+	 * @param minWorldVoxelSize pass {@code 0} if unknown.
+	 */
+	public void setProjectionViewMatrix( final Matrix4fc pv, final double minWorldVoxelSize )
 	{
 		final Matrix4f ipv = pv.invert( new Matrix4f() );
 		final float dx = ( float ) ( 2.0 / viewportWidth );
@@ -183,8 +186,8 @@ public class MultiVolumeShaderMip8
 		adx.div( adx.w() );
 		cdx.div( cdx.w() );
 
-		final double sNear = adx.sub( a ).length();
-		final double sFar = cdx.sub( c ).length();
+		final double sNear = Math.max( adx.sub( a ).length(), minWorldVoxelSize );
+		final double sFar = Math.max( cdx.sub( c ).length(), minWorldVoxelSize );
 		final double ac = c.sub( a ).length();
 		final double scale = 1.0 / ac;
 		final double nw = sNear * scale;
