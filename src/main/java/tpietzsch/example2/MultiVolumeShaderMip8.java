@@ -4,6 +4,7 @@ import net.imglib2.display.ColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture2D;
@@ -114,6 +115,7 @@ public class MultiVolumeShaderMip8
 		uniformDsp = prog.getUniform2f( "dsp" );
 
 		uniformTransform.set( new Matrix4f() );
+		uniformDsp.set( new Vector2f() );
 
 //		final StringBuilder vertexShaderCode = prog.getVertexShaderCode();
 //		System.out.println( "vertexShaderCode = " + vertexShaderCode );

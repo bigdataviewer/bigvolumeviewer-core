@@ -125,6 +125,7 @@ public class Example8 implements GLEventListener, RequestRepaint
 
 	// ... dithering ...
 	private final DitherBuffer dither;
+	private final int numDitherSteps;
 
 	public Example8(
 			final CacheControl cacheControl,
@@ -140,7 +141,16 @@ public class Example8 implements GLEventListener, RequestRepaint
 		this.frameRequestRepaint = frameRequestRepaint;
 		sceneBuf = new OffScreenFrameBufferWithDepth( renderWidth, renderHeight, GL_RGB8 );
 		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8 );
-		dither = new DitherBuffer( renderWidth, renderHeight, ditherWidth, ditherStep, numDitherSamples );
+		if ( ditherWidth == 1 )
+		{
+			dither = null;
+			numDitherSteps = 1;
+		}
+		else
+		{
+			dither = new DitherBuffer( renderWidth, renderHeight, ditherWidth, ditherStep, numDitherSamples );
+			numDitherSteps = dither.numSteps();
+		}
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
@@ -238,11 +248,11 @@ public class Example8 implements GLEventListener, RequestRepaint
 		if ( type == FULL )
 		{
 			ditherStep = 0;
-			targetDitherSteps = dither.numSteps();
+			targetDitherSteps = numDitherSteps;
 		}
 		else if ( type == LOAD )
 		{
-			targetDitherSteps = ditherStep + dither.numSteps();
+			targetDitherSteps = ditherStep + numDitherSteps;
 		}
 
 		if ( ditherStep != targetDitherSteps )
@@ -310,46 +320,66 @@ public class Example8 implements GLEventListener, RequestRepaint
 				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 			}
 
-			dither.bind( gl );
-			progvol.use( context );
-			progvol.bindSamplers( context );
-			gl.glDepthFunc( GL_ALWAYS );
-			gl.glDisable( GL_BLEND );
-			final StopWatch stopWatch = new StopWatch();
-			stopWatch.start();
-//			final int start = ditherStep;
-			while ( ditherStep < targetDitherSteps )
+			if ( dither != null )
 			{
-				progvol.setDither( dither, ditherStep % dither.numSteps() );
+				dither.bind( gl );
+				progvol.use( context );
+				progvol.bindSamplers( context );
+				gl.glDepthFunc( GL_ALWAYS );
+				gl.glDisable( GL_BLEND );
+				final StopWatch stopWatch = new StopWatch();
+				stopWatch.start();
+//				final int start = ditherStep;
+				while ( ditherStep < targetDitherSteps )
+				{
+					progvol.setDither( dither, ditherStep % numDitherSteps );
+					progvol.setUniforms( context );
+					quad.draw( gl );
+					gl.glFinish();
+					++ditherStep;
+					if ( stopWatch.nanoTime() > maxRenderNanos )
+						break;
+				}
+//				final int steps = ditherStep - start;
+//				stepList.add( steps );
+//				if ( stepList.size() == 1000 )
+//				{
+//					for ( int step : stepList )
+//						System.out.println( "step = " + step );
+//					System.out.println();
+//					stepList.clear();
+//				}
+				dither.unbind( gl );
+			}
+			else
+			{
+				offscreen.bind( gl );
+				sceneBuf.drawQuad( gl );
+				gl.glDepthFunc( GL_ALWAYS );
+				gl.glEnable( GL_BLEND );
+				progvol.use( context );
+				progvol.bindSamplers( context );
+				progvol.setEffectiveViewportSize( offscreen.getWidth(), offscreen.getHeight() );
 				progvol.setUniforms( context );
 				quad.draw( gl );
-				gl.glFinish();
-				++ditherStep;
-				if ( stopWatch.nanoTime() > maxRenderNanos )
-					break;
+				offscreen.unbind( gl, false );
+				offscreen.drawQuad( gl );
 			}
-//			final int steps = ditherStep - start;
-//			stepList.add( steps );
-//			if ( stepList.size() == 1000 )
-//			{
-//				for ( int step : stepList )
-//					System.out.println( "step = " + step );
-//				System.out.println();
-//				stepList.clear();
-//			}
-			dither.unbind( gl );
 		}
 
-		offscreen.bind( gl );
-		sceneBuf.drawQuad( gl );
-		gl.glEnable( GL_BLEND );
-		final int stepsCompleted = Math.min( ditherStep, dither.numSteps() );
-		dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
-		offscreen.unbind( gl, false );
-		offscreen.drawQuad( gl );
+		if ( dither != null )
+		{
+			offscreen.bind( gl );
+			sceneBuf.drawQuad( gl );
+			gl.glEnable( GL_BLEND );
+			final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
+			dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
+			offscreen.unbind( gl, false );
+			offscreen.drawQuad( gl );
 
-		if ( ditherStep != targetDitherSteps )
-			repaint.requestRepaint( DITHER );
+			if ( ditherStep != targetDitherSteps )
+				repaint.requestRepaint( DITHER );
+		}
 	}
 
 //	private final ArrayList< Integer > stepList = new ArrayList<>();
@@ -562,7 +592,7 @@ public class Example8 implements GLEventListener, RequestRepaint
 		final int windowHeight = 480;
 		final int renderWidth = 640;
 		final int renderHeight = 480;
-		final int ditherWidth = 8;
+		final int ditherWidth = 1;
 		final int numDitherSamples = 8;
 
 		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples );
