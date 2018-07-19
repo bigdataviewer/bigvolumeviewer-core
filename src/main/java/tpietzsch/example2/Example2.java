@@ -329,7 +329,7 @@ public class Example2 implements GLEventListener
 		InputFrame.DEBUG = false;
 		final Example2 glPainter = new Example2( stacks.getCacheControl(), frame::requestRepaint );
 		frame.setGlEventListener( glPainter );
-		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
+		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set, frame::requestRepaint );
 		frame.getDefaultActions().runnableAction( () -> {
 			tf.setTransform( new AffineTransform3D() );
 		}, "reset transform", "R" );

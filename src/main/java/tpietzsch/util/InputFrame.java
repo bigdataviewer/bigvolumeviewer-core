@@ -1,5 +1,6 @@
 package tpietzsch.util;
 
+import bdv.viewer.RequestRepaint;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
@@ -95,7 +96,7 @@ public class InputFrame
 		getCanvas().addGLEventListener( wrapper );
 		getCanvas().setPreferredSize( new Dimension( width, height ) );
 
-		painterThread = new PainterThread( getCanvas()::repaint );
+		painterThread = new PainterThread( getCanvas()::display );
 
 		frame = new JFrame( title );
 		frame.getRootPane().setDoubleBuffered( true );
@@ -137,14 +138,14 @@ public class InputFrame
 		t0 = -1;
 	}
 
-	public TransformHandler setupDefaultTransformHandler( final TransformHandler.TransformListener listener )
+	public TransformHandler setupDefaultTransformHandler( final TransformHandler.TransformListener listener, final RequestRepaint requestRepaint )
 	{
 		TransformHandler tfHandler = new TransformHandler();
 		tfHandler.install( getDefaultBehaviours() );
 		tfHandler.setCanvasSize( canvas.getWidth(), canvas.getHeight(), false );
 		tfHandler.setTransform( new AffineTransform3D() );
 		tfHandler.listeners().add( listener );
-		tfHandler.listeners().add( t -> requestRepaint() );
+		tfHandler.listeners().add( t -> requestRepaint.requestRepaint() );
 		return tfHandler;
 	}
 

@@ -214,7 +214,15 @@ public class MultiVolumeShaderMip8
 	public void use( GpuContext context )
 	{
 		prog.use( context );
+	}
+
+	public void bindSamplers( GpuContext context )
+	{
 		prog.bindSamplers( context );
+	}
+
+	public void setUniforms( GpuContext context )
+	{
 		prog.setUniforms( context );
 	}
 

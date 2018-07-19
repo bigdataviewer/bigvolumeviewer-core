@@ -9,6 +9,7 @@ import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.brightness.SetupAssignments;
+import bdv.viewer.RequestRepaint;
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -19,6 +20,7 @@ import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.cache.iotiming.CacheIoTiming;
@@ -28,6 +30,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.StopWatch;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import tpietzsch.backend.jogl.JoglGpuContext;
@@ -68,8 +71,11 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
+import static tpietzsch.example2.Example8.RepaintType.DITHER;
+import static tpietzsch.example2.Example8.RepaintType.FULL;
+import static tpietzsch.example2.Example8.RepaintType.LOAD;
 
-public class Example8 implements GLEventListener
+public class Example8 implements GLEventListener, RequestRepaint
 {
 	private final OffScreenFrameBuffer offscreen;
 
@@ -108,16 +114,9 @@ public class Example8 implements GLEventListener
 
 	private int viewportHeight = 100;
 
-	enum Mode { VOLUME, SLICE }
-
-	private Mode mode = Mode.VOLUME;
-
-	private boolean freezeRequiredBlocks = false;
-
 	private final CacheControl cacheControl;
 
-	private final Runnable requestRepaint;
-
+	private final Runnable frameRequestRepaint;
 
 	// ... "pre-existing" scene...
 	private final TexturedUnitCube cube = new TexturedUnitCube();
@@ -127,10 +126,10 @@ public class Example8 implements GLEventListener
 	// ... dithering ...
 	private final DitherBuffer dither;
 
-	public Example8( final CacheControl cacheControl, final Runnable requestRepaint )
+	public Example8( final CacheControl cacheControl, final Runnable frameRequestRepaint )
 	{
 		this.cacheControl = cacheControl;
-		this.requestRepaint = requestRepaint;
+		this.frameRequestRepaint = frameRequestRepaint;
 		sceneBuf = new OffScreenFrameBufferWithDepth( 640, 480, GL_RGB8 );
 		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
 		dither = new DitherBuffer( 640, 480, 8, 29, 8 );
@@ -139,7 +138,7 @@ public class Example8 implements GLEventListener
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
-		final int maxMemoryInMB = 400;
+		final int maxMemoryInMB = 300;
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxMemoryInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );
@@ -180,94 +179,184 @@ public class Example8 implements GLEventListener
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 
+	enum RepaintType
+	{
+		FULL,
+		LOAD,
+		DITHER
+	}
+
+	private class Repaint
+	{
+		private RepaintType next = FULL;
+
+		synchronized void requestRepaint( RepaintType type )
+		{
+			switch ( type )
+			{
+			case FULL:
+				next = FULL;
+				break;
+			case LOAD:
+				if ( next != FULL )
+					next = LOAD;
+				break;
+			case DITHER:
+				break;
+			}
+			frameRequestRepaint.run();
+		}
+
+		synchronized RepaintType nextRepaint()
+		{
+			final RepaintType type = next;
+			next = DITHER;
+			return type;
+		}
+	}
+
+	private final Repaint repaint = new Repaint();
+
+	private int ditherStep = 0;
+
+	private int targetDitherSteps = 0;
+
 	@Override
 	public void display( final GLAutoDrawable drawable )
 	{
 		final GL3 gl = drawable.getGL().getGL3();
-
-		gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
-		gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-		final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
-		final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
-		final Matrix4f pv = new Matrix4f( projection ).mul( view );
-
-		sceneBuf.bind( gl );
-		gl.glDepthFunc( GL_LESS );
-		cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
-		cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
-		cube.draw( gl, new Matrix4f( pv ).translate( 300, 50, 150 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 0, 1 ).normalize() ) );
-
-
-		for ( int i = 0; i < volumes.size(); i++ )
-		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = aMultiResolutionStacks.get( i ).get();
-			if ( stack == null )
-				return;
-			multiResolutionStacks.set( i, stack );
-		}
-
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 
-		// draw volume boxes
-//		prog.use( context );
-//		prog.getUniformMatrix4f( "view" ).set( view );
-//		prog.getUniformMatrix4f( "projection" ).set( projection );
-//		prog.getUniform4f( "color" ).set( 1.0f, 0.5f, 0.2f, 1.0f );
-//		for ( int i = 0; i < volumes.size(); i++ )
-//		{
-//			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = multiResolutionStacks.get( i );
-//			prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( stack.getSourceTransform(), new Matrix4f() ) );
-//			prog.setUniforms( context );
-//			box.updateVertices( gl, stack.resolutions().get( 0 ).getImage() );
-//			box.draw( gl );
-//		}
+		final RepaintType type = repaint.nextRepaint();
 
-		sceneBuf.unbind( gl, false );
-
-		dither.bind( gl );
-		if ( !freezeRequiredBlocks )
+		if ( type == FULL )
 		{
-			updateBlocks( context, pv );
+			ditherStep = 0;
+			targetDitherSteps = dither.numSteps();
+		}
+		else if ( type == LOAD )
+		{
+			targetDitherSteps = ditherStep + dither.numSteps();
 		}
 
-		// TODO: fix hacks (initialize OOB block init)
-			context.bindTexture( textureCache );
-			final int[] ts = cacheSpec.paddedBlockSize();
-			final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
-			ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
-			gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
-
-		double minWorldVoxelSize = Double.POSITIVE_INFINITY;
-		for ( int i = 0; i < volumes.size(); i++ )
+		if ( ditherStep != targetDitherSteps )
 		{
-			progvol.setConverter( i, convs.get( i ) );
-			progvol.setVolume( i, volumes.get( i ) );
-			minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
-		}
-		progvol.setDepthTexture( sceneBuf.getDepthTexture() );
-		progvol.setViewportWidth( offscreen.getWidth() );
-		progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
+			if ( type == FULL || type == LOAD )
+			{
+				gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
+				gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		gl.glDepthFunc( GL_ALWAYS );
-		gl.glDisable( GL_BLEND );
-		int ditherStep = 0;
-		for (; ditherStep < 2 /*dither.numSteps()*/; ++ditherStep )
-		{
-			progvol.setDither( dither, ditherStep );
+				final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
+				final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
+				final Matrix4f pv = new Matrix4f( projection ).mul( view );
+
+				if ( type == FULL )
+				{
+					sceneBuf.bind( gl );
+					gl.glDepthFunc( GL_LESS );
+					cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
+					cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
+					cube.draw( gl, new Matrix4f( pv ).translate( 300, 50, 150 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 0, 1 ).normalize() ) );
+
+					for ( int i = 0; i < volumes.size(); i++ )
+					{
+						final MultiResolutionStack3D< VolatileUnsignedShortType > stack = aMultiResolutionStacks.get( i ).get();
+						if ( stack == null )
+							return;
+						multiResolutionStacks.set( i, stack );
+					}
+
+//					// draw volume boxes
+//					prog.use( context );
+//					prog.getUniformMatrix4f( "view" ).set( view );
+//					prog.getUniformMatrix4f( "projection" ).set( projection );
+//					prog.getUniform4f( "color" ).set( 1.0f, 0.5f, 0.2f, 1.0f );
+//					for ( int i = 0; i < volumes.size(); i++ )
+//					{
+//						final MultiResolutionStack3D< VolatileUnsignedShortType > stack = multiResolutionStacks.get( i );
+//						prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( stack.getSourceTransform(), new Matrix4f() ) );
+//						prog.setUniforms( context );
+//						box.updateVertices( gl, stack.resolutions().get( 0 ).getImage() );
+//						box.draw( gl );
+//					}
+
+					sceneBuf.unbind( gl, false );
+				}
+
+				updateBlocks( context, pv );
+
+				// TODO: fix hacks (initialize OOB block init)
+				context.bindTexture( textureCache );
+				final int[] ts = cacheSpec.paddedBlockSize();
+				final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
+				ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
+				gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
+
+				double minWorldVoxelSize = Double.POSITIVE_INFINITY;
+				for ( int i = 0; i < volumes.size(); i++ )
+				{
+					progvol.setConverter( i, convs.get( i ) );
+					progvol.setVolume( i, volumes.get( i ) );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
+				}
+				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
+				progvol.setViewportWidth( offscreen.getWidth() );
+				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
+			}
+
+			dither.bind( gl );
 			progvol.use( context );
-			quad.draw( gl );
+			progvol.bindSamplers( context );
+			gl.glDepthFunc( GL_ALWAYS );
+			gl.glDisable( GL_BLEND );
+			final StopWatch stopWatch = new StopWatch();
+			stopWatch.start();
+//			final int start = ditherStep;
+			while ( ditherStep < targetDitherSteps )
+			{
+				progvol.setDither( dither, ditherStep % dither.numSteps() );
+				progvol.setUniforms( context );
+				quad.draw( gl );
+				gl.glFinish();
+				++ditherStep;
+				if ( stopWatch.nanoTime() > maxRenderNanos )
+					break;
+			}
+//			final int steps = ditherStep - start;
+//			stepList.add( steps );
+//			if ( stepList.size() == 1000 )
+//			{
+//				for ( int step : stepList )
+//					System.out.println( "step = " + step );
+//				System.out.println();
+//				stepList.clear();
+//			}
+			dither.unbind( gl );
 		}
-		dither.unbind( gl );
 
 		offscreen.bind( gl );
 		sceneBuf.drawQuad( gl );
-		dither.dither( gl, ditherStep, offscreen.getWidth(), offscreen.getHeight() );
+		gl.glEnable( GL_BLEND );
+		final int stepsCompleted = Math.min( ditherStep, dither.numSteps() );
+		dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
+
+		if ( ditherStep != targetDitherSteps )
+			repaint.requestRepaint( DITHER );
+	}
+
+//	private final ArrayList< Integer > stepList = new ArrayList<>();
+
+	@Override
+	public void requestRepaint()
+	{
+		repaint.requestRepaint( FULL );
 	}
 
 	private final long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
+
+	private final long maxRenderNanos = 30L * 1000000L;
 
 	private void updateBlocks( final JoglGpuContext context, final Matrix4f pv )
 	{
@@ -294,18 +383,18 @@ public class Example8 implements GLEventListener
 			e.printStackTrace();
 		}
 
-		boolean repaint = false;
+		boolean needsRepaint = false;
 		for ( int i = 0; i < volumes.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
 			final boolean complete = volume.makeLut();
 			if ( !complete )
-				repaint = true;
+				needsRepaint = true;
 			volume.getLookupTexture().upload( context );
 		}
 
-		if ( repaint )
-			requestRepaint.run();
+		if ( needsRepaint )
+			repaint.requestRepaint( LOAD );
 	}
 
 	@Override
@@ -313,19 +402,6 @@ public class Example8 implements GLEventListener
 	{
 		viewportWidth = width;
 		viewportHeight = height;
-	}
-
-	private void toggleVolumeSliceMode()
-	{
-		if ( mode == Mode.VOLUME )
-			mode = Mode.SLICE;
-		else
-			mode = Mode.VOLUME;
-	}
-
-	private void toggleFreezeRequiredBlocks()
-	{
-		freezeRequiredBlocks = !freezeRequiredBlocks;
 	}
 
 	int currentTimepoint = 0;
@@ -344,7 +420,7 @@ public class Example8 implements GLEventListener
 									stacks.setupId( i ),
 									true ) );
 		}
-		requestRepaint.run();
+		requestRepaint();
 	}
 
 	public static void main( final String[] args ) throws SpimDataException
@@ -362,19 +438,11 @@ public class Example8 implements GLEventListener
 		final Example8 glPainter = new Example8( stacks.getCacheControl(), frame::requestRepaint );
 		frame.setGlEventListener( glPainter );
 
-		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set );
+		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set, glPainter );
 
 		frame.getDefaultActions().runnableAction( () -> {
 			tf.setTransform( new AffineTransform3D() );
 		}, "reset transform", "R" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.toggleVolumeSliceMode();
-			frame.requestRepaint();
-		}, "volume/slice mode", "M" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.toggleFreezeRequiredBlocks();
-			frame.requestRepaint();
-		}, "freeze/unfreeze required block computation", "F" );
 		frame.getDefaultActions().runnableAction( () -> {
 			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
 			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
@@ -409,7 +477,7 @@ public class Example8 implements GLEventListener
 		{
 			setup.setDisplayRange( 962, 6201 ); // weber
 			setup.setColor( new ARGBType( 0xffffffff ) );
-			setup.setViewer( frame::requestRepaint );
+			setup.setViewer( glPainter );
 		}
 //		glPainter.convs.get( 0 ).setColor( new ARGBType( 0xff8888 ) );
 //		glPainter.convs.get( 1 ).setColor( new ARGBType( 0x88ff88 ) );
@@ -435,7 +503,7 @@ public class Example8 implements GLEventListener
 				tf.setCanvasSize( w, h, true );
 				glPainter.screenWidth = w;
 				glPainter.screenHeight = h;
-				frame.requestRepaint();
+				glPainter.requestRepaint();
 			}
 		} );
 		glPainter.updateCurrentStack( stacks );
