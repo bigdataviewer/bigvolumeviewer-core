@@ -126,15 +126,21 @@ public class Example8 implements GLEventListener, RequestRepaint
 	// ... dithering ...
 	private final DitherBuffer dither;
 
-	public Example8( final CacheControl cacheControl, final Runnable frameRequestRepaint )
+	public Example8(
+			final CacheControl cacheControl,
+			final Runnable frameRequestRepaint,
+			final int renderWidth,
+			final int renderHeight,
+			final int ditherWidth,
+			final int ditherStep,
+			final int numDitherSamples
+			)
 	{
 		this.cacheControl = cacheControl;
 		this.frameRequestRepaint = frameRequestRepaint;
-		sceneBuf = new OffScreenFrameBufferWithDepth( 640, 480, GL_RGB8 );
-		offscreen = new OffScreenFrameBuffer( 640, 480, GL_RGB8 );
-		dither = new DitherBuffer( 640, 480, 8, 29, 8 );
-//		dither = new DitherBuffer( 640, 480, 4, 9, 8 );
-//		dither = new DitherBuffer( 640, 480, 2, 3, 8 );
+		sceneBuf = new OffScreenFrameBufferWithDepth( renderWidth, renderHeight, GL_RGB8 );
+		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8 );
+		dither = new DitherBuffer( renderWidth, renderHeight, ditherWidth, ditherStep, numDitherSamples );
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
@@ -423,19 +429,50 @@ public class Example8 implements GLEventListener, RequestRepaint
 		requestRepaint();
 	}
 
-	public static void main( final String[] args ) throws SpimDataException
+	public static void run(
+			final String xmlFilename,
+			final int windowWidth,
+			final int windowHeight,
+			final int renderWidth,
+			final int renderHeight,
+			final int ditherWidth,
+			final int numDitherSamples
+		) throws SpimDataException
 	{
-		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
-//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
-//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
 
 		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
-		final InputFrame frame = new InputFrame( "Example8", 640, 480 );
+		final int ditherStep;
+		switch ( ditherWidth )
+		{
+		case 1:
+			ditherStep = 1;
+			break;
+		case 2:
+			ditherStep = 3;
+			break;
+		case 4:
+			ditherStep = 9;
+			break;
+		case 8:
+			ditherStep = 29;
+			break;
+		default:
+			throw new IllegalArgumentException( "unsupported dither width" );
+		}
+
+		final InputFrame frame = new InputFrame( "Example8", windowWidth, windowHeight );
 		InputFrame.DEBUG = false;
-		final Example8 glPainter = new Example8( stacks.getCacheControl(), frame::requestRepaint );
+		final Example8 glPainter = new Example8(
+				stacks.getCacheControl(),
+				frame::requestRepaint,
+				renderWidth,
+				renderHeight,
+				ditherWidth,
+				ditherStep,
+				numDitherSamples );
 		frame.setGlEventListener( glPainter );
 
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set, glPainter );
@@ -513,5 +550,21 @@ public class Example8 implements GLEventListener, RequestRepaint
 //		FPSAnimator animator = new FPSAnimator( frame.getCanvas(), 200 );
 //		animator.setUpdateFPSFrames(100, System.out );
 //		animator.start();
+	}
+
+	public static void main( final String[] args ) throws SpimDataException
+	{
+		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
+
+		final int windowWidth = 640;
+		final int windowHeight = 480;
+		final int renderWidth = 640;
+		final int renderHeight = 480;
+		final int ditherWidth = 8;
+		final int numDitherSamples = 8;
+
+		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples );
 	}
 }
