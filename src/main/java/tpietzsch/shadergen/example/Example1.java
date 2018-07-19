@@ -99,8 +99,8 @@ public class Example1 implements GLEventListener
 		final StringBuilder vertexShaderCode = shader.getVertexShaderCode();
 		System.out.println( "vertexShaderCode = " + vertexShaderCode );
 		System.out.println( "\n\n--------------------------------\n\n");
-		final StringBuilder fragementShaderCode = shader.getFragementShaderCode();
-		System.out.println( "fragementShaderCode = " + fragementShaderCode );
+		final StringBuilder fragmentShaderCode = shader.getFragmentShaderCode();
+		System.out.println( "fragmentShaderCode = " + fragmentShaderCode );
 
 		shader.getUniform1f( fragConvertR, "scale" ).set( 0.5f );
 		shader.getUniform1f( fragConvertR, "offset" ).set( 0.5f );

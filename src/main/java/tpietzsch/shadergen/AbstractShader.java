@@ -175,7 +175,7 @@ public abstract class AbstractShader implements Shader
 	}
 
 	@Override
-	public StringBuilder getFragementShaderCode()
+	public StringBuilder getFragmentShaderCode()
 	{
 		return fpCode;
 	}

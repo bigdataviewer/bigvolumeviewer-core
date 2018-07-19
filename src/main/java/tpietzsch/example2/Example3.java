@@ -150,8 +150,8 @@ public class Example3 implements GLEventListener
 		final StringBuilder vertexShaderCode = progvol.getVertexShaderCode();
 		System.out.println( "vertexShaderCode = " + vertexShaderCode );
 		System.out.println( "\n\n--------------------------------\n\n");
-		final StringBuilder fragementShaderCode = progvol.getFragementShaderCode();
-		System.out.println( "fragementShaderCode = " + fragementShaderCode );
+		final StringBuilder fragmentShaderCode = progvol.getFragmentShaderCode();
+		System.out.println( "fragmentShaderCode = " + fragmentShaderCode );
 		System.out.println( "\n\n--------------------------------\n\n");
 	}
 

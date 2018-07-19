@@ -38,5 +38,5 @@ public interface Shader
 
 	StringBuilder getVertexShaderCode();
 
-	StringBuilder getFragementShaderCode();
+	StringBuilder getFragmentShaderCode();
 }

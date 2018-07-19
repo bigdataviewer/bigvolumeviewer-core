@@ -268,7 +268,7 @@ public class JoglGpuContext implements GpuContext
 	{
 		return shaders.computeIfAbsent( shader, s -> {
 			final ShaderCode vs = new ShaderCode( GL_VERTEX_SHADER, 1, new CharSequence[][] { { s.getVertexShaderCode() } } );
-			final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { s.getFragementShaderCode() } } );
+			final ShaderCode fs = new ShaderCode( GL_FRAGMENT_SHADER, 1, new CharSequence[][] { { s.getFragmentShaderCode() } } );
 			vs.defaultShaderCustomization( gl, true, false );
 			fs.defaultShaderCustomization( gl, true, false );
 			final ShaderProgram prog = new ShaderProgram();
