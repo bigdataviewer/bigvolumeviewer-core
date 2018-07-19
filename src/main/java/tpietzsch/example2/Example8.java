@@ -269,6 +269,7 @@ public class Example8 implements GLEventListener, RequestRepaint
 				if ( type == FULL )
 				{
 					sceneBuf.bind( gl );
+					gl.glEnable( GL_DEPTH_TEST );
 					gl.glDepthFunc( GL_LESS );
 					cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
 					cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
@@ -353,8 +354,10 @@ public class Example8 implements GLEventListener, RequestRepaint
 			}
 			else
 			{
-				offscreen.bind( gl );
+				offscreen.bind( gl, false );
+				gl.glDisable( GL_DEPTH_TEST );
 				sceneBuf.drawQuad( gl );
+				gl.glEnable( GL_DEPTH_TEST );
 				gl.glDepthFunc( GL_ALWAYS );
 				gl.glEnable( GL_BLEND );
 				progvol.use( context );
@@ -369,7 +372,8 @@ public class Example8 implements GLEventListener, RequestRepaint
 
 		if ( dither != null )
 		{
-			offscreen.bind( gl );
+			offscreen.bind( gl, false );
+			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
 			gl.glEnable( GL_BLEND );
 			final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
@@ -592,7 +596,7 @@ public class Example8 implements GLEventListener, RequestRepaint
 		final int windowHeight = 480;
 		final int renderWidth = 640;
 		final int renderHeight = 480;
-		final int ditherWidth = 1;
+		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
 
 		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples );

@@ -42,6 +42,8 @@ import static com.jogamp.opengl.GL2ES3.GL_DEPTH_STENCIL_ATTACHMENT;
  */
 public class OffScreenFrameBuffer
 {
+	private final boolean withDepthAndStencil;
+
 	private int vaoQuad;
 
 	private final DefaultShader progQuad;
@@ -93,9 +95,21 @@ public class OffScreenFrameBuffer
 	 */
 	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat )
 	{
+		this( fbWidth, fbHeight, internalFormat, false );
+	}
+
+	/**
+	 * @param fbWidth width of offscreen framebuffer
+	 * @param fbHeight height of offscreen framebuffer
+	 * @param internalFormat internal texture format
+	 * @param withDepthAndStencil whether to create a render buffer for depth and stencil
+	 */
+	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat, final boolean withDepthAndStencil )
+	{
 		this.fbWidth = fbWidth;
 		this.fbHeight = fbHeight;
 		this.internalFormat = internalFormat;
+		this.withDepthAndStencil = withDepthAndStencil;
 
 		final Segment quadvp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
 		final Segment quadfp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
@@ -126,16 +140,20 @@ public class OffScreenFrameBuffer
 		// attach it to currently bound framebuffer object
 		gl.glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0 );
 
-		// create depth & stencil renderbuffer
-		int rbo;
-		gl.glGenRenderbuffers( 1, tmp, 0 );
-		rbo = tmp[ 0 ];
-		gl.glBindRenderbuffer( GL_RENDERBUFFER, rbo );
-		gl.glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbWidth, fbHeight );
-		gl.glBindRenderbuffer( GL_RENDERBUFFER, 0 );
+		if ( withDepthAndStencil )
+		{
+			// create depth & stencil renderbuffer
+			int rbo;
+			gl.glGenRenderbuffers( 1, tmp, 0 );
+			rbo = tmp[ 0 ];
+			gl.glBindRenderbuffer( GL_RENDERBUFFER, rbo );
+			gl.glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbWidth, fbHeight );
+			gl.glBindRenderbuffer( GL_RENDERBUFFER, 0 );
 
-		// attach depth & stencil renderbuffer
-		gl.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo );
+			// attach depth & stencil renderbuffer
+			gl.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo );
+		}
+
 		if ( gl.glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
 			System.err.println( "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" );
 		gl.glBindFramebuffer( GL_FRAMEBUFFER, restoreFramebuffer );
