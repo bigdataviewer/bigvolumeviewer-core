@@ -38,6 +38,12 @@ public class BigVolumeViewer implements Command
 	@Parameter
 	private int maxCacheSizeInMB = 300;
 
+	@Parameter
+	private double dCam = 2000;
+
+	@Parameter
+	private double dClip = 1000;
+
 	@Override
 	public void run()
 	{
@@ -78,7 +84,7 @@ public class BigVolumeViewer implements Command
 
 		try
 		{
-			Example9.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB );
+			Example9.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB, dCam, dClip );
 		}
 		catch ( SpimDataException e )
 		{

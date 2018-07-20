@@ -3,6 +3,7 @@ package tpietzsch.example2;
 import bdv.cache.CacheControl;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
+import bdv.tools.InitializeViewerState;
 import bdv.tools.ToggleDialogAction;
 import bdv.tools.VisibilityAndGroupingDialog;
 import bdv.tools.brightness.BrightnessDialog;
@@ -54,6 +55,7 @@ import tpietzsch.cache.ProcessFillTasks;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.dither.DitherBuffer;
 import tpietzsch.multires.MultiResolutionStack3D;
+import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
@@ -112,8 +114,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 	private final ArrayList< ConverterSetup > renderConverters = new ArrayList<>();
 	private final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 
-	private int viewportWidth = 100;
-	private int viewportHeight = 100;
+	private final double screenPadding = 0;
+	private final double dCam;
+	private final double dClip;
 
 	private final CacheControl cacheControl;
 	private final Runnable frameRequestRepaint;
@@ -148,7 +151,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 			final int ditherStep,
 			final int numDitherSamples,
 			final int cacheBlockSize,
-			final int maxCacheSizeInMB
+			final int maxCacheSizeInMB,
+			final double dCam,
+			final double dClip
 	)
 	{
 		stacks = new SpimDataStacks( spimData );
@@ -178,6 +183,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 			for ( final ConverterSetup setup : setupAssignments.getConverterSetups() )
 				setupAssignments.moveSetupToGroup( setup, group );
 		}
+
+		for ( final ConverterSetup setup : converterSetups )
+			setup.setViewer( this );
 
 		visibilityAndGrouping = new VisibilityAndGrouping( state );
 		visibilityAndGrouping.addUpdateListener( e -> {
@@ -209,6 +217,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 		}
 		box = new WireframeBox();
 		quad = new DefaultQuad();
+
+		this.dCam = dCam;
+		this.dClip = dClip;
 
 		cacheSpec = new CacheSpec( R16, new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize } );
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
@@ -249,9 +260,6 @@ public class Example9 implements GLEventListener, RequestRepaint
 	public void dispose( final GLAutoDrawable drawable )
 	{}
 
-	private final double screenPadding = 0;
-	private final double dCam = 2000;
-	private final double dClip = 1000;
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 
@@ -554,8 +562,6 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
 	{
-		viewportWidth = width;
-		viewportHeight = height;
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -568,20 +574,42 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 			visibleSourceIndices = state.getVisibleSourceIndices();
 			currentTimepoint = state.getCurrentTimepoint();
 			state.getViewerTransform( renderTransformWorldToScreen );
-		}
 
-		renderStacks.clear();
-		renderConverters.clear();
-		for( int i : visibleSourceIndices )
-		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
-					stacks.getStack(
-							stacks.timepointId( currentTimepoint ),
-							stacks.setupId( i ),
-							true );
-			renderStacks.add( stack );
-			final ConverterSetup converter = converterSetups.get( i );
-			renderConverters.add( converter );
+			renderStacks.clear();
+			renderConverters.clear();
+			for( int i : visibleSourceIndices )
+			{
+				final MultiResolutionStack3D< VolatileUnsignedShortType > stack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
+						stacks.getStack(
+								stacks.timepointId( currentTimepoint ),
+								stacks.setupId( i ),
+								true );
+				final AffineTransform3D sourceTransform = new AffineTransform3D();
+				state.getSources().get( i ).getSpimSource().getSourceTransform( currentTimepoint, 0, sourceTransform );
+				final MultiResolutionStack3D< VolatileUnsignedShortType > wrappedStack = new MultiResolutionStack3D< VolatileUnsignedShortType >()
+				{
+					@Override
+					public VolatileUnsignedShortType getType()
+					{
+						return stack.getType();
+					}
+
+					@Override
+					public AffineTransform3D getSourceTransform()
+					{
+						return sourceTransform;
+					}
+
+					@Override
+					public List< ? extends ResolutionLevel3D< VolatileUnsignedShortType > > resolutions()
+					{
+						return stack.resolutions();
+					}
+				};
+				renderStacks.add( wrappedStack );
+				final ConverterSetup converter = converterSetups.get( i );
+				renderConverters.add( converter );
+			}
 		}
 	}
 
@@ -683,8 +711,9 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 			final int ditherWidth,
 			final int numDitherSamples,
 			final int cacheBlockSize,
-			final int maxCacheSizeInMB
-	) throws SpimDataException
+			final int maxCacheSizeInMB,
+			final double dCam,
+			final double dClip ) throws SpimDataException
 	{
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
@@ -733,7 +762,9 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 				ditherStep,
 				numDitherSamples,
 				cacheBlockSize,
-				maxCacheSizeInMB );
+				maxCacheSizeInMB,
+				dCam,
+				dClip );
 		frame.setGlEventListener( glPainter );
 		if ( glPainter.state.getNumTimepoints() > 1 )
 		{
@@ -750,6 +781,12 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		final VisibilityAndGroupingDialog activeSourcesDialog = new VisibilityAndGroupingDialog( frame.getFrame(), glPainter.visibilityAndGrouping );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
 
+		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, glPainter.state );
+		tf.setTransform( resetTransform );
+		frame.getDefaultActions().runnableAction( () -> {
+			tf.setTransform( resetTransform );
+		}, "reset transform", "R" );
+
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
 			@Override
@@ -765,7 +802,8 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		} );
 
 
-		glPainter.tryLoadSettings( xmlFilename );
+		if ( ! glPainter.tryLoadSettings( xmlFilename ) )
+			InitializeViewerState.initBrightness( 0.001, 0.999, glPainter.state, glPainter.setupAssignments );
 		activeSourcesDialog.update();
 		glPainter.requestRepaint();
 		frame.show();
@@ -779,18 +817,20 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 	public static void main( final String[] args ) throws SpimDataException
 	{
 //		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
-		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
-//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
+		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
 		final int renderWidth = 640;
 		final int renderHeight = 480;
-		final int ditherWidth = 8;
+		final int ditherWidth = 3;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
 		final int maxCacheSizeInMB = 300;
+		final double dCam = 2000;
+		final double dClip = 1000;
 
-		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB );
+		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB, dCam, dClip );
 	}
 }
