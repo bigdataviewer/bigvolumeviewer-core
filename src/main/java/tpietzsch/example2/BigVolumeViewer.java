@@ -14,34 +14,42 @@ public class BigVolumeViewer implements Command
 	@Parameter( label = "Select a BDV xml file", style = "extensions:xml" )
 	private File xmlFile = new File( "/Users/pietzsch/workspace/data/111010_weber_full.xml" );
 
-	@Parameter
+	@Parameter( label = "Window width" )
 	private int windowWidth = 640;
 
-	@Parameter
+	@Parameter( label = "Window height" )
 	private int windowHeight = 480;
 
-	@Parameter
+	@Parameter( label = "Render width" )
 	private int renderWidth = 512;
 
-	@Parameter
+	@Parameter( label = "Render height" )
 	private int renderHeight = 512;
 
-	@Parameter( choices = { "none", "2x2", "3x3", "4x4", "5x5", "6x6", "7x7", "8x8" } )
+	@Parameter( label = "Dither window size",
+			choices = { "none (always render full resolution)", "2x2", "3x3", "4x4", "5x5", "6x6", "7x7", "8x8" } )
 	private String dithering = "3x3";
 
-	@Parameter(min="1", max="8", style="slider")
+	@Parameter( label = "Number of dither samples",
+			description = "Pixels are interpolated from this many nearest neighbors when dithering. This is not very expensive, it's fine to turn it up to 8.",
+			min="1",
+			max="8",
+			style="slider")
 	private int numDitherSamples = 8;
 
-	@Parameter
+	@Parameter( label = "GPU cache tile size" )
 	private int cacheBlockSize = 32;
 
-	@Parameter
+	@Parameter( label = "GPU cache size (in MB)",
+				description = "The size of the GPU cache texture will match this as close as possible with the given tile size." )
 	private int maxCacheSizeInMB = 300;
 
-	@Parameter
+	@Parameter( label = "Camera distance",
+				description = "Distance from camera to z=0 plane. In units of pixel width." )
 	private double dCam = 2000;
 
-	@Parameter
+	@Parameter( label = "Clip distance",
+	description = "Visible depth away from z=0 in both directions. In units of pixel width. MUST BE SMALLER THAN CAMERA DISTANCE!")
 	private double dClip = 1000;
 
 	@Override
@@ -55,7 +63,7 @@ public class BigVolumeViewer implements Command
 		final int ditherWidth;
 		switch ( dithering )
 		{
-		case "none":
+		case "none (always render full resolution)":
 		default:
 			ditherWidth = 1;
 			break;

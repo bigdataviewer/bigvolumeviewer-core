@@ -816,9 +816,9 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 
 	public static void main( final String[] args ) throws SpimDataException
 	{
-//		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
-		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
