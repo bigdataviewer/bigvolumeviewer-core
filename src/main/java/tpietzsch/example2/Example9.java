@@ -9,11 +9,13 @@ import bdv.tools.brightness.BrightnessDialog;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.SetupAssignments;
+import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.VisibilityAndGrouping;
 import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.ViewerState;
+import bdv.viewer.state.XmlIoViewerState;
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -21,6 +23,8 @@ import com.jogamp.opengl.GLEventListener;
 import java.awt.BorderLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.io.File;
+import java.io.IOException;
 import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,10 +35,13 @@ import javax.swing.SwingConstants;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -128,6 +135,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 	private final SpimDataStacks stacks;
 	private final ArrayList< ConverterSetup > converterSetups;
 	private final JSlider sliderTime;
+	private final ManualTransformation manualTransformation;
+	private final SetupAssignments setupAssignments;
 
 
 	public Example9(
@@ -148,10 +157,11 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final int numVolumes = spimData.getSequenceDescription().getViewSetupsOrdered().size();
 
 
-
+		// ---- BDV stuff ----------------------------------------------------
 		converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
 		initSetups( spimData, converterSetups, sources );
+		manualTransformation = new ManualTransformation( sources );
 
 		final int numGroups = 10;
 		final ArrayList< SourceGroup > groups = new ArrayList<>( numGroups );
@@ -160,6 +170,14 @@ public class Example9 implements GLEventListener, RequestRepaint
 		state = new ViewerState( sources, groups, maxTimepoint + 1 );
 		for ( int i = Math.min( numGroups, sources.size() ) - 1; i >= 0; --i )
 			state.getSourceGroups().get( i ).addSource( i );
+
+		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
+		if ( setupAssignments.getMinMaxGroups().size() > 0 )
+		{
+			final MinMaxGroup group = setupAssignments.getMinMaxGroups().get( 0 );
+			for ( final ConverterSetup setup : setupAssignments.getConverterSetups() )
+				setupAssignments.moveSetupToGroup( setup, group );
+		}
 
 		visibilityAndGrouping = new VisibilityAndGrouping( state );
 		visibilityAndGrouping.addUpdateListener( e -> {
@@ -172,6 +190,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 			if ( e.getSource().equals( sliderTime ) )
 				setTimepoint( sliderTime.getValue() );
 		} );
+		// -------------------------------------------------------------------
 
 
 		this.cacheControl = stacks.getCacheControl();
@@ -619,6 +638,40 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		return visibilityAndGrouping;
 	}
 
+	public void loadSettings( final String xmlFilename ) throws IOException, JDOMException
+	{
+		final SAXBuilder sax = new SAXBuilder();
+		final Document doc = sax.build( xmlFilename );
+		final Element root = doc.getRootElement();
+		final XmlIoViewerState io = new XmlIoViewerState();
+		io.restoreFromXml( root.getChild( io.getTagName() ), state );
+		setupAssignments.restoreFromXml( root );
+		manualTransformation.restoreFromXml( root );
+		System.out.println( "Example9.loadSettings" );
+	}
+
+	public boolean tryLoadSettings( final String xmlFilename )
+	{
+		if ( xmlFilename.endsWith( ".xml" ) )
+		{
+			final String settings = xmlFilename.substring( 0, xmlFilename.length() - ".xml".length() ) + ".settings" + ".xml";
+			final File proposedSettingsFile = new File( settings );
+			if ( proposedSettingsFile.isFile() )
+			{
+				try
+				{
+					loadSettings( settings );
+					return true;
+				}
+				catch ( final Exception e )
+				{
+					e.printStackTrace();
+				}
+			}
+		}
+		return false;
+	}
+
 	// -------------------------------------------------------------------------------------------------------
 
 	public static void run(
@@ -691,52 +744,7 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter::setCurrentViewerTransform, () -> {} );
 
 		NavigationActions9.installActionBindings( frame.getKeybindings(), glPainter, new InputTriggerConfig() );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			tf.setTransform( new AffineTransform3D() );
-//		}, "reset transform", "R" );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
-//			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
-//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
-//		}, "previous timepoint", "OPEN_BRACKET" );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			glPainter.currentTimepoint = Math.min( maxTimepoint, glPainter.currentTimepoint + 1 );
-//			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
-//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
-//		}, "next timepoint", "CLOSE_BRACKET" );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			glPainter.currentSetup = 0;
-//			System.out.println( "currentSetup = " + glPainter.currentSetup );
-//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
-//		}, "setup 1", "1" );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			glPainter.currentSetup = 1;
-//			System.out.println( "currentSetup = " + glPainter.currentSetup );
-//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
-//		}, "setup 2", "2" );
-//		frame.getDefaultActions().runnableAction( () -> {
-//			glPainter.currentSetup = 2;
-//			System.out.println( "currentSetup = " + glPainter.currentSetup );
-//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
-//		}, "setup 3", "3" );
-
-		for ( final ConverterSetup setup : glPainter.converterSetups )
-		{
-			setup.setDisplayRange( 962, 6201 ); // weber
-			setup.setColor( new ARGBType( 0xffffffff ) );
-			setup.setViewer( glPainter );
-		}
-//		glPainter.convs.get( 0 ).setColor( new ARGBType( 0xff8888 ) );
-//		glPainter.convs.get( 1 ).setColor( new ARGBType( 0x88ff88 ) );
-//		glPainter.convs.get( 2 ).setColor( new ARGBType( 0x8888ff ) );
-		final SetupAssignments setupAssignments = new SetupAssignments( glPainter.converterSetups, 0, 65535 );
-		if ( setupAssignments.getMinMaxGroups().size() > 0 )
-		{
-			final MinMaxGroup group = setupAssignments.getMinMaxGroups().get( 0 );
-			for ( final ConverterSetup setup : setupAssignments.getConverterSetups() )
-				setupAssignments.moveSetupToGroup( setup, group );
-		}
-		final BrightnessDialog brightnessDialog = new BrightnessDialog( frame.getFrame(), setupAssignments );
+		final BrightnessDialog brightnessDialog = new BrightnessDialog( frame.getFrame(), glPainter.setupAssignments );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
 
 		final VisibilityAndGroupingDialog activeSourcesDialog = new VisibilityAndGroupingDialog( frame.getFrame(), glPainter.visibilityAndGrouping );
@@ -755,6 +763,10 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 				glPainter.requestRepaint();
 			}
 		} );
+
+
+		glPainter.tryLoadSettings( xmlFilename );
+		activeSourcesDialog.update();
 		glPainter.requestRepaint();
 		frame.show();
 
@@ -767,8 +779,8 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 	public static void main( final String[] args ) throws SpimDataException
 	{
 //		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
-//		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
-		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
+		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
+//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
