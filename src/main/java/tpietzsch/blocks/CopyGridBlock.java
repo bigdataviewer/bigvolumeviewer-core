@@ -44,8 +44,15 @@ public class CopyGridBlock
 			doo[ d ] = doo2[ d ] = 0;
 		}
 
-		// TODO check whether dst is completely outside of src
+		// check whether dst is completely outside of src
+		for ( int d = 2; d >= 0; --d )
+			if ( min[ d ] >= srca.imgSize( d ) || min[ d ] + dim[ d ] <= 0 )
+			{
+				copy.clearsubarray3d( dst, 0,0,0, dim[ 0 ], dim[ 1 ], dim[ 0 ], dim[ 1 ], dim[ 2 ] );
+				return true;
+			}
 
+		// check whether dst is partially outside of src
 		for ( int d = 2; d >= 0; --d )
 		{
 			if ( min[ d ] < 0 )
@@ -184,6 +191,12 @@ public class CopyGridBlock
 			final GridDataAccess< ? > srca,
 			final boolean failfast )
 	{
+		// check whether dst is completely outside of src
+		for ( int d = 2; d >= 0; --d )
+			if ( min[ d ] >= srca.imgSize( d ) || min[ d ] + dim[ d ] <= 0 )
+				return true;
+
+		// check whether dst is partially outside of src
 		for ( int d = 0; d < 3; ++d )
 		{
 			final int srcsize = srca.imgSize( d );
@@ -198,7 +211,6 @@ public class CopyGridBlock
 			if ( b > 0 )
 				ndim[ d ] -= b;
 		}
-		// TODO check whether dst is completely outside of src
 
 		return canLoadCompletelyNoOob( nmin, ndim, srca, failfast );
 	}
