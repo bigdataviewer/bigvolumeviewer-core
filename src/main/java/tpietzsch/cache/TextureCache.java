@@ -161,6 +161,14 @@ public class TextureCache implements Texture3D
 		return spec;
 	}
 
+	/**
+	 * @return number of tiles that can fit into this cache
+	 */
+	public int getMaxNumTiles()
+	{
+		return numUnblockedTiles;
+	}
+
 	public Tile get( final ImageBlockKey< ? > key )
 	{
 		return tilemap.get( key );

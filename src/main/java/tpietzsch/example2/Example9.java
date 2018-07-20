@@ -23,6 +23,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import javax.swing.JSlider;
@@ -137,8 +138,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 			final int ditherWidth,
 			final int ditherStep,
 			final int numDitherSamples,
-			final int cacheBlockSize
-		)
+			final int cacheBlockSize,
+			final int maxCacheSizeInMB
+	)
 	{
 		stacks = new SpimDataStacks( spimData );
 
@@ -189,9 +191,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
-		cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
-		final int maxMemoryInMB = 300;
-		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxMemoryInMB );
+		cacheSpec = new CacheSpec( R16, new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize } );
+		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
@@ -442,6 +443,25 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 	private final long maxRenderNanos = 30L * 1000000L;
 
+	static class VolumeAndTasks
+	{
+		private final List< FillTask > tasks;
+		private final VolumeBlocks volume;
+		private final int maxLevel;
+
+		int numTasks()
+		{
+			return tasks.size();
+		}
+
+		VolumeAndTasks( final List< FillTask > tasks, final VolumeBlocks volume, final int maxLevel )
+		{
+			this.tasks = new ArrayList<>( tasks );
+			this.volume = volume;
+			this.maxLevel = maxLevel;
+		}
+	}
+
 	private void updateBlocks( final JoglGpuContext context, final Matrix4f pv )
 	{
 		CacheIoTiming.getIoTimeBudget().reset( iobudget );
@@ -450,13 +470,44 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final int vw = offscreen.getWidth();
 //		final int vw = viewportWidth;
 
-		final ArrayList< FillTask > fillTasks = new ArrayList<>();
+		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
+		int numTasks = 0;
 		for ( int i = 0; i < renderStacks.size(); i++ )
 		{
+			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = renderStacks.get( i );
 			final VolumeBlocks volume = volumes.get( i );
-			volume.init( renderStacks.get( i ), vw, pv );
-			fillTasks.addAll( volume.getFillTasks() );
+			volume.init( stack, vw, pv );
+			final List< FillTask > tasks = volume.getFillTasks();
+			numTasks += tasks.size();
+			tasksPerVolume.add( new VolumeAndTasks( tasks, volume, stack.resolutions().size() ) );
 		}
+
+A:		while ( numTasks > textureCache.getMaxNumTiles() )
+		{
+//			System.out.println( "numTasks = " + numTasks );
+			tasksPerVolume.sort( Comparator.comparingInt( VolumeAndTasks::numTasks ).reversed() );
+			for ( final VolumeAndTasks vat : tasksPerVolume )
+			{
+				final int baseLevel = vat.volume.getBaseLevel();
+				if ( baseLevel < vat.maxLevel )
+				{
+					vat.volume.setBaseLevel( baseLevel + 1 );
+					numTasks -= vat.numTasks();
+					vat.tasks.clear();
+					vat.tasks.addAll( vat.volume.getFillTasks() );
+					numTasks += vat.numTasks();
+					continue A;
+				}
+			}
+			break;
+		}
+//		System.out.println( "final numTasks = " + numTasks + "\n\n" );
+
+		final ArrayList< FillTask > fillTasks = new ArrayList<>();
+		for ( final VolumeAndTasks vat : tasksPerVolume )
+			fillTasks.addAll( vat.tasks );
+		if ( fillTasks.size() > textureCache.getMaxNumTiles() )
+			fillTasks.subList( textureCache.getMaxNumTiles(), fillTasks.size() ).clear();
 
 		try
 		{
@@ -578,7 +629,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 			final int renderHeight,
 			final int ditherWidth,
 			final int numDitherSamples,
-			final int cacheBlockSize
+			final int cacheBlockSize,
+			final int maxCacheSizeInMB
 	) throws SpimDataException
 	{
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
@@ -627,7 +679,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 				ditherWidth,
 				ditherStep,
 				numDitherSamples,
-				cacheBlockSize );
+				cacheBlockSize,
+				maxCacheSizeInMB );
 		frame.setGlEventListener( glPainter );
 		if ( glPainter.state.getNumTimepoints() > 1 )
 		{
@@ -713,9 +766,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 	public static void main( final String[] args ) throws SpimDataException
 	{
-		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+//		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
-//		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
+		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
@@ -724,7 +777,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
+		final int maxCacheSizeInMB = 300;
 
-		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize );
+		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB );
 	}
 }

@@ -11,7 +11,7 @@ import org.scijava.plugin.Plugin;
 public class BigVolumeViewer implements Command
 {
 
-	@Parameter(label="Select an image file", style="extensions:xml")
+	@Parameter( label = "Select a BDV xml file", style = "extensions:xml" )
 	private File xmlFile = new File( "/Users/pietzsch/workspace/data/111010_weber_full.xml" );
 
 	@Parameter
@@ -27,7 +27,7 @@ public class BigVolumeViewer implements Command
 	private int renderHeight = 512;
 
 	@Parameter( choices = { "none", "2x2", "3x3", "4x4", "5x5", "6x6", "7x7", "8x8" } )
-	private String dithering = "none";
+	private String dithering = "3x3";
 
 	@Parameter(min="1", max="8", style="slider")
 	private int numDitherSamples = 8;
@@ -35,10 +35,14 @@ public class BigVolumeViewer implements Command
 	@Parameter
 	private int cacheBlockSize = 32;
 
+	@Parameter
+	private int maxCacheSizeInMB = 300;
+
 	@Override
 	public void run()
 	{
-		final String xmlFilename = "/Users/pietzsch/workspace/data/111010_weber_full.xml";
+		final String xmlFilename = xmlFile.getAbsolutePath();
+		//"/Users/pietzsch/workspace/data/111010_weber_full.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
@@ -74,7 +78,7 @@ public class BigVolumeViewer implements Command
 
 		try
 		{
-			Example9.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize );
+			Example9.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB );
 		}
 		catch ( SpimDataException e )
 		{
