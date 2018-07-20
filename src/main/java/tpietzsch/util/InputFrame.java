@@ -93,14 +93,14 @@ public class InputFrame
 //		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
 		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
 		canvas = new GLCanvas( capsReqUser );
-		getCanvas().addGLEventListener( wrapper );
-		getCanvas().setPreferredSize( new Dimension( width, height ) );
+		canvas.addGLEventListener( wrapper );
+		canvas.setPreferredSize( new Dimension( width, height ) );
 
-		painterThread = new PainterThread( getCanvas()::display );
+		painterThread = new PainterThread( canvas::display );
 
 		frame = new JFrame( title );
 		frame.getRootPane().setDoubleBuffered( true );
-		frame.getContentPane().add( getCanvas(), BorderLayout.CENTER );
+		frame.getContentPane().add( canvas, BorderLayout.CENTER );
 		frame.pack();
 		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
 		frame.addWindowListener( new WindowAdapter()
@@ -129,11 +129,11 @@ public class InputFrame
 		mouseAndKeyHandler.setInputMap( getTriggerbindings().getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( getTriggerbindings().getConcatenatedBehaviourMap() );
 
-		getCanvas().addKeyListener( mouseAndKeyHandler );
-		getCanvas().addMouseListener( mouseAndKeyHandler );
-		getCanvas().addMouseWheelListener( mouseAndKeyHandler );
-		getCanvas().addMouseMotionListener( mouseAndKeyHandler );
-		getCanvas().addFocusListener( mouseAndKeyHandler );
+		canvas.addKeyListener( mouseAndKeyHandler );
+		canvas.addMouseListener( mouseAndKeyHandler );
+		canvas.addMouseWheelListener( mouseAndKeyHandler );
+		canvas.addMouseMotionListener( mouseAndKeyHandler );
+		canvas.addFocusListener( mouseAndKeyHandler );
 
 		t0 = -1;
 	}
@@ -158,6 +158,7 @@ public class InputFrame
 	{
 		t0 = System.currentTimeMillis();
 		frame.setVisible( true );
+		canvas.requestFocusInWindow();
 		painterThread.start();
 	}
 

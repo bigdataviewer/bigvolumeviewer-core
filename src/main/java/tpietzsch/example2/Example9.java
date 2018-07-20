@@ -4,27 +4,29 @@ import bdv.cache.CacheControl;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.tools.ToggleDialogAction;
+import bdv.tools.VisibilityAndGroupingDialog;
 import bdv.tools.brightness.BrightnessDialog;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.MinMaxGroup;
-import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.brightness.SetupAssignments;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.VisibilityAndGrouping;
 import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.ViewerState;
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+import java.awt.BorderLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.nio.Buffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.JSlider;
+import javax.swing.SwingConstants;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -34,6 +36,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.CacheSpec;
@@ -54,11 +57,11 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.util.DefaultQuad;
 import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
-import tpietzsch.util.Syncd;
 import tpietzsch.util.TransformHandler;
 import tpietzsch.util.WireframeBox;
 
 import static bdv.BigDataViewer.initSetups;
+import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
@@ -90,36 +93,16 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 	private final DefaultQuad quad;
 
-	private final CacheSpec cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
-
+	private final CacheSpec cacheSpec;
 	private final TextureCache textureCache;
 	private final PboChain pboChain;
 	private final ForkJoinPool forkJoinPool;
 
 	private final ArrayList< VolumeBlocks > volumes;
 
-	private final Syncd< AffineTransform3D > worldToScreen = Syncd.affine3D();
-
-	private final ArrayList< ConverterSetup > converterSetups;
-
-	static class StackAndConverter
-	{
-		private final MultiResolutionStack3D< VolatileUnsignedShortType > stack;
-		private final ConverterSetup converter;
-
-		public StackAndConverter(
-				final MultiResolutionStack3D< VolatileUnsignedShortType > stack,
-				final ConverterSetup converter )
-		{
-			this.stack = stack;
-			this.converter = converter;
-		}
-	}
-
-	private final AtomicReference< ArrayList< StackAndConverter > > aMultiResolutionStacks = new AtomicReference<>( new ArrayList<>() );
-
 	private final ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks = new ArrayList<>();
 	private final ArrayList< ConverterSetup > renderConverters = new ArrayList<>();
+	private final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 
 	private int viewportWidth = 100;
 	private int viewportHeight = 100;
@@ -140,7 +123,10 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 	// ... BDV ...
 	private final ViewerState state;
+	private final VisibilityAndGrouping visibilityAndGrouping;
 	private final SpimDataStacks stacks;
+	private final ArrayList< ConverterSetup > converterSetups;
+	private final JSlider sliderTime;
 
 
 	public Example9(
@@ -150,13 +136,16 @@ public class Example9 implements GLEventListener, RequestRepaint
 			final int renderHeight,
 			final int ditherWidth,
 			final int ditherStep,
-			final int numDitherSamples
+			final int numDitherSamples,
+			final int cacheBlockSize
 		)
 	{
 		stacks = new SpimDataStacks( spimData );
 
 		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 		final int numVolumes = spimData.getSequenceDescription().getViewSetupsOrdered().size();
+
+
 
 		converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
@@ -169,6 +158,18 @@ public class Example9 implements GLEventListener, RequestRepaint
 		state = new ViewerState( sources, groups, maxTimepoint + 1 );
 		for ( int i = Math.min( numGroups, sources.size() ) - 1; i >= 0; --i )
 			state.getSourceGroups().get( i ).addSource( i );
+
+		visibilityAndGrouping = new VisibilityAndGrouping( state );
+		visibilityAndGrouping.addUpdateListener( e -> {
+			if ( e.id == VISIBILITY_CHANGED )
+				requestRepaint();
+		} );
+
+		sliderTime = new JSlider( SwingConstants.HORIZONTAL, 0, maxTimepoint, 0 );
+		sliderTime.addChangeListener( e -> {
+			if ( e.getSource().equals( sliderTime ) )
+				setTimepoint( sliderTime.getValue() );
+		} );
 
 
 		this.cacheControl = stacks.getCacheControl();
@@ -188,6 +189,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 		box = new WireframeBox();
 		quad = new DefaultQuad();
 
+		cacheSpec = new CacheSpec( R16, new int[] { 32, 32, 32 } );
 		final int maxMemoryInMB = 300;
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxMemoryInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
@@ -285,6 +287,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 		if ( type == FULL )
 		{
+			setRenderState();
+
 			ditherStep = 0;
 			targetDitherSteps = numDitherSteps;
 		}
@@ -300,7 +304,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 				gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
 				gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-				final Matrix4f view = MatrixMath.affine( worldToScreen.get(), new Matrix4f() );
+				final Matrix4f view = MatrixMath.affine( renderTransformWorldToScreen, new Matrix4f() );
 				final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
 				final Matrix4f pv = new Matrix4f( projection ).mul( view );
 
@@ -312,15 +316,6 @@ public class Example9 implements GLEventListener, RequestRepaint
 					cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
 					cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
 					cube.draw( gl, new Matrix4f( pv ).translate( 300, 50, 150 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 0, 1 ).normalize() ) );
-
-					final ArrayList< StackAndConverter > stackAndConverters = aMultiResolutionStacks.get();
-					renderStacks.clear();
-					renderConverters.clear();
-					for ( StackAndConverter sac : stackAndConverters )
-					{
-						renderStacks.add( sac.stack );
-						renderConverters.add( sac.converter );
-					}
 
 //					// draw volume boxes
 //					prog.use( context );
@@ -350,18 +345,21 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 				double minWorldVoxelSize = Double.POSITIVE_INFINITY;
 				progvol = progvols.get( renderStacks.size() );
-				for ( int i = 0; i < renderStacks.size(); i++ )
+				if ( progvol != null )
 				{
-					progvol.setConverter( i, renderConverters.get( i ) );
-					progvol.setVolume( i, volumes.get( i ) );
-					minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
+					for ( int i = 0; i < renderStacks.size(); i++ )
+					{
+						progvol.setConverter( i, renderConverters.get( i ) );
+						progvol.setVolume( i, volumes.get( i ) );
+						minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
+					}
+					progvol.setDepthTexture( sceneBuf.getDepthTexture() );
+					progvol.setViewportWidth( offscreen.getWidth() );
+					progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 				}
-				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
-				progvol.setViewportWidth( offscreen.getWidth() );
-				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 			}
 
-			if ( dither != null )
+			if ( dither != null && progvol != null )
 			{
 				dither.bind( gl );
 				progvol.use( context );
@@ -397,14 +395,17 @@ public class Example9 implements GLEventListener, RequestRepaint
 				offscreen.bind( gl, false );
 				gl.glDisable( GL_DEPTH_TEST );
 				sceneBuf.drawQuad( gl );
-				gl.glEnable( GL_DEPTH_TEST );
-				gl.glDepthFunc( GL_ALWAYS );
-				gl.glEnable( GL_BLEND );
-				progvol.use( context );
-				progvol.bindSamplers( context );
-				progvol.setEffectiveViewportSize( offscreen.getWidth(), offscreen.getHeight() );
-				progvol.setUniforms( context );
-				quad.draw( gl );
+				if ( progvol != null )
+				{
+					gl.glEnable( GL_DEPTH_TEST );
+					gl.glDepthFunc( GL_ALWAYS );
+					gl.glEnable( GL_BLEND );
+					progvol.use( context );
+					progvol.bindSamplers( context );
+					progvol.setEffectiveViewportSize( offscreen.getWidth(), offscreen.getHeight() );
+					progvol.setUniforms( context );
+					quad.draw( gl );
+				}
 				offscreen.unbind( gl, false );
 				offscreen.drawQuad( gl );
 			}
@@ -415,9 +416,12 @@ public class Example9 implements GLEventListener, RequestRepaint
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
-			gl.glEnable( GL_BLEND );
-			final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
-			dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
+			if ( progvol != null )
+			{
+				gl.glEnable( GL_BLEND );
+				final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
+				dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
+			}
 			offscreen.unbind( gl, false );
 			offscreen.drawQuad( gl );
 
@@ -484,27 +488,87 @@ public class Example9 implements GLEventListener, RequestRepaint
 		viewportHeight = height;
 	}
 
-	int currentTimepoint = 0;
-
-	int currentSetup = 0;
-
 	@SuppressWarnings( "unchecked" )
-	void setStackAndConverters( final List< Integer > visibleSetupIndices )
+	private void setRenderState()
 	{
-		ArrayList< StackAndConverter > mrstacks = new ArrayList<>();
-		for( int i : visibleSetupIndices )
+		final List< Integer > visibleSourceIndices;
+		final int currentTimepoint;
+		synchronized ( state )
 		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > mrstack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
+			visibleSourceIndices = state.getVisibleSourceIndices();
+			currentTimepoint = state.getCurrentTimepoint();
+			state.getViewerTransform( renderTransformWorldToScreen );
+		}
+
+		renderStacks.clear();
+		renderConverters.clear();
+		for( int i : visibleSourceIndices )
+		{
+			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
 					stacks.getStack(
 							stacks.timepointId( currentTimepoint ),
 							stacks.setupId( i ),
 							true );
+			renderStacks.add( stack );
 			final ConverterSetup converter = converterSetups.get( i );
-			mrstacks.add( new StackAndConverter( mrstack, converter ) );
+			renderConverters.add( converter );
 		}
-		aMultiResolutionStacks.set( mrstacks );
+	}
+
+	// -------------------------------------------------------------------------------------------------------
+	// BDV ViewerPanel equivalents
+
+	/**
+	 * Set the viewer transform.
+	 */
+	public synchronized void setCurrentViewerTransform( final AffineTransform3D viewerTransform )
+	{
+		state.setViewerTransform( viewerTransform );
 		requestRepaint();
 	}
+
+	/**
+	 * Show the specified time-point.
+	 *
+	 * @param timepoint
+	 *            time-point index.
+	 */
+	public synchronized void setTimepoint( final int timepoint )
+	{
+		if ( state.getCurrentTimepoint() != timepoint )
+		{
+			state.setCurrentTimepoint( timepoint );
+			sliderTime.setValue( timepoint );
+//			for ( final TimePointListener l : timePointListeners )
+//				l.timePointChanged( timepoint );
+			requestRepaint();
+		}
+	}
+
+	/**
+	 * Show the next time-point.
+	 */
+	public synchronized void nextTimePoint()
+	{
+		if ( state.getNumTimepoints() > 1 )
+			sliderTime.setValue( sliderTime.getValue() + 1 );
+	}
+
+	/**
+	 * Show the previous time-point.
+	 */
+	public synchronized void previousTimePoint()
+	{
+		if ( state.getNumTimepoints() > 1 )
+			sliderTime.setValue( sliderTime.getValue() - 1 );
+	}
+
+	public VisibilityAndGrouping getVisibilityAndGrouping()
+	{
+		return visibilityAndGrouping;
+	}
+
+	// -------------------------------------------------------------------------------------------------------
 
 	public static void run(
 			final String xmlFilename,
@@ -513,8 +577,9 @@ public class Example9 implements GLEventListener, RequestRepaint
 			final int renderWidth,
 			final int renderHeight,
 			final int ditherWidth,
-			final int numDitherSamples
-		) throws SpimDataException
+			final int numDitherSamples,
+			final int cacheBlockSize
+	) throws SpimDataException
 	{
 		final SpimDataMinimal spimData = new XmlIoSpimDataMinimal().load( xmlFilename );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
@@ -549,39 +614,46 @@ public class Example9 implements GLEventListener, RequestRepaint
 				renderHeight,
 				ditherWidth,
 				ditherStep,
-				numDitherSamples );
+				numDitherSamples,
+				cacheBlockSize );
 		frame.setGlEventListener( glPainter );
+		if ( glPainter.state.getNumTimepoints() > 1 )
+		{
+			frame.getFrame().getContentPane().add( glPainter.sliderTime, BorderLayout.SOUTH );
+			frame.getFrame().pack();
+		}
 
-		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter.worldToScreen::set, glPainter );
+		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter::setCurrentViewerTransform, () -> {} );
 
-		frame.getDefaultActions().runnableAction( () -> {
-			tf.setTransform( new AffineTransform3D() );
-		}, "reset transform", "R" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
-			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
-			glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
-		}, "previous timepoint", "OPEN_BRACKET" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentTimepoint = Math.min( maxTimepoint, glPainter.currentTimepoint + 1 );
-			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
-			glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
-		}, "next timepoint", "CLOSE_BRACKET" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentSetup = 0;
-			System.out.println( "currentSetup = " + glPainter.currentSetup );
-			glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
-		}, "setup 1", "1" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentSetup = 1;
-			System.out.println( "currentSetup = " + glPainter.currentSetup );
-			glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
-		}, "setup 2", "2" );
-		frame.getDefaultActions().runnableAction( () -> {
-			glPainter.currentSetup = 2;
-			System.out.println( "currentSetup = " + glPainter.currentSetup );
-			glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
-		}, "setup 3", "3" );
+		NavigationActions9.installActionBindings( frame.getKeybindings(), glPainter, new InputTriggerConfig() );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			tf.setTransform( new AffineTransform3D() );
+//		}, "reset transform", "R" );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			glPainter.currentTimepoint = Math.max( 0, glPainter.currentTimepoint - 1 );
+//			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
+//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
+//		}, "previous timepoint", "OPEN_BRACKET" );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			glPainter.currentTimepoint = Math.min( maxTimepoint, glPainter.currentTimepoint + 1 );
+//			System.out.println( "currentTimepoint = " + glPainter.currentTimepoint );
+//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
+//		}, "next timepoint", "CLOSE_BRACKET" );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			glPainter.currentSetup = 0;
+//			System.out.println( "currentSetup = " + glPainter.currentSetup );
+//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
+//		}, "setup 1", "1" );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			glPainter.currentSetup = 1;
+//			System.out.println( "currentSetup = " + glPainter.currentSetup );
+//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
+//		}, "setup 2", "2" );
+//		frame.getDefaultActions().runnableAction( () -> {
+//			glPainter.currentSetup = 2;
+//			System.out.println( "currentSetup = " + glPainter.currentSetup );
+//			glPainter.setRenderState( Arrays.asList( glPainter.currentSetup ) );
+//		}, "setup 3", "3" );
 
 		for ( final ConverterSetup setup : glPainter.converterSetups )
 		{
@@ -602,6 +674,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final BrightnessDialog brightnessDialog = new BrightnessDialog( frame.getFrame(), setupAssignments );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
 
+		final VisibilityAndGroupingDialog activeSourcesDialog = new VisibilityAndGroupingDialog( frame.getFrame(), glPainter.visibilityAndGrouping );
+		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
 
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
@@ -616,7 +690,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 				glPainter.requestRepaint();
 			}
 		} );
-		glPainter.setStackAndConverters( Arrays.asList( glPainter.currentSetup ) );
+		glPainter.requestRepaint();
 		frame.show();
 
 //		// print fps
@@ -637,7 +711,8 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final int renderHeight = 480;
 		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
+		final int cacheBlockSize = 32;
 
-		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples );
+		run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize );
 	}
 }
