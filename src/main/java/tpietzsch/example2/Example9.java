@@ -595,8 +595,20 @@ public class Example9 implements GLEventListener, RequestRepaint
 		case 2:
 			ditherStep = 3;
 			break;
+		case 3:
+			ditherStep = 5;
+			break;
 		case 4:
 			ditherStep = 9;
+			break;
+		case 5:
+			ditherStep = 11;
+			break;
+		case 6:
+			ditherStep = 19;
+			break;
+		case 7:
+			ditherStep = 23;
 			break;
 		case 8:
 			ditherStep = 29;

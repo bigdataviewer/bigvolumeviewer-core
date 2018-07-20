@@ -26,7 +26,7 @@ public class BigVolumeViewer implements Command
 	@Parameter
 	private int renderHeight = 512;
 
-	@Parameter( choices = { "none", "2x2", "4x4", "8x8" } )
+	@Parameter( choices = { "none", "2x2", "3x3", "4x4", "5x5", "6x6", "7x7", "8x8" } )
 	private String dithering = "none";
 
 	@Parameter(min="1", max="8", style="slider")
@@ -52,8 +52,20 @@ public class BigVolumeViewer implements Command
 		case "2x2":
 			ditherWidth = 2;
 			break;
+		case "3x3":
+			ditherWidth = 3;
+			break;
 		case "4x4":
 			ditherWidth = 4;
+			break;
+		case "5x5":
+			ditherWidth = 5;
+			break;
+		case "6x6":
+			ditherWidth = 6;
+			break;
+		case "7x7":
+			ditherWidth = 7;
 			break;
 		case "8x8":
 			ditherWidth = 8;
