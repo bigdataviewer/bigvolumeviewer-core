@@ -23,6 +23,8 @@ import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
 
 public class TexturedUnitCube
 {
+	private final String imageFilename;
+
 	private final Shader prog;
 
 	private int vao;
@@ -31,6 +33,12 @@ public class TexturedUnitCube
 
 	public TexturedUnitCube()
 	{
+		this("imagej2.png" );
+	}
+
+	public TexturedUnitCube( final String imageFilename )
+	{
+		this.imageFilename = imageFilename;
 		final Segment ex1vp = new SegmentTemplate(TexturedUnitCube.class, "cube.vp", Collections.emptyList() ).instantiate();
 		final Segment ex1fp = new SegmentTemplate(TexturedUnitCube.class, "cube.fp", Collections.emptyList() ).instantiate();
 		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
@@ -102,7 +110,7 @@ public class TexturedUnitCube
 		byte[] data = null;
 		try
 		{
-			data = Images.loadBytesRGB( TexturedUnitCube.class.getResourceAsStream( "container.jpg" ) );
+			data = Images.loadBytesRGB( TexturedUnitCube.class.getResourceAsStream( imageFilename ) );
 		}
 		catch ( final IOException e )
 		{

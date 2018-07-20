@@ -15,6 +15,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.VisibilityAndGrouping;
 import bdv.viewer.state.SourceGroup;
+import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
 import com.jogamp.common.nio.Buffers;
@@ -30,14 +31,17 @@ import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import mpicbg.spim.data.SpimDataException;
+import net.imglib2.Interval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.StopWatch;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -123,7 +127,23 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 
 	// ... "pre-existing" scene...
-	private final TexturedUnitCube cube = new TexturedUnitCube();
+	private final TexturedUnitCube[] cubes = new TexturedUnitCube[]{
+			new TexturedUnitCube("imglib2.png" ),
+			new TexturedUnitCube("fiji.png" ),
+			new TexturedUnitCube("imagej2.png" ),
+			new TexturedUnitCube("scijava.png" ),
+			new TexturedUnitCube("container.jpg" )
+	};
+	static class CubeAndTransform {
+		final TexturedUnitCube cube;
+		final Matrix4f model;
+		public CubeAndTransform( final TexturedUnitCube cube, final Matrix4f model )
+		{
+			this.cube = cube;
+			this.model = model;
+		}
+	}
+	private final ArrayList< CubeAndTransform > cubeAndTransforms = new ArrayList<>();
 	private final OffScreenFrameBufferWithDepth sceneBuf;
 
 
@@ -341,10 +361,13 @@ public class Example9 implements GLEventListener, RequestRepaint
 					sceneBuf.bind( gl );
 					gl.glEnable( GL_DEPTH_TEST );
 					gl.glDepthFunc( GL_LESS );
-					cube.draw( gl, new Matrix4f( pv ).translate( 200, 200, 50 ).scale( 100 ) );
-					cube.draw( gl, new Matrix4f( pv ).translate( 500, 100, 100 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 1, 0 ).normalize() ) );
-					cube.draw( gl, new Matrix4f( pv ).translate( 300, 50, 150 ).scale( 100 ).rotate( 1f, new Vector3f( 1, 0, 1 ).normalize() ) );
-
+					synchronized ( state )
+					{
+						for ( CubeAndTransform cubeAndTransform : cubeAndTransforms )
+						{
+							cubeAndTransform.cube.draw( gl, new Matrix4f( pv ).mul( cubeAndTransform.model ) );
+						}
+					}
 //					// draw volume boxes
 //					prog.use( context );
 //					prog.getUniformMatrix4f( "view" ).set( view );
@@ -702,6 +725,68 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 
 	// -------------------------------------------------------------------------------------------------------
 
+	private Random random = new Random();
+
+	void removeRandomCube()
+	{
+		synchronized ( state )
+		{
+			if ( !cubeAndTransforms.isEmpty() )
+				cubeAndTransforms.remove( random.nextInt( cubeAndTransforms.size() ) );
+		}
+		requestRepaint();
+	}
+
+	void addRandomCube()
+	{
+		final AffineTransform3D sourceToWorld = new AffineTransform3D();
+		final Interval interval;
+		synchronized ( state )
+		{
+			final int t = state.getCurrentTimepoint();
+			final SourceState< ? > source = state.getSources().get( state.getCurrentSource() );
+			source.getSpimSource().getSourceTransform( t, 0, sourceToWorld );
+			interval = source.getSpimSource().getSource( t, 0 );
+		}
+
+		final double[] zero = new double[ 3 ];
+		final double[] tzero = new double[ 3 ];
+		for ( int d = 0; d < 3; ++d )
+			zero[ d ] = interval.min( d );
+		sourceToWorld.apply( zero, tzero );
+
+		final double[] one = new double[ 3 ];
+		final double[] tone = new double[ 3 ];
+		final double[] size = new double[ 3 ];
+		for ( int i = 0; i < 3; ++i )
+		{
+			for ( int d = 0; d < 3; ++d )
+				one[ d ] = d == i ? interval.max( d ) + 1 : interval.min( d );
+			sourceToWorld.apply( one, tone );
+			LinAlgHelpers.subtract( tone, tzero, tone );
+			size[ i ] = LinAlgHelpers.length( tone );
+		}
+		TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
+		Matrix4f model = new Matrix4f()
+				.translation(
+						( float ) ( tzero[ 0 ] + random.nextDouble() * size[ 0 ] ),
+						( float ) ( tzero[ 1 ] + random.nextDouble() * size[ 1 ] ),
+						( float ) ( tzero[ 2 ] + random.nextDouble() * size[ 1 ] ) )
+				.scale(
+						( float ) ( ( random.nextDouble() + 1 ) * size[ 0 ] * 0.05 )	)
+				.rotate(
+						( float ) ( random.nextDouble() * Math.PI ),
+						new Vector3f( random.nextFloat(), random.nextFloat(), random.nextFloat() ).normalize()
+				);
+
+		synchronized ( state )
+		{
+			cubeAndTransforms.add( new CubeAndTransform( cube, model ) );
+		}
+		requestRepaint();
+	}
+
+
 	public static void run(
 			final String xmlFilename,
 			final int windowWidth,
@@ -786,6 +871,9 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		frame.getDefaultActions().runnableAction( () -> {
 			tf.setTransform( resetTransform );
 		}, "reset transform", "R" );
+
+		frame.getDefaultActions().runnableAction( glPainter::addRandomCube, "add random cube", "B" );
+		frame.getDefaultActions().runnableAction( glPainter::removeRandomCube, "remove random cube", "shift B" );
 
 		frame.getCanvas().addComponentListener( new ComponentAdapter()
 		{
