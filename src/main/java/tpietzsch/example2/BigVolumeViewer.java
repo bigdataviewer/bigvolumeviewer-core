@@ -12,7 +12,7 @@ public class BigVolumeViewer implements Command
 {
 
 	@Parameter(label="Select an image file", style="extensions:xml")
-	private File xmlFile;
+	private File xmlFile = new File( "/Users/pietzsch/workspace/data/111010_weber_full.xml" );
 
 	@Parameter
 	private int windowWidth = 640;
@@ -26,8 +26,8 @@ public class BigVolumeViewer implements Command
 	@Parameter
 	private int renderHeight = 512;
 
-	@Parameter
-	private int ditherWidth = 8;
+	@Parameter( choices = { "none", "2x2", "4x4", "8x8" } )
+	private String dithering = "none";
 
 	@Parameter(min="1", max="8", style="slider")
 	private int numDitherSamples = 8;
@@ -42,13 +42,23 @@ public class BigVolumeViewer implements Command
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/TGMM_METTE/Pdu_H2BeGFP_CAAXmCherry_0123_20130312_192018.corrected/dataset_hdf5.xml";
 //		final String xmlFilename = "/Users/pietzsch/Desktop/data/MAMUT/MaMuT_demo_dataset/MaMuT_Parhyale_demo.xml";
 
-		final int windowWidth = 640;
-		final int windowHeight = 480;
-		final int renderWidth = 640;
-		final int renderHeight = 480;
-		final int ditherWidth = 8;
-		final int numDitherSamples = 8;
-		final int cacheBlockSize = 32;
+		final int ditherWidth;
+		switch ( dithering )
+		{
+		case "none":
+		default:
+			ditherWidth = 1;
+			break;
+		case "2x2":
+			ditherWidth = 2;
+			break;
+		case "4x4":
+			ditherWidth = 4;
+			break;
+		case "8x8":
+			ditherWidth = 8;
+			break;
+		}
 
 		try
 		{

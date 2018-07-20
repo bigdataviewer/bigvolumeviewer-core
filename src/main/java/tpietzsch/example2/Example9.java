@@ -176,7 +176,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 		this.frameRequestRepaint = frameRequestRepaint;
 		sceneBuf = new OffScreenFrameBufferWithDepth( renderWidth, renderHeight, GL_RGB8 );
 		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8 );
-		if ( ditherWidth == 1 )
+		if ( ditherWidth <= 1 )
 		{
 			dither = null;
 			numDitherSteps = 1;
