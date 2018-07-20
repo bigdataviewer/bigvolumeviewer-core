@@ -96,7 +96,6 @@ public class DitherBuffer
 		}
 
 		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp", Collections.emptyList() ).instantiate();
-		System.out.println( "makeShader(" + numSamples + ") = " + makeShader( numSamples ) );
 		progDither = new DefaultShader( ditherVp.getCode(), makeShader( numSamples ) );
 
 		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp", Collections.emptyList() ).instantiate();
