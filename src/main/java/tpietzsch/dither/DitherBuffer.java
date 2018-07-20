@@ -42,6 +42,7 @@ public class DitherBuffer
 	private final DefaultQuad quad = new DefaultQuad();
 	private final DefaultShader progDither;
 	private final DefaultShader progStitch;
+
 	private final OffScreenFrameBuffer dither;
 	private final OffScreenFrameBuffer stitch;
 
@@ -96,6 +97,7 @@ public class DitherBuffer
 		}
 
 		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp", Collections.emptyList() ).instantiate();
+		System.out.println( "makeShader(" + numSamples + ") = " + makeShader( numSamples ) );
 		progDither = new DefaultShader( ditherVp.getCode(), makeShader( numSamples ) );
 
 		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp", Collections.emptyList() ).instantiate();
@@ -132,9 +134,11 @@ public class DitherBuffer
 
 	public Matrix4f ndcTransform( int step )
 	{
+		final float wvByWe = ( float ) width / we;
+		final float hvByHe = ( float ) height / he;
 		return new Matrix4f()
-				.scale( 1.0f / spw, 1.0f / spw, 1 )
-				.translate( 1 + 2 * spox[ step ] - spw, 1 + 2 * spoy[ step ] - spw, 0 );
+				.scale( 1.0f / wvByWe, 1.0f / hvByHe, 1 )
+				.translate( 1 + 2 * spox[ step ] - wvByWe, 1 + 2 * spoy[ step ] - hvByHe, 0 );
 	}
 
 	public void bind( final GL3 gl )
@@ -175,9 +179,11 @@ public class DitherBuffer
 			progDither.getUniform2f( "dsp" ).set(
 					( float ) ( deltaSp( spw, spox[ i ], we ) - 0.5 ),
 					( float ) ( deltaSp( spw, spoy[ i ], he ) - 0.5 ) );
+			final float wvByWe = ( float ) width / we;
+			final float hvByHe = ( float ) height / he;
 			Matrix4f transform = new Matrix4f()
-					.scale( 1.0f / spw, 1.0f / spw, 1 )
-					.translate( 1 + 2 * spox[ i ] - spw, 1 + 2 * spoy[ i ] - spw, 0 );
+					.scale( 1.0f / wvByWe, 1.0f / hvByHe, 1 )
+					.translate( 1 + 2 * spox[ i ] - wvByWe, 1 + 2 * spoy[ i ] - hvByHe, 0 );
 			progDither.getUniformMatrix4f( "transform" ).set( transform );
 			progDither.getUniform2fv( "spo" ).set( onw.spo );
 			progDither.getUniform1fv( "K" ).set( onw.K );
@@ -209,5 +215,17 @@ public class DitherBuffer
 	private double deltaSp( final int sps, final int spo, final int se )
 	{
 		return ( spo + 0.5 ) / sps - 0.5 - spo * se;
+	}
+
+	// for debug
+	OffScreenFrameBuffer getDitherBuffer()
+	{
+		return dither;
+	}
+
+	// for debug
+	OffScreenFrameBuffer getStitchBuffer()
+	{
+		return stitch;
 	}
 }

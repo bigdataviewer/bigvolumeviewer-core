@@ -73,6 +73,10 @@ public class DitherExample implements GLEventListener
 
 		offscreen.bind( gl );
 		dither.dither( gl, step + 1, offscreen.getWidth(), offscreen.getHeight() );
+//		if ( timesDisplayCalled % 2 == 0)
+//			dither.getStitchBuffer().drawQuad( gl );
+//		else
+//			dither.getDitherBuffer().drawQuad( gl );
 		offscreen.unbind( gl, false );
 		offscreen.drawQuad( gl );
 
@@ -85,7 +89,7 @@ public class DitherExample implements GLEventListener
 		SimpleFrame.DEBUG = false;
 		final int windowWidth = 640;
 		final int windowHeight = 480;
-		final DitherExample listener = new DitherExample( windowWidth / 4, windowHeight / 4 );
+		final DitherExample listener = new DitherExample( windowWidth / 4 - 1, windowHeight / 4);
 		listener.frame = new SimpleFrame( "DitherExample", windowWidth, windowHeight, listener );
 
 		new Thread(() -> {
@@ -93,7 +97,7 @@ public class DitherExample implements GLEventListener
 			{
 				while( true )
 				{
-					Thread.sleep( 100 );
+					Thread.sleep( 500 );
 					listener.frame.painterThread.requestRepaint();
 				}
 			}
