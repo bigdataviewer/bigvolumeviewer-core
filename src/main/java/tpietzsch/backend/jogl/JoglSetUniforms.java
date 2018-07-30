@@ -94,6 +94,12 @@ public class JoglSetUniforms implements SetUniforms
 		gl.glProgramUniformMatrix4fv( program, location( name ), 1, transpose, value );
 	}
 
+	@Override
+	public void setUniformMatrix3f( final String name, final boolean transpose, final FloatBuffer value )
+	{
+		gl.glProgramUniformMatrix3fv( program, location( name ), 1, transpose, value );
+	}
+
 	private int location( final String name )
 	{
 		return gl.glGetUniformLocation( program, name );
