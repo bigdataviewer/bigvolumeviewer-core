@@ -172,8 +172,8 @@ public class OffScreenFrameBufferWithDepth
 		gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
 
 		final int indices[] = {
-				0, 1, 3,   // first triangle
-				1, 2, 3    // second triangle
+				0, 3, 1,   // first triangle
+				1, 3, 2    // second triangle
 		};
 		gl.glGenBuffers( 1, tmp, 0 );
 		final int eboQuad = tmp[ 0 ];

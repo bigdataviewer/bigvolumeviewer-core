@@ -31,8 +31,8 @@ public class DefaultQuad
 				-1,  1, z,  // top left
 		};
 		final int indices[] = {
-				0, 1, 3,
-				1, 2, 3
+				0, 3, 1,
+				1, 3, 2
 		};
 
 		final int[] tmp = new int[ 2 ];
