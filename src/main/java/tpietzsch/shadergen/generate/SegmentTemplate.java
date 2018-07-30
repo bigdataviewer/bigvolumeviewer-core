@@ -101,7 +101,7 @@ public class SegmentTemplate
 		int baseId = idGen.getAndAdd( keys.size() );
 		for ( final String key : keys )
 		{
-			final String instance = String.format( "%s__%d__", key, baseId++ );
+			final String instance = String.format( "%s_x_%d_x_", key, baseId++ );
 			keyToIdentifier.put( key, new Identifier( instance ) );
 		}
 		return keyToIdentifier;
@@ -113,7 +113,7 @@ public class SegmentTemplate
 		int baseId = idGen.getAndAdd( num );
 		for ( int i = 0; i < num; i++ )
 		{
-			final String instance = String.format( "%s__%d__", key, baseId++ );
+			final String instance = String.format( "%s_x_%d_x_", key, baseId++ );
 			identifier.put( i, instance );
 		}
 		return identifier;
