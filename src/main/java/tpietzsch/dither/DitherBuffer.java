@@ -95,11 +95,11 @@ public class DitherBuffer
 			}
 		}
 
-		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp", Collections.emptyList() ).instantiate();
+		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp" ).instantiate();
 		progDither = new DefaultShader( ditherVp.getCode(), makeShader( numSamples ) );
 
-		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp", Collections.emptyList() ).instantiate();
-		final Segment stichFp = new SegmentTemplate( DitherBuffer.class, "stitch.fp", Collections.emptyList() ).instantiate();
+		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp" ).instantiate();
+		final Segment stichFp = new SegmentTemplate( DitherBuffer.class, "stitch.fp" ).instantiate();
 		progStitch = new DefaultShader( stitchVp.getCode(), stichFp.getCode() );
 
 		dither = new OffScreenFrameBuffer( paddedWidth, paddedHeight, GL_RGBA8 );

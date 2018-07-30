@@ -37,7 +37,15 @@ public class SegmentTemplate
 	public SegmentTemplate(
 			final Class< ? > resourceContext,
 			final String resourceName,
-			final List< String > keys )
+			final String ... keys )
+	{
+		this( resourceContext, resourceName, Arrays.asList( keys ) );
+	}
+
+	public SegmentTemplate(
+		final Class< ? > resourceContext,
+		final String resourceName,
+		final List< String > keys )
 	{
 		try
 		{

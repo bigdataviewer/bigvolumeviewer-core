@@ -35,9 +35,9 @@ public class TexturedDepthRamp
 
 	public TexturedDepthRamp()
 	{
-		final Segment ex1vp = new SegmentTemplate(TexturedDepthRamp.class, "ramp.vp", Collections.emptyList() ).instantiate();
-		final Segment ex1fp = new SegmentTemplate(TexturedDepthRamp.class, "ramp.fp", Collections.emptyList() ).instantiate();
-		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
+		final Segment rampVp = new SegmentTemplate( TexturedDepthRamp.class, "ramp.vp" ).instantiate();
+		final Segment rampFp = new SegmentTemplate( TexturedDepthRamp.class, "ramp.fp" ).instantiate();
+		prog = new DefaultShader( rampVp.getCode(), rampFp.getCode() );
 	}
 
 	private boolean initialized;

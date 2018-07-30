@@ -39,9 +39,9 @@ public class TexturedUnitCube
 	public TexturedUnitCube( final String imageFilename )
 	{
 		this.imageFilename = imageFilename;
-		final Segment ex1vp = new SegmentTemplate(TexturedUnitCube.class, "cube.vp", Collections.emptyList() ).instantiate();
-		final Segment ex1fp = new SegmentTemplate(TexturedUnitCube.class, "cube.fp", Collections.emptyList() ).instantiate();
-		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
+		final Segment cobeVp = new SegmentTemplate( TexturedUnitCube.class, "cube.vp" ).instantiate();
+		final Segment cubeFp = new SegmentTemplate( TexturedUnitCube.class, "cube.fp" ).instantiate();
+		prog = new DefaultShader( cobeVp.getCode(), cubeFp.getCode() );
 	}
 
 	private boolean initialized;

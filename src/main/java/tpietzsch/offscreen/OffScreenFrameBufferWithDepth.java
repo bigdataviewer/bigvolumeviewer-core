@@ -108,8 +108,8 @@ public class OffScreenFrameBufferWithDepth
 		this.fbHeight = fbHeight;
 		this.internalFormat = internalFormat;
 
-		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
-		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
+		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp" ).instantiate();
+		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp" ).instantiate();
 		progQuad = new DefaultShader( quadvp.getCode(), quadfp.getCode() );
 
 		depthTexture = new DepthTexture( fbWidth, fbHeight );

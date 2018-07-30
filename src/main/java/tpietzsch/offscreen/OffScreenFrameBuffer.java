@@ -111,8 +111,8 @@ public class OffScreenFrameBuffer
 		this.internalFormat = internalFormat;
 		this.withDepthAndStencil = withDepthAndStencil;
 
-		final Segment quadvp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
-		final Segment quadfp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
+		final Segment quadvp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.vp" ).instantiate();
+		final Segment quadfp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.fp" ).instantiate();
 		progQuad = new DefaultShader( quadvp.getCode(), quadfp.getCode() );
 	}
 
