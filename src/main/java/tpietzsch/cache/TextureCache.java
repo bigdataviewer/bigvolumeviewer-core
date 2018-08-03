@@ -285,7 +285,7 @@ public class TextureCache implements Texture3D
 	 */
 	public static int[] findSuitableGridSize( final CacheSpec cacheSpec, final int maxMemoryInMB )
 	{
-		final double numVoxels = maxMemoryInMB * 1024 * 1024 / cacheSpec.format().getBytesPerElement();
+		final long numVoxels = ( long ) maxMemoryInMB * 1024 * 1024 / cacheSpec.format().getBytesPerElement();
 		final double sideLength = Math.pow( numVoxels, 1.0 / 3.0 );
 		final int[] gridSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )
