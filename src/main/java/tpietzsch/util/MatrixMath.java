@@ -47,7 +47,7 @@ public class MatrixMath
 		float f = ( float ) ( dCam + dClip );
 
 		matrix
-				.frustum( l, r, b, t, n, f )
+				.setFrustum( l, r, b, t, n, f )
 				.scale( 1f, -1f, -1f )
 				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
 		return matrix;
@@ -95,7 +95,7 @@ public class MatrixMath
 		float f = ( float ) ( dCam + dClipFar );
 
 		matrix
-				.frustum( l, r, b, t, n, f )
+				.setFrustum( l, r, b, t, n, f )
 				.scale( 1f, -1f, -1f )
 				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
 		return matrix;

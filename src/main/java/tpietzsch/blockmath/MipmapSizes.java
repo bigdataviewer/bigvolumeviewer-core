@@ -45,7 +45,6 @@ public class MipmapSizes
 	 * @param sourceToNDC
 	 * 		{@code Projection * View * Model} matrix
 	 * @param viewportWidth
-	 * @param viewportWidth
 	 * @param resolutions
 	 */
 	public void init( final Matrix4fc sourceToNDC, final int viewportWidth, final List< ? extends ResolutionLevel3D< ? > > resolutions )
