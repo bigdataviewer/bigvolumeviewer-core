@@ -387,13 +387,6 @@ public class Example9 implements GLEventListener, RequestRepaint
 
 				updateBlocks( context, pv );
 
-				// TODO: fix hacks (initialize OOB block init)
-				context.bindTexture( textureCache );
-				final int[] ts = cacheSpec.paddedBlockSize();
-				final Buffer oobBuffer = Buffers.newDirectShortBuffer( ( int ) Intervals.numElements( ts ) );
-				ByteUtils.setShorts( ( short ) 0, ByteUtils.addressOf( oobBuffer ), ( int ) Intervals.numElements( ts ) );
-				gl.glTexSubImage3D( GL_TEXTURE_3D, 0, 0, 0, 0, ts[ 0 ], ts[ 1 ], ts[ 2 ], GL_RED, GL_UNSIGNED_SHORT, oobBuffer );
-
 				double minWorldVoxelSize = Double.POSITIVE_INFINITY;
 				progvol = progvols.get( renderStacks.size() );
 				if ( progvol != null )

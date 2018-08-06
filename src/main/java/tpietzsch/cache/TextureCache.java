@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.util.Intervals;
 import tpietzsch.backend.Texture3D;
+import tpietzsch.blocks.ByteUtils;
 
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
@@ -174,7 +175,7 @@ public class TextureCache implements Texture3D
 		return tilemap.get( key );
 	}
 
-	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask >  tasks )
+	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask > tasks )
 	{
 		final int timestamp = timestampGen.incrementAndGet();
 
@@ -212,7 +213,31 @@ public class TextureCache implements Texture3D
 		}
 		tileFillTasks.addAll( update );
 
+		initializeBlockedTiles( tileFillTasks );
+
 		return tileFillTasks;
+	}
+
+	private boolean blockedTileInitialized = false;
+
+	/**
+	 * Initialize out-of-bounds blocks etc.
+	 */
+	private void initializeBlockedTiles( ArrayList< TileFillTask > tileFillTasks )
+	{
+		if ( blockedTileInitialized )
+			return;
+
+		blockedTileInitialized = true;
+
+		final Tile oobTile = tiles[ 0 ];
+		final Object dummyImage = new Object();
+		final ImageBlockKey< Object > oobDummyKey = new ImageBlockKey<>( dummyImage, new int[] { 0, 0, 0 } );
+		final int elementsPerTile = ( int ) Intervals.numElements( spec.paddedBlockSize() );
+		tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
+			ByteUtils.setShorts( ( short ) 0, buf.getAddress(), elementsPerTile );
+			return true;
+		} ), oobTile ) );
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
