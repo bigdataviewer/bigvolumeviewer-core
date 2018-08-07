@@ -92,7 +92,7 @@ public class BigVolumeViewerCommand implements Command
 
 		try
 		{
-			Example9.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB, dCam, dClip );
+			BigVolumeViewer.run( xmlFilename, windowWidth, windowHeight, renderWidth, renderHeight, ditherWidth, numDitherSamples, cacheBlockSize, maxCacheSizeInMB, dCam, dClip );
 		}
 		catch ( SpimDataException e )
 		{

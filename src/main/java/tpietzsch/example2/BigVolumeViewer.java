@@ -36,7 +36,7 @@ import tpietzsch.scene.TexturedUnitCube;
 
 import static bdv.BigDataViewer.initSetups;
 
-public class Example11
+public class BigVolumeViewer
 {
 	// ... BDV ...
 	private final VolumeViewerFrame frame;
@@ -47,7 +47,7 @@ public class Example11
 	private final VisibilityAndGroupingDialog activeSourcesDialog;
 
 
-	public Example11(
+	public BigVolumeViewer(
 			final ArrayList< ConverterSetup > converterSetups,
 			final ArrayList< SourceAndConverter< ? > > sources,
 			final SpimDataStacks stacks,
@@ -283,7 +283,7 @@ public class Example11
 		initSetups( spimData, converterSetups, sources );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
 
-		final Example11 bvv = new Example11( converterSetups, sources, stacks, new File( xmlFilename ).getName(),
+		final BigVolumeViewer bvv = new BigVolumeViewer( converterSetups, sources, stacks, new File( xmlFilename ).getName(),
 				VolumeViewerOptions.options().
 						width( windowWidth ).
 						height( windowHeight ).
@@ -323,8 +323,8 @@ public class Example11
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
-		final int renderWidth = 640;
-		final int renderHeight = 480;
+		final int renderWidth = 512	;
+		final int renderHeight = 512;
 		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
