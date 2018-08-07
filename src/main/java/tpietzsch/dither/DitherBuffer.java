@@ -70,8 +70,8 @@ public class DitherBuffer
 
 	public DitherBuffer( final int width, final int height, final int spw, final int step, final int numSamples, final IntFunction< Double > sampleToSigma )
 	{
-		this.we = width / spw;
-		this.he = height / spw;
+		this.we = ( width - 1 ) / spw + 1;
+		this.he = ( height - 1 ) / spw + 1;
 		this.spw = spw;
 		this.paddedWidth = spw * we;
 		this.paddedHeight = spw * he;
