@@ -8,7 +8,7 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BigDataViewer>Volume Rendering Tech Demo")
-public class BigVolumeViewer implements Command
+public class BigVolumeViewerCommand implements Command
 {
 
 	@Parameter( label = "Select a BDV xml file", style = "extensions:xml" )

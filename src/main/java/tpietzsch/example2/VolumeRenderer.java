@@ -1,19 +1,15 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
-import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
-import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import net.imglib2.util.Intervals;
 import org.joml.Matrix4f;
 import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.FillTask;
 import tpietzsch.cache.PboChain;
@@ -30,16 +26,13 @@ import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
-import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
-import static com.jogamp.opengl.GL2ES2.GL_RED;
-import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
-import static tpietzsch.example2.BvvRenderer.RepaintType.DITHER;
-import static tpietzsch.example2.BvvRenderer.RepaintType.FULL;
-import static tpietzsch.example2.BvvRenderer.RepaintType.LOAD;
-import static tpietzsch.example2.BvvRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.DITHER;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
 
-public class BvvRenderer
+public class VolumeRenderer
 {
 	private final int renderWidth;
 	private final int renderHeight;
@@ -131,13 +124,13 @@ public class BvvRenderer
 
 
 
-	public BvvRenderer(
+	public VolumeRenderer(
 			final int renderWidth,
 			final int renderHeight,
 			final int ditherWidth,
 			final int ditherStep,
 			final int numDitherSamples,
-			final int cacheBlockSize,
+			final int[] cacheBlockSize,
 			final int maxCacheSizeInMB )
 	{
 		this.renderWidth = renderWidth;
@@ -145,7 +138,7 @@ public class BvvRenderer
 
 		// set up gpu cache
 		// TODO This could be packaged into one class and potentially shared between renderers?
-		cacheSpec = new CacheSpec( R16, new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize } );
+		cacheSpec = new CacheSpec( R16, cacheBlockSize );
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );
@@ -204,7 +197,7 @@ public class BvvRenderer
 			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks,
 			final List< ConverterSetup > renderConverters,
 			final Matrix4f pv,
-			final long maxRenderMillis )
+			final int maxRenderMillis )
 	{
 		final long maxRenderNanoTime = System.nanoTime() + 1_000_000L * maxRenderMillis;
 		final JoglGpuContext context = JoglGpuContext.get( gl );

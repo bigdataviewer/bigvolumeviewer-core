@@ -35,39 +35,7 @@ public class MatrixMath
 	 */
 	public static Matrix4f screenPerspective( double dCam, final double dClip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
 	{
-		double r0 = ( screenWidth + screenPadding ) / 2;
-		double t0 = ( screenHeight + screenPadding ) / 2;
-
-		double p = ( dCam - dClip ) / dCam;
-		float t = ( float ) ( t0 * p );
-		float r = ( float ) ( r0 * p );
-		float b = -t;
-		float l = -r;
-		float n = ( float ) ( dCam - dClip );
-		float f = ( float ) ( dCam + dClip );
-
-		matrix
-				.setFrustum( l, r, b, t, n, f )
-				.scale( 1f, -1f, -1f )
-				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
-		return matrix;
-
-		// frustum by hand...
-		/*
-		float m00 = ( float ) ( 2 * n / ( r - l ) );
-		float m11 = ( float ) ( 2 * n / ( t - b ) );
-		float m02 = ( float ) ( ( r + l ) / ( r - l ) );
-		float m12 = ( float ) ( ( t + b ) / ( t - b ) );
-		float m22 = ( float ) ( -( f + n ) / ( f - n ) );
-		float m23 = ( float ) ( -2 * f * n / ( f - n ) );
-
-		matrix.set(
-				m00, 0, 0, 0,
-				0, m11, 0, 0,
-				m02, m12, m22, -1,
-				0, 0, m23, 0
-		);
-		*/
+		return screenPerspective( dCam, dClip, dClip, screenWidth, screenHeight, screenPadding, matrix );
 	}
 
 	/**
@@ -99,6 +67,23 @@ public class MatrixMath
 				.scale( 1f, -1f, -1f )
 				.translate( ( float ) ( -( screenWidth - 1 ) / 2 ), ( float ) ( -( screenHeight - 1 ) / 2 ), ( float ) dCam );
 		return matrix;
+
+		// frustum by hand...
+		/*
+		float m00 = ( float ) ( 2 * n / ( r - l ) );
+		float m11 = ( float ) ( 2 * n / ( t - b ) );
+		float m02 = ( float ) ( ( r + l ) / ( r - l ) );
+		float m12 = ( float ) ( ( t + b ) / ( t - b ) );
+		float m22 = ( float ) ( -( f + n ) / ( f - n ) );
+		float m23 = ( float ) ( -2 * f * n / ( f - n ) );
+
+		matrix.set(
+				m00, 0, 0, 0,
+				0, m11, 0, 0,
+				m02, m12, m22, -1,
+				0, 0, m23, 0
+		);
+		*/
 	}
 
 	/**

@@ -45,7 +45,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.example2.BvvRenderer.RepaintType;
+import tpietzsch.example2.VolumeRenderer.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
@@ -62,15 +62,15 @@ import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
 import static com.jogamp.opengl.GL.GL_RGB8;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
-import static tpietzsch.example2.BvvRenderer.RepaintType.FULL;
-import static tpietzsch.example2.BvvRenderer.RepaintType.LOAD;
-import static tpietzsch.example2.BvvRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
 
 public class Example10 implements GLEventListener, RequestRepaint
 {
 	private final OffScreenFrameBuffer offscreen;
 
-	private final BvvRenderer renderer;
+	private final VolumeRenderer renderer;
 
 
 
@@ -188,13 +188,13 @@ public class Example10 implements GLEventListener, RequestRepaint
 		this.dCam = dCam;
 		this.dClip = dClip;
 
-		renderer = new BvvRenderer(
+		renderer = new VolumeRenderer(
 				renderWidth,
 				renderHeight,
 				ditherWidth,
 				ditherStep,
 				numDitherSamples,
-				cacheBlockSize,
+				new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize },
 				maxCacheSizeInMB );
 	}
 
@@ -289,7 +289,7 @@ public class Example10 implements GLEventListener, RequestRepaint
 
 	private final long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
 
-	private final long maxRenderMillis = 30;
+	private final int maxRenderMillis = 30;
 
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
