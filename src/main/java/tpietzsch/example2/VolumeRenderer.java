@@ -216,73 +216,67 @@ public class VolumeRenderer
 			targetDitherSteps = ditherStep + numDitherSteps;
 		}
 
-		if ( ditherStep != targetDitherSteps )
+		if ( type == FULL || type == LOAD )
 		{
-			if ( type == FULL || type == LOAD )
-			{
-				needAtLeastNumVolumes( renderStacks.size() );
-				updateBlocks( context, renderStacks, pv );
+			needAtLeastNumVolumes( renderStacks.size() );
+			updateBlocks( context, renderStacks, pv );
 
-				double minWorldVoxelSize = Double.POSITIVE_INFINITY;
-				progvol = progvols.get( renderStacks.size() );
-				if ( progvol != null )
-				{
-					for ( int i = 0; i < renderStacks.size(); i++ )
-					{
-						progvol.setConverter( i, renderConverters.get( i ) );
-						progvol.setVolume( i, volumes.get( i ) );
-						minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
-					}
-					progvol.setDepthTexture( sceneBuf.getDepthTexture() );
-					progvol.setViewportWidth( renderWidth );
-					progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
-				}
-			}
-
-			if ( dither != null && progvol != null )
+			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
+			progvol = progvols.get( renderStacks.size() );
+			if ( progvol != null )
 			{
-				dither.bind( gl );
-				progvol.use( context );
-				progvol.bindSamplers( context );
-				gl.glDisable( GL_BLEND );
-				while ( ditherStep < targetDitherSteps )
+				for ( int i = 0; i < renderStacks.size(); i++ )
 				{
-					progvol.setDither( dither, ditherStep % numDitherSteps );
-					progvol.setUniforms( context );
-					quad.draw( gl );
-					gl.glFinish();
-					++ditherStep;
-					if ( System.nanoTime() > maxRenderNanoTime )
-						break;
+					progvol.setConverter( i, renderConverters.get( i ) );
+					progvol.setVolume( i, volumes.get( i ) );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
 				}
-				dither.unbind( gl );
+				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
+				progvol.setViewportWidth( renderWidth );
+				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 			}
-			else
-			{
-				if ( progvol != null )
-				{
-					gl.glEnable( GL_BLEND );
-					gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-					progvol.use( context );
-					progvol.bindSamplers( context );
-					progvol.setEffectiveViewportSize( renderWidth, renderHeight );
-					progvol.setUniforms( context );
-					quad.draw( gl );
-				}
-			}
+		}
 
+		if ( progvol != null )
+		{
 			if ( dither != null )
 			{
-				if ( progvol != null )
+				if ( ditherStep != targetDitherSteps )
 				{
-					gl.glEnable( GL_BLEND );
-					gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-					final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
-					dither.dither( gl, stepsCompleted, renderWidth, renderHeight );
+					dither.bind( gl );
+					progvol.use( context );
+					progvol.bindSamplers( context );
+					gl.glDisable( GL_BLEND );
+					while ( ditherStep < targetDitherSteps )
+					{
+						progvol.setDither( dither, ditherStep % numDitherSteps );
+						progvol.setUniforms( context );
+						quad.draw( gl );
+						gl.glFinish();
+						++ditherStep;
+						if ( System.nanoTime() > maxRenderNanoTime )
+							break;
+					}
+					dither.unbind( gl );
 				}
+
+				gl.glEnable( GL_BLEND );
+				gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+				final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
+				dither.dither( gl, stepsCompleted, renderWidth, renderHeight );
 
 				if ( ditherStep != targetDitherSteps )
 					nextRequestedRepaint.request( DITHER );
+			}
+			else // no dithering
+			{
+				gl.glEnable( GL_BLEND );
+				gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+				progvol.use( context );
+				progvol.bindSamplers( context );
+				progvol.setEffectiveViewportSize( renderWidth, renderHeight );
+				progvol.setUniforms( context );
+				quad.draw( gl );
 			}
 		}
 
