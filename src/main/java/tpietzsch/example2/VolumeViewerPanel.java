@@ -62,15 +62,76 @@ public class VolumeViewerPanel
 	public static class RenderData
 	{
 		private final Matrix4f pv;
+		private final int timepoint;
+		private final AffineTransform3D renderTransformWorldToScreen;
+		private final double dCam;
+		private final double dClipNear;
+		private final double dClipFar;
+		private final double screenWidth;
+		private final double screenHeight;
 
-		public RenderData( final Matrix4fc pv )
+		/**
+		 * @param pv
+		 * @param timepoint timepoint index
+		 */
+		public RenderData(
+				final Matrix4fc pv,
+				final int timepoint,
+				final AffineTransform3D renderTransformWorldToScreen,
+				final double dCam,
+				final double dClipNear,
+				final double dClipFar,
+				final double screenWidth,
+				final double screenHeight )
 		{
 			this.pv = new Matrix4f( pv );
+			this.timepoint = timepoint;
+			this.renderTransformWorldToScreen = renderTransformWorldToScreen;
+			this.dCam = dCam;
+			this.dClipNear = dClipNear;
+			this.dClipFar = dClipFar;
+			this.screenWidth = screenWidth;
+			this.screenHeight = screenHeight;
 		}
 
 		public Matrix4f getPv()
 		{
 			return pv;
+		}
+
+		public int getTimepoint()
+		{
+			return timepoint;
+		}
+
+		public AffineTransform3D getRenderTransformWorldToScreen()
+		{
+			return renderTransformWorldToScreen;
+		}
+
+		public double getDCam()
+		{
+			return dCam;
+		}
+
+		public double getDClipNear()
+		{
+			return dClipNear;
+		}
+
+		public double getDClipFar()
+		{
+			return dClipFar;
+		}
+
+		public double getScreenWidth()
+		{
+			return screenWidth;
+		}
+
+		public double getScreenHeight()
+		{
+			return screenHeight;
 		}
 	}
 
@@ -532,16 +593,18 @@ public class VolumeViewerPanel
 		this.screenHeight = screenHeight;
 	}
 
+	private RenderData renderData;
+
 	@SuppressWarnings( "unchecked" )
 	private void setRenderState()
 	{
 		final List< Integer > visibleSourceIndices;
+		final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 		final int currentTimepoint;
 		synchronized ( state )
 		{
 			visibleSourceIndices = state.getVisibleSourceIndices();
 			currentTimepoint = state.getCurrentTimepoint();
-			final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 			state.getViewerTransform( renderTransformWorldToScreen );
 			final Matrix4f view = MatrixMath.affine( renderTransformWorldToScreen, new Matrix4f() );
 			MatrixMath.screenPerspective( dCam, dClipNear, dClipFar, screenWidth, screenHeight, 0, pv ).mul( view );
@@ -582,6 +645,7 @@ public class VolumeViewerPanel
 				renderConverters.add( converter );
 			}
 		}
+		renderData = new RenderData( pv, currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight );
 	}
 
 	private final GLEventListener glEventListener = new GLEventListener()
@@ -607,7 +671,7 @@ public class VolumeViewerPanel
 				sceneBuf.bind( gl );
 				gl.glEnable( GL_DEPTH_TEST );
 				gl.glDepthFunc( GL_LESS );
-				renderScene.render( gl, new RenderData( pv ) );
+				renderScene.render( gl, renderData );
 				sceneBuf.unbind( gl, false );
 			}
 
