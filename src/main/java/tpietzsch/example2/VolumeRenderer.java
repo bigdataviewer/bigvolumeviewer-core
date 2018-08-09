@@ -53,6 +53,7 @@ public class VolumeRenderer
 	public enum RepaintType
 	{
 		NONE,
+		SCENE,
 		DITHER,
 		LOAD,
 		FULL;

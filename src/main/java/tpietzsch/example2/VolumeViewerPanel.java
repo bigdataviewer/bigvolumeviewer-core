@@ -1,11 +1,16 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
+import bdv.util.Affine3DHelpers;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TimePointListener;
+import bdv.viewer.ViewerPanel;
 import bdv.viewer.VisibilityAndGrouping;
+import bdv.viewer.animate.AbstractTransformAnimator;
+import bdv.viewer.animate.RotationAnimator;
 import bdv.viewer.state.SourceGroup;
+import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
 import com.jogamp.opengl.GL3;
@@ -19,20 +24,31 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
+import net.imglib2.Positionable;
+import net.imglib2.RealPositionable;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.ui.PainterThread;
+import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.util.LinAlgHelpers;
 import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import tpietzsch.example2.VolumeRenderer.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
@@ -48,10 +64,11 @@ import static com.jogamp.opengl.GL.GL_RGB8;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.SCENE;
 
 public class VolumeViewerPanel
 		extends JPanel
-		implements RequestRepaint
+		implements RequestRepaint, PainterThread.Paintable
 {
 	/**
 	 * TODO should be more general...
@@ -62,13 +79,13 @@ public class VolumeViewerPanel
 	public static class RenderData
 	{
 		private final Matrix4f pv;
-		private final int timepoint;
+		private int timepoint;
 		private final AffineTransform3D renderTransformWorldToScreen;
-		private final double dCam;
-		private final double dClipNear;
-		private final double dClipFar;
-		private final double screenWidth;
-		private final double screenHeight;
+		private double dCam;
+		private double dClipNear;
+		private double dClipFar;
+		private double screenWidth;
+		private double screenHeight;
 
 		/**
 		 * @param pv
@@ -86,12 +103,31 @@ public class VolumeViewerPanel
 		{
 			this.pv = new Matrix4f( pv );
 			this.timepoint = timepoint;
-			this.renderTransformWorldToScreen = renderTransformWorldToScreen;
+			this.renderTransformWorldToScreen = new AffineTransform3D();
+			this.renderTransformWorldToScreen.set( renderTransformWorldToScreen );
 			this.dCam = dCam;
 			this.dClipNear = dClipNear;
 			this.dClipFar = dClipFar;
 			this.screenWidth = screenWidth;
 			this.screenHeight = screenHeight;
+		}
+
+		public RenderData()
+		{
+			this.pv = new Matrix4f();
+			this.renderTransformWorldToScreen = new AffineTransform3D();
+		}
+
+		public void set( final RenderData other )
+		{
+			this.pv.set( other.pv );
+			this.timepoint = other.timepoint;
+			this.renderTransformWorldToScreen.set( other.renderTransformWorldToScreen );
+			this.dCam = other.dCam;
+			this.dClipNear = other.dClipNear;
+			this.dClipFar = other.dClipFar;
+			this.screenWidth = other.screenWidth;
+			this.screenHeight = other.screenHeight;
 		}
 
 		public Matrix4f getPv()
@@ -144,14 +180,14 @@ public class VolumeViewerPanel
 
 	private class Repaint
 	{
-		private VolumeRenderer.RepaintType type;
+		private RepaintType type;
 
 		protected Repaint()
 		{
 			this.type = FULL;
 		}
 
-		protected synchronized void request( VolumeRenderer.RepaintType type )
+		protected synchronized void request( RepaintType type )
 		{
 			if ( this.type.ordinal() < type.ordinal() )
 			{
@@ -160,9 +196,9 @@ public class VolumeViewerPanel
 			}
 		}
 
-		protected synchronized VolumeRenderer.RepaintType getAndClear()
+		protected synchronized RepaintType getAndClear()
 		{
-			VolumeRenderer.RepaintType t = type;
+			RepaintType t = type;
 			type = NONE;
 			return t;
 		}
@@ -205,6 +241,11 @@ public class VolumeViewerPanel
 	protected final PainterThread painterThread;
 
 	/**
+	 * Keeps track of the current mouse coordinates.
+	 */
+	protected final MouseCoordinateListener mouseCoordinates;
+
+	/**
 	 * Manages visibility and currentness of sources and groups, as well as
 	 * grouping of sources, and display mode.
 	 */
@@ -224,6 +265,13 @@ public class VolumeViewerPanel
 	 * interfere.
 	 */
 	protected final CopyOnWriteArrayList< TimePointListener > timePointListeners;
+
+	/**
+	 * Current animator for viewer transform, or null. This is for example used
+	 * to make smooth transitions when {@link #align(ViewerPanel.AlignPlane) aligning to
+	 * orthogonal planes}.
+	 */
+	protected AbstractTransformAnimator currentAnimator = null;
 
 	protected final TransformHandler transformHandler;
 
@@ -307,9 +355,12 @@ public class VolumeViewerPanel
 		timePointListeners = new CopyOnWriteArrayList<>();
 
 		transformHandler = new TransformHandler();
-		transformHandler.setCanvasSize( canvas.getWidth(), canvas.getHeight(), false );
+		transformHandler.setCanvasSize( options.getWidth(), options.getHeight(), false );
 		transformHandler.setTransform( viewerTransform );
 		transformHandler.listeners().add( this::transformChanged );
+
+		mouseCoordinates = new MouseCoordinateListener();
+		addHandlerToCanvas( mouseCoordinates );
 
 		canvas.addComponentListener( new ComponentAdapter()
 		{
@@ -333,7 +384,7 @@ public class VolumeViewerPanel
 //			}
 //		} );
 
-		painterThread = new PainterThread( canvas::display );
+		painterThread = new PainterThread( this );
 		painterThread.setDaemon( true );
 		painterThread.start();
 	}
@@ -408,6 +459,24 @@ public class VolumeViewerPanel
 		return state.copy();
 	}
 
+	@Override
+	public void paint()
+	{
+		canvas.display();
+
+		synchronized ( this )
+		{
+			if ( currentAnimator != null )
+			{
+				final AffineTransform3D transform = currentAnimator.getCurrent( System.currentTimeMillis() );
+				transformHandler.setTransform( transform );
+				transformChanged( transform );
+				if ( currentAnimator.isComplete() )
+					currentAnimator = null;
+			}
+		}
+	}
+
 	/**
 	 * Repaint as soon as possible.
 	 */
@@ -415,6 +484,102 @@ public class VolumeViewerPanel
 	public void requestRepaint()
 	{
 		repaint.request( FULL );
+	}
+
+	/**
+	 * Repaint as soon as possible.
+	 */
+	public void requestRepaint( RepaintType type )
+	{
+		repaint.request( type );
+	}
+
+	private final static double c = Math.cos( Math.PI / 4 );
+
+	/**
+	 * The planes which can be aligned with the viewer coordinate system: XY,
+	 * ZY, and XZ plane.
+	 */
+	public static enum AlignPlane
+	{
+		XY( "XY", 2, new double[] { 1, 0, 0, 0 } ),
+		ZY( "ZY", 0, new double[] { c, 0, -c, 0 } ),
+		XZ( "XZ", 1, new double[] { c, c, 0, 0 } );
+
+		private final String name;
+
+		public String getName()
+		{
+			return name;
+		}
+
+		/**
+		 * rotation from the xy-plane aligned coordinate system to this plane.
+		 */
+		private final double[] qAlign;
+
+		/**
+		 * Axis index. The plane spanned by the remaining two axes will be
+		 * transformed to the same plane by the computed rotation and the
+		 * "rotation part" of the affine source transform.
+		 * @see Affine3DHelpers#extractApproximateRotationAffine(AffineTransform3D, double[], int)
+		 */
+		private final int coerceAffineDimension;
+
+		private AlignPlane( final String name, final int coerceAffineDimension, final double[] qAlign )
+		{
+			this.name = name;
+			this.coerceAffineDimension = coerceAffineDimension;
+			this.qAlign = qAlign;
+		}
+	}
+
+	/**
+	 * Align the XY, ZY, or XZ plane of the local coordinate system of the
+	 * currently active source with the viewer coordinate system.
+	 *
+	 * @param plane
+	 *            to which plane to align.
+	 */
+	protected synchronized void align( final AlignPlane plane )
+	{
+		final SourceState< ? > source = state.getSources().get( state.getCurrentSource() );
+		final AffineTransform3D sourceTransform = new AffineTransform3D();
+		source.getSpimSource().getSourceTransform( state.getCurrentTimepoint(), 0, sourceTransform );
+
+		final double[] qSource = new double[ 4 ];
+		Affine3DHelpers.extractRotationAnisotropic( sourceTransform, qSource );
+
+		final double[] qTmpSource = new double[ 4 ];
+		Affine3DHelpers.extractApproximateRotationAffine( sourceTransform, qSource, plane.coerceAffineDimension );
+		LinAlgHelpers.quaternionMultiply( qSource, plane.qAlign, qTmpSource );
+
+		final double[] qTarget = new double[ 4 ];
+		LinAlgHelpers.quaternionInvert( qTmpSource, qTarget );
+
+		final AffineTransform3D transform = transformHandler.getTransform();
+		double centerX;
+		double centerY;
+		if ( mouseCoordinates.isMouseInsidePanel() )
+		{
+			centerX = mouseCoordinates.getX();
+			centerY = mouseCoordinates.getY();
+		}
+		else
+		{
+			centerY = getHeight() / 2.0;
+			centerX = getWidth() / 2.0;
+		}
+		currentAnimator = new RotationAnimator( transform, centerX, centerY, qTarget, 300 );
+		currentAnimator.setTime( System.currentTimeMillis() );
+		transformChanged( transform );
+	}
+
+	public synchronized void setTransformAnimator( final AbstractTransformAnimator animator )
+	{
+		currentAnimator = animator;
+		currentAnimator.setTime( System.currentTimeMillis() );
+		requestRepaint();
 	}
 
 	/**
@@ -432,6 +597,74 @@ public class VolumeViewerPanel
 			e.printStackTrace();
 		}
 		state.kill();
+	}
+
+	protected class MouseCoordinateListener implements MouseMotionListener, MouseListener
+	{
+		private int x;
+
+		private int y;
+
+		private boolean isInside;
+
+		public synchronized void getMouseCoordinates( final Positionable p )
+		{
+			p.setPosition( x, 0 );
+			p.setPosition( y, 1 );
+		}
+
+		@Override
+		public synchronized void mouseDragged( final MouseEvent e )
+		{
+			x = e.getX();
+			y = e.getY();
+		}
+
+		@Override
+		public synchronized void mouseMoved( final MouseEvent e )
+		{
+			x = e.getX();
+			y = e.getY();
+		}
+
+		public synchronized int getX()
+		{
+			return x;
+		}
+
+		public synchronized int getY()
+		{
+			return y;
+		}
+
+		public synchronized boolean isMouseInsidePanel()
+		{
+			return isInside;
+		}
+
+		@Override
+		public synchronized void mouseEntered( final MouseEvent e )
+		{
+			isInside = true;
+		}
+
+		@Override
+		public synchronized void mouseExited( final MouseEvent e )
+		{
+			isInside = false;
+		}
+
+		@Override
+		public void mouseClicked( final MouseEvent e )
+		{}
+
+		@Override
+		public void mousePressed( final MouseEvent e )
+		{}
+
+		@Override
+		public void mouseReleased( final MouseEvent e )
+		{}
 	}
 
 	public Component getDisplay()
@@ -542,6 +775,62 @@ public class VolumeViewerPanel
 		{
 			timePointListeners.remove( listener );
 		}
+	}
+
+	/**
+	 * Add new event handler to the canvas. Depending on the interfaces implemented by
+	 * {@code handler} calls {@link Component#addKeyListener(KeyListener)},
+	 * {@link Component#addMouseListener(MouseListener)},
+	 * {@link Component#addMouseMotionListener(MouseMotionListener)},
+	 * {@link Component#addMouseWheelListener(MouseWheelListener)}.
+	 *
+	 * @param h
+	 * 		handler to remove
+	 */
+	public void addHandlerToCanvas( final Object h )
+	{
+		if ( KeyListener.class.isInstance( h ) )
+			canvas.addKeyListener( ( KeyListener ) h );
+
+		if ( MouseMotionListener.class.isInstance( h ) )
+			canvas.addMouseMotionListener( ( MouseMotionListener ) h );
+
+		if ( MouseListener.class.isInstance( h ) )
+			canvas.addMouseListener( ( MouseListener ) h );
+
+		if ( MouseWheelListener.class.isInstance( h ) )
+			canvas.addMouseWheelListener( ( MouseWheelListener ) h );
+
+		if ( FocusListener.class.isInstance( h ) )
+			canvas.addFocusListener( ( FocusListener ) h );
+	}
+
+	/**
+	 * Remove an event handler form the canvas. Add new event handler. Depending on the
+	 * interfaces implemented by {@code handler} calls
+	 * {@link Component#removeKeyListener(KeyListener)},
+	 * {@link Component#removeMouseListener(MouseListener)},
+	 * {@link Component#removeMouseMotionListener(MouseMotionListener)},
+	 * {@link Component#removeMouseWheelListener(MouseWheelListener)}.
+	 *
+	 * @param h handler to remove
+	 */
+	public void removeHandlerFromCanvas( final Object h )
+	{
+		if ( KeyListener.class.isInstance( h ) )
+			canvas.removeKeyListener( ( KeyListener ) h );
+
+		if ( MouseMotionListener.class.isInstance( h ) )
+			canvas.removeMouseMotionListener( ( MouseMotionListener ) h );
+
+		if ( MouseListener.class.isInstance( h ) )
+			canvas.removeMouseListener( ( MouseListener ) h );
+
+		if ( MouseWheelListener.class.isInstance( h ) )
+			canvas.removeMouseWheelListener( ( MouseWheelListener ) h );
+
+		if ( FocusListener.class.isInstance( h ) )
+			canvas.removeFocusListener( ( FocusListener ) h );
 	}
 
 	private synchronized void transformChanged( final AffineTransform3D transform )
@@ -662,12 +951,15 @@ public class VolumeViewerPanel
 		{
 			final GL3 gl = drawable.getGL().getGL3();
 
-			final VolumeRenderer.RepaintType type = repaint.getAndClear();
+			final RepaintType type = repaint.getAndClear();
 
 			if ( type == FULL )
 			{
 				setRenderState();
+			}
 
+			if ( type == FULL || type == SCENE )
+			{
 				sceneBuf.bind( gl );
 				gl.glEnable( GL_DEPTH_TEST );
 				gl.glDepthFunc( GL_LESS );
@@ -684,7 +976,7 @@ public class VolumeViewerPanel
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
-			VolumeRenderer.RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
+			RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
 			repaint.request( rerender );
 			offscreen.unbind( gl, false );
 			offscreen.drawQuad( gl );

@@ -80,12 +80,7 @@ public class VolumeViewerFrame extends JFrame
 		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 		mouseAndKeyHandler.setKeypressManager( options.getKeyPressedManager(), viewer.getDisplay() );
-		final Component display = viewer.getDisplay();
-		display.addKeyListener( mouseAndKeyHandler );
-		display.addMouseListener( mouseAndKeyHandler );
-		display.addMouseWheelListener( mouseAndKeyHandler );
-		display.addMouseMotionListener( mouseAndKeyHandler );
-		display.addFocusListener( mouseAndKeyHandler );
+		viewer.addHandlerToCanvas( mouseAndKeyHandler );
 
 		final Behaviours behaviours = new Behaviours( keyConfig, "bdv" );
 		behaviours.install( triggerbindings, "transform" );
