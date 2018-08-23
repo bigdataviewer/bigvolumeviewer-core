@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import net.imglib2.util.IntervalIndexer;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.TextureCache.Tile;
 
 import static tpietzsch.backend.Texture.InternalFormat.RGBA8UI;
@@ -59,6 +60,7 @@ public class LookupTextureARGB implements Texture3D
 		final int numBytes = 4 * size[ 0 ] * size[ 1 ] * size[ 2 ];
 		if ( data == null || data.capacity() < numBytes )
 			data = ByteBuffer.allocateDirect( 3 * numBytes / 2 ); // allocate a bit more than needed...
+		ByteUtils.setBytes( ( byte ) 0, ByteUtils.addressOf( data ), numBytes );
 	}
 
 	/**

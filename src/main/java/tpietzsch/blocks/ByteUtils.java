@@ -62,6 +62,11 @@ public class ByteUtils
 			UNSAFE.putShort( dst + 2 * i, src );
 	}
 
+	public static void setBytes( final byte src, final long dst, final long csx )
+	{
+		UNSAFE.setMemory( dst, csx, src );
+	}
+
 	public interface Address
 	{
 		long getAddress();
