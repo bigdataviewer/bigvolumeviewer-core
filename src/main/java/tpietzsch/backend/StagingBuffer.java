@@ -1,6 +1,6 @@
 package tpietzsch.backend;
 
-public interface Pbo
+public interface StagingBuffer
 {
 	int getSizeInBytes();
 }

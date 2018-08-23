@@ -12,16 +12,16 @@ public interface GpuContext
 	SetUniforms getUniformSetter( Shader shader );
 
 	/**
-	 * @param pbo Pbo to bind
-	 * @return id of previously bound pbo
+	 * @param stagingBuffer staging buffer to bind
+	 * @return id of previously bound staging buffer
 	 */
-	int bindPbo( Pbo pbo  );
+	int bindStagingBuffer( StagingBuffer stagingBuffer );
 
 	/**
-	 * @param id pbo id to bind
-	 * @return id of previously bound pbo
+	 * @param id staging buffer id to bind
+	 * @return id of previously bound staging buffer
 	 */
-	int bindPboId( int id );
+	int bindStagingBufferId( int id );
 
 	/**
 	 * @param texture texture to bind
@@ -42,21 +42,21 @@ public interface GpuContext
 	 */
 	int bindTextureId( int id, int numTexDimensions );
 
-	// map pbo, initialize and cache if necessary
-	// previous pbo binding is restored when done
-	Buffer map( Pbo pbo );
+	// map staging buffer, initialize and cache if necessary
+	// previous staging buffer binding is restored when done
+	Buffer map( StagingBuffer stagingBuffer );
 
-	// unmap a (mapped) pbo
-	// previous pbo binding is restored when done
-	void unmap( Pbo pbo );
+	// unmap a (mapped) staging buffer
+	// previous staging buffer binding is restored when done
+	void unmap( StagingBuffer stagingBuffer );
 
 	// delete a texture (if it has already been allocated)
 	// used to redefine a texture that has changed size
 	void delete( Texture texture );
 
-	// upload texture block from pbo
-	// previous pbo binding is restored when done
-	void texSubImage3D( Pbo pbo, Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, long pixels_buffer_offset );
+	// upload texture block from staging buffer
+	// previous staging buffer binding is restored when done
+	void texSubImage3D( StagingBuffer stagingBuffer, Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, long pixels_buffer_offset );
 
 	// upload texture block from Buffer
 	void texSubImage3D( Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, Buffer pixels );
