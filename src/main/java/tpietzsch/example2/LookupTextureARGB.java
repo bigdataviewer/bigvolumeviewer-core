@@ -2,6 +2,7 @@ package tpietzsch.example2;
 
 import java.nio.ByteBuffer;
 import net.imglib2.util.IntervalIndexer;
+import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.blocks.ByteUtils;
@@ -77,7 +78,7 @@ public class LookupTextureARGB implements Texture3D
 		data.put( i * 4 + 3, ( byte ) ( level - baseLevel + 1 ) );
 	}
 
-	public void upload( final JoglGpuContext context )
+	public void upload( final GpuContext context )
 	{
 		context.delete( this );
 		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
