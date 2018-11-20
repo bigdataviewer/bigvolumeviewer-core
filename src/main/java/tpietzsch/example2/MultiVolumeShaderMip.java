@@ -130,6 +130,12 @@ public class MultiVolumeShaderMip
 		uniformViewportSize.set( width, height );
 	}
 
+	// workaround for scenery to collect uniforms
+	public void init( GpuContext context ) {
+		prog.use( context );
+		prog.setUniforms( context );
+	}
+
 	public void use( GpuContext context )
 	{
 		prog.use( context );
