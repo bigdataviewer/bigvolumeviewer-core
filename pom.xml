@@ -7,11 +7,81 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>23.1.1</version>
+		<version>23.2.0</version>
 	</parent>
 
-	<artifactId>jogl-minimal</artifactId>
-	<version>1.0.3-SNAPSHOT</version>
+	<groupId>sc.fiji</groupId>
+	<artifactId>bigvolumeviewer</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+
+	<name>BigVolumeViewer</name>
+	<description>Volume rendering of bdv datasets</description>
+	<url>https://github.com/tpietzsch/jogl-minimal</url>
+	<inceptionYear>2018</inceptionYear>
+	<organization>
+		<name>BigDataViewer</name>
+		<url>https://imagej.net/BigDataViewer</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Simplified BSD License</name>
+			<url>https://opensource.org/licenses/BSD-2-Clause</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>tpietzsch</id>
+			<name>Tobias Pietzsch</name>
+			<url>https://imagej.net/User:Pietzsch</url>
+			<roles>
+				<role>founder</role>
+				<role>lead</role>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+	</developers>
+	<contributors><contributor><name>none</name></contributor></contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:git://github.com/tpietzsch/jogl-minimal</connection>
+		<developerConnection>scm:git:git@github.com:tpietzsch/jogl-minimal</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/tpietzsch/jogl-minimal</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/tpietzsch/jogl-minimal/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/tpietzsch/jogl-minimal</url>
+	</ciManagement>
+
+	<properties>
+		<package-name>tpietzsch</package-name>
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
+
+		<!-- NB: Deploy releases to the ImageJ Maven repository. -->
+		<releaseProfiles>deploy-to-imagej</releaseProfiles>
+	</properties>
+
+	<repositories>
+		<repository>
+			<id>imagej.public</id>
+			<url>http://maven.imagej.net/content/groups/public</url>
+		</repository>
+	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -71,28 +141,4 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<repositories>
-		<repository>
-			<id>imagej.public</id>
-			<url>http://maven.imagej.net/content/groups/public</url>
-		</repository>
-	</repositories>
-
-	<name>none</name>
-	<description>none</description>
-	<url>none</url>
-	<inceptionYear>none</inceptionYear>
-	<organization><name>none</name></organization>
-	<licenses><license><name>none</name></license></licenses>
-	<mailingLists><mailingList><name>none</name></mailingList></mailingLists>
-	<scm><tag>none</tag></scm>
-	<issueManagement><system>none</system></issueManagement>
-	<ciManagement><system>none</system></ciManagement>
-	<properties>
-		<license.licenseName>bsd_2</license.licenseName>
-		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
-	</properties>
-	<developers><developer><id>tpietzsch</id></developer></developers>
-	<contributors><contributor><name>none</name></contributor></contributors>
 </project>
