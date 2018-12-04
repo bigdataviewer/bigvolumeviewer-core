@@ -268,7 +268,7 @@ public class VolumeViewerPanel
 
 	/**
 	 * Current animator for viewer transform, or null. This is for example used
-	 * to make smooth transitions when {@link #align(ViewerPanel.AlignPlane) aligning to
+	 * to make smooth transitions when {@link #align(AlignPlane)} aligning to
 	 * orthogonal planes}.
 	 */
 	protected AbstractTransformAnimator currentAnimator = null;

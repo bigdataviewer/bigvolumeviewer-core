@@ -7,7 +7,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 /**
  * One resolution level of a {@link MultiResolutionStack3D}
  * <p>
- * This may be used as part of a cache key, so {@link #equals(Object)} and {@link #hashCode()} should be overridden such that {@link ResolutionLevel3D}s referring the same image data are equal.
+ * This may be used as part of a cache key, so {@code equals()} and {@code hashCode()} should be overridden such that {@link ResolutionLevel3D}s referring the same image data are equal.
  *
  * @param <T>
  * 		pixel type

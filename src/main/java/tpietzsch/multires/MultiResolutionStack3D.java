@@ -9,7 +9,7 @@ import static tpietzsch.multires.DownSamplingScheme.DEFAULT_BLOCK_AVERAGE;
 /**
  * A 3D stack with multiple resolution levels.
  * <p>
- * This may be used as part of a cache key, so {@link #equals(Object)} and {@link #hashCode()} should be overridden such that {@link MultiResolutionStack3D}s referring the same image data are equal.
+ * This may be used as part of a cache key, so {@code equals()} and {@code hashCode()} should be overridden such that {@link MultiResolutionStack3D}s referring the same image data are equal.
  *
  * @param <T>
  * 		pixel type
