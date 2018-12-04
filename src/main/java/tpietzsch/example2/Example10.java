@@ -18,7 +18,6 @@ import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
-import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
@@ -27,12 +26,9 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.Buffer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ForkJoinPool;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import mpicbg.spim.data.SpimDataException;
@@ -40,9 +36,7 @@ import net.imglib2.Interval;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.util.StopWatch;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -51,72 +45,42 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.blocks.ByteUtils;
-import tpietzsch.cache.CacheSpec;
-import tpietzsch.cache.FillTask;
-import tpietzsch.cache.PboChain;
-import tpietzsch.cache.ProcessFillTasks;
-import tpietzsch.cache.TextureCache;
-import tpietzsch.dither.DitherBuffer;
+import tpietzsch.example2.VolumeRenderer.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
 import tpietzsch.scene.TexturedUnitCube;
-import tpietzsch.shadergen.DefaultShader;
-import tpietzsch.shadergen.Shader;
-import tpietzsch.shadergen.generate.Segment;
-import tpietzsch.shadergen.generate.SegmentTemplate;
-import tpietzsch.util.DefaultQuad;
 import tpietzsch.util.InputFrame;
 import tpietzsch.util.MatrixMath;
 import tpietzsch.util.TransformHandler;
-import tpietzsch.util.WireframeBox;
 
 import static bdv.BigDataViewer.initSetups;
 import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
-import static com.jogamp.opengl.GL.GL_ALWAYS;
-import static com.jogamp.opengl.GL.GL_BLEND;
-import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
-import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_RGB8;
-import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
-import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
-import static com.jogamp.opengl.GL2ES2.GL_RED;
-import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
-import static tpietzsch.backend.Texture.InternalFormat.R16;
-import static tpietzsch.example2.Example9.RepaintType.DITHER;
-import static tpietzsch.example2.Example9.RepaintType.FULL;
-import static tpietzsch.example2.Example9.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
 
-public class Example9 implements GLEventListener, RequestRepaint
+public class Example10 implements GLEventListener, RequestRepaint
 {
 	private final OffScreenFrameBuffer offscreen;
 
-	private final Shader prog;
+	private final VolumeRenderer renderer;
 
-	private final ArrayList< MultiVolumeShaderMip9 > progvols;
-	private MultiVolumeShaderMip9 progvol;
 
-	private final WireframeBox box;
 
-	private final DefaultQuad quad;
+	// ... RenderState ...
+	private final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks = new ArrayList<>();
+	private final List< ConverterSetup > renderConverters = new ArrayList<>();
+	private final Matrix4f pv = new Matrix4f();
 
-	private final CacheSpec cacheSpec;
-	private final TextureCache textureCache;
-	private final PboChain pboChain;
-	private final ForkJoinPool forkJoinPool;
 
-	private final ArrayList< VolumeBlocks > volumes;
 
-	private final ArrayList< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks = new ArrayList<>();
-	private final ArrayList< ConverterSetup > renderConverters = new ArrayList<>();
-	private final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 
 	private final double screenPadding = 0;
 	private final double dCam;
@@ -147,11 +111,6 @@ public class Example9 implements GLEventListener, RequestRepaint
 	private final OffScreenFrameBufferWithDepth sceneBuf;
 
 
-	// ... dithering ...
-	private final DitherBuffer dither;
-	private final int numDitherSteps;
-
-
 	// ... BDV ...
 	private final ViewerState state;
 	private final VisibilityAndGrouping visibilityAndGrouping;
@@ -162,7 +121,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 	private final SetupAssignments setupAssignments;
 
 
-	public Example9(
+	public Example10(
 			final SpimDataMinimal spimData,
 			final Runnable frameRequestRepaint,
 			final int renderWidth,
@@ -225,45 +184,18 @@ public class Example9 implements GLEventListener, RequestRepaint
 		this.frameRequestRepaint = frameRequestRepaint;
 		sceneBuf = new OffScreenFrameBufferWithDepth( renderWidth, renderHeight, GL_RGB8 );
 		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8 );
-		if ( ditherWidth <= 1 )
-		{
-			dither = null;
-			numDitherSteps = 1;
-		}
-		else
-		{
-			dither = new DitherBuffer( renderWidth, renderHeight, ditherWidth, ditherStep, numDitherSamples );
-			numDitherSteps = dither.numSteps();
-		}
-		box = new WireframeBox();
-		quad = new DefaultQuad();
 
 		this.dCam = dCam;
 		this.dClip = dClip;
 
-		cacheSpec = new CacheSpec( R16, new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize } );
-		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
-		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
-		pboChain = new PboChain( 5, 100, textureCache );
-		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
-		forkJoinPool = new ForkJoinPool( parallelism );
-
-		volumes = new ArrayList<>();
-		for ( int i = 0; i < numVolumes; i++ )
-			volumes.add( new VolumeBlocks( textureCache ) );
-
-		final Segment ex1vp = new SegmentTemplate("ex1.vp" ).instantiate();
-		final Segment ex1fp = new SegmentTemplate("ex1.fp" ).instantiate();
-		prog = new DefaultShader( ex1vp.getCode(), ex1fp.getCode() );
-
-		progvols = new ArrayList<>();
-		progvols.add( null );
-		for ( int i = 1; i <= numVolumes; ++i )
-		{
-			final MultiVolumeShaderMip9 progvol = new MultiVolumeShaderMip9( i, true, 1.0 );
-			progvol.setTextureCache( textureCache );
-			progvols.add( progvol );
-		}
+		renderer = new VolumeRenderer(
+				renderWidth,
+				renderHeight,
+				ditherWidth,
+				ditherStep,
+				numDitherSamples,
+				new int[] { cacheBlockSize, cacheBlockSize, cacheBlockSize },
+				maxCacheSizeInMB );
 	}
 
 	@Override
@@ -271,9 +203,6 @@ public class Example9 implements GLEventListener, RequestRepaint
 	{
 		final GL3 gl = drawable.getGL().getGL3();
 		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
-		gl.glEnable( GL_DEPTH_TEST );
-		gl.glEnable( GL_BLEND );
-		gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	}
 
 	@Override
@@ -283,47 +212,34 @@ public class Example9 implements GLEventListener, RequestRepaint
 	private double screenWidth = 640;
 	private double screenHeight = 480;
 
-	enum RepaintType
-	{
-		FULL,
-		LOAD,
-		DITHER
-	}
 
-	private class Repaint
+	class Repaint
 	{
-		private RepaintType next = FULL;
+		private RepaintType type;
 
-		synchronized void requestRepaint( RepaintType type )
+		public Repaint()
 		{
-			switch ( type )
-			{
-			case FULL:
-				next = FULL;
-				break;
-			case LOAD:
-				if ( next != FULL )
-					next = LOAD;
-				break;
-			case DITHER:
-				break;
-			}
-			frameRequestRepaint.run();
+			this.type = FULL;
 		}
 
-		synchronized RepaintType nextRepaint()
+		public synchronized void request( RepaintType type )
 		{
-			final RepaintType type = next;
-			next = DITHER;
-			return type;
+			if ( this.type.ordinal() < type.ordinal() )
+			{
+				this.type = type;
+				frameRequestRepaint.run();
+			}
+		}
+
+		public synchronized RepaintType getAndClear()
+		{
+			RepaintType t = type;
+			type = NONE;
+			return t;
 		}
 	}
 
 	private final Repaint repaint = new Repaint();
-
-	private int ditherStep = 0;
-
-	private int targetDitherSteps = 0;
 
 	@Override
 	public void display( final GLAutoDrawable drawable )
@@ -331,249 +247,49 @@ public class Example9 implements GLEventListener, RequestRepaint
 		final GL3 gl = drawable.getGL().getGL3();
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 
-		final RepaintType type = repaint.nextRepaint();
+		final RepaintType type = repaint.getAndClear();
 
 		if ( type == FULL )
 		{
 			setRenderState();
 
-			ditherStep = 0;
-			targetDitherSteps = numDitherSteps;
+			sceneBuf.bind( gl );
+			gl.glEnable( GL_DEPTH_TEST );
+			gl.glDepthFunc( GL_LESS );
+			synchronized ( state )
+			{
+				for ( CubeAndTransform cubeAndTransform : cubeAndTransforms )
+				{
+					cubeAndTransform.cube.draw( gl, new Matrix4f( pv ).mul( cubeAndTransform.model ) );
+				}
+			}
+			sceneBuf.unbind( gl, false );
 		}
-		else if ( type == LOAD )
+
+		if ( type == FULL || type == LOAD )
 		{
-			targetDitherSteps = ditherStep + numDitherSteps;
+			CacheIoTiming.getIoTimeBudget().reset( iobudget );
+			cacheControl.prepareNextFrame();
 		}
 
-		if ( ditherStep != targetDitherSteps )
-		{
-			if ( type == FULL || type == LOAD )
-			{
-				gl.glClearColor( 0.2f, 0.3f, 0.3f, 1.0f );
-				gl.glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-				final Matrix4f view = MatrixMath.affine( renderTransformWorldToScreen, new Matrix4f() );
-				final Matrix4f projection = MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, new Matrix4f() );
-				final Matrix4f pv = new Matrix4f( projection ).mul( view );
-
-				if ( type == FULL )
-				{
-					sceneBuf.bind( gl );
-					gl.glEnable( GL_DEPTH_TEST );
-					gl.glDepthFunc( GL_LESS );
-					synchronized ( state )
-					{
-						for ( CubeAndTransform cubeAndTransform : cubeAndTransforms )
-						{
-							cubeAndTransform.cube.draw( gl, new Matrix4f( pv ).mul( cubeAndTransform.model ) );
-						}
-					}
-//					// draw volume boxes
-//					prog.use( context );
-//					prog.getUniformMatrix4f( "view" ).set( view );
-//					prog.getUniformMatrix4f( "projection" ).set( projection );
-//					prog.getUniform4f( "color" ).set( 1.0f, 0.5f, 0.2f, 1.0f );
-//					for ( int i = 0; i < renderStacks.size(); i++ )
-//					{
-//						final MultiResolutionStack3D< VolatileUnsignedShortType > stack = renderStacks.get( i );
-//						prog.getUniformMatrix4f( "model" ).set( MatrixMath.affine( stack.getSourceTransform(), new Matrix4f() ) );
-//						prog.setUniforms( context );
-//						box.updateVertices( gl, stack.resolutions().get( 0 ).getImage() );
-//						box.draw( gl );
-//					}
-
-					sceneBuf.unbind( gl, false );
-				}
-
-				updateBlocks( context, pv );
-
-				double minWorldVoxelSize = Double.POSITIVE_INFINITY;
-				progvol = progvols.get( renderStacks.size() );
-				if ( progvol != null )
-				{
-					for ( int i = 0; i < renderStacks.size(); i++ )
-					{
-						progvol.setConverter( i, renderConverters.get( i ) );
-						progvol.setVolume( i, volumes.get( i ) );
-						minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
-					}
-					progvol.setDepthTexture( sceneBuf.getDepthTexture() );
-					progvol.setViewportWidth( offscreen.getWidth() );
-					progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
-				}
-			}
-
-			if ( dither != null && progvol != null )
-			{
-				dither.bind( gl );
-				progvol.use( context );
-				progvol.bindSamplers( context );
-				gl.glDepthFunc( GL_ALWAYS );
-				gl.glDisable( GL_BLEND );
-				final StopWatch stopWatch = new StopWatch();
-				stopWatch.start();
-//				final int start = ditherStep;
-				while ( ditherStep < targetDitherSteps )
-				{
-					progvol.setDither( dither, ditherStep % numDitherSteps );
-					progvol.setUniforms( context );
-					quad.draw( gl );
-					gl.glFinish();
-					++ditherStep;
-					if ( stopWatch.nanoTime() > maxRenderNanos )
-						break;
-				}
-//				final int steps = ditherStep - start;
-//				stepList.add( steps );
-//				if ( stepList.size() == 1000 )
-//				{
-//					for ( int step : stepList )
-//						System.out.println( "step = " + step );
-//					System.out.println();
-//					stepList.clear();
-//				}
-				dither.unbind( gl );
-			}
-			else
-			{
-				offscreen.bind( gl, false );
-				gl.glDisable( GL_DEPTH_TEST );
-				sceneBuf.drawQuad( gl );
-				if ( progvol != null )
-				{
-					gl.glEnable( GL_DEPTH_TEST );
-					gl.glDepthFunc( GL_ALWAYS );
-					gl.glEnable( GL_BLEND );
-					progvol.use( context );
-					progvol.bindSamplers( context );
-					progvol.setEffectiveViewportSize( offscreen.getWidth(), offscreen.getHeight() );
-					progvol.setUniforms( context );
-					quad.draw( gl );
-				}
-				offscreen.unbind( gl, false );
-				offscreen.drawQuad( gl );
-			}
-		}
-
-		if ( dither != null )
-		{
-			offscreen.bind( gl, false );
-			gl.glDisable( GL_DEPTH_TEST );
-			sceneBuf.drawQuad( gl );
-			if ( progvol != null )
-			{
-				gl.glEnable( GL_BLEND );
-				final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
-				dither.dither( gl, stepsCompleted, offscreen.getWidth(), offscreen.getHeight() );
-			}
-			offscreen.unbind( gl, false );
-			offscreen.drawQuad( gl );
-
-			if ( ditherStep != targetDitherSteps )
-				repaint.requestRepaint( DITHER );
-		}
+		offscreen.bind( gl, false );
+		gl.glDisable( GL_DEPTH_TEST );
+		sceneBuf.drawQuad( gl );
+		RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
+		repaint.request( rerender );
+		offscreen.unbind( gl, false );
+		offscreen.drawQuad( gl );
 	}
-
-//	private final ArrayList< Integer > stepList = new ArrayList<>();
 
 	@Override
 	public void requestRepaint()
 	{
-		repaint.requestRepaint( FULL );
+		repaint.request( FULL );
 	}
 
 	private final long[] iobudget = new long[] { 100L * 1000000L, 10L * 1000000L };
 
-	private final long maxRenderNanos = 30L * 1000000L;
-
-	static class VolumeAndTasks
-	{
-		private final List< FillTask > tasks;
-		private final VolumeBlocks volume;
-		private final int maxLevel;
-
-		int numTasks()
-		{
-			return tasks.size();
-		}
-
-		VolumeAndTasks( final List< FillTask > tasks, final VolumeBlocks volume, final int maxLevel )
-		{
-			this.tasks = new ArrayList<>( tasks );
-			this.volume = volume;
-			this.maxLevel = maxLevel;
-		}
-	}
-
-	private void updateBlocks( final JoglGpuContext context, final Matrix4f pv )
-	{
-		CacheIoTiming.getIoTimeBudget().reset( iobudget );
-		cacheControl.prepareNextFrame();
-
-		final int vw = offscreen.getWidth();
-//		final int vw = viewportWidth;
-
-		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
-		int numTasks = 0;
-		for ( int i = 0; i < renderStacks.size(); i++ )
-		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = renderStacks.get( i );
-			final VolumeBlocks volume = volumes.get( i );
-			volume.init( stack, vw, pv );
-			final List< FillTask > tasks = volume.getFillTasks();
-			numTasks += tasks.size();
-			tasksPerVolume.add( new VolumeAndTasks( tasks, volume, stack.resolutions().size() - 1 ) );
-		}
-
-A:		while ( numTasks > textureCache.getMaxNumTiles() )
-		{
-//			System.out.println( "numTasks = " + numTasks );
-			tasksPerVolume.sort( Comparator.comparingInt( VolumeAndTasks::numTasks ).reversed() );
-			for ( final VolumeAndTasks vat : tasksPerVolume )
-			{
-				final int baseLevel = vat.volume.getBaseLevel();
-				if ( baseLevel < vat.maxLevel )
-				{
-					vat.volume.setBaseLevel( baseLevel + 1 );
-					numTasks -= vat.numTasks();
-					vat.tasks.clear();
-					vat.tasks.addAll( vat.volume.getFillTasks() );
-					numTasks += vat.numTasks();
-					continue A;
-				}
-			}
-			break;
-		}
-//		System.out.println( "final numTasks = " + numTasks + "\n\n" );
-
-		final ArrayList< FillTask > fillTasks = new ArrayList<>();
-		for ( final VolumeAndTasks vat : tasksPerVolume )
-			fillTasks.addAll( vat.tasks );
-		if ( fillTasks.size() > textureCache.getMaxNumTiles() )
-			fillTasks.subList( textureCache.getMaxNumTiles(), fillTasks.size() ).clear();
-
-		try
-		{
-			ProcessFillTasks.parallel( textureCache, pboChain, context, forkJoinPool, fillTasks );
-		}
-		catch ( final InterruptedException e )
-		{
-			e.printStackTrace();
-		}
-
-		boolean needsRepaint = false;
-		for ( int i = 0; i < renderStacks.size(); i++ )
-		{
-			final VolumeBlocks volume = volumes.get( i );
-			final boolean complete = volume.makeLut();
-			if ( !complete )
-				needsRepaint = true;
-			volume.getLookupTexture().upload( context );
-		}
-
-		if ( needsRepaint )
-			repaint.requestRepaint( LOAD );
-	}
+	private final int maxRenderMillis = 30;
 
 	@Override
 	public void reshape( final GLAutoDrawable drawable, final int x, final int y, final int width, final int height )
@@ -589,7 +305,10 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		{
 			visibleSourceIndices = state.getVisibleSourceIndices();
 			currentTimepoint = state.getCurrentTimepoint();
+			final AffineTransform3D renderTransformWorldToScreen = new AffineTransform3D();
 			state.getViewerTransform( renderTransformWorldToScreen );
+			final Matrix4f view = MatrixMath.affine( renderTransformWorldToScreen, new Matrix4f() );
+			MatrixMath.screenPerspective( dCam, dClip, screenWidth, screenHeight, screenPadding, pv ).mul( view );
 
 			renderStacks.clear();
 			renderConverters.clear();
@@ -829,9 +548,9 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 			throw new IllegalArgumentException( "unsupported dither width" );
 		}
 
-		final InputFrame frame = new InputFrame( "Example9", windowWidth, windowHeight );
+		final InputFrame frame = new InputFrame( "Example10", windowWidth, windowHeight );
 		InputFrame.DEBUG = false;
-		final Example9 glPainter = new Example9(
+		final Example10 glPainter = new Example10(
 				spimData,
 				frame::requestRepaint,
 				renderWidth,
@@ -852,7 +571,7 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 
 		final TransformHandler tf = frame.setupDefaultTransformHandler( glPainter::setCurrentViewerTransform, () -> {} );
 
-		NavigationActions9.installActionBindings( frame.getKeybindings(), glPainter, new InputTriggerConfig() );
+		NavigationActions10.installActionBindings( frame.getKeybindings(), glPainter, new InputTriggerConfig() );
 		final BrightnessDialog brightnessDialog = new BrightnessDialog( frame.getFrame(), glPainter.setupAssignments );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
 
@@ -905,7 +624,7 @@ A:		while ( numTasks > textureCache.getMaxNumTiles() )
 		final int windowHeight = 480;
 		final int renderWidth = 640;
 		final int renderHeight = 480;
-		final int ditherWidth = 3;
+		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
 		final int maxCacheSizeInMB = 300;

@@ -10,6 +10,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import net.imglib2.util.Intervals;
 import tpietzsch.backend.GpuContext;
+import tpietzsch.backend.StagingBuffer;
 import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.TextureCache.TileFillTask;
 
@@ -439,7 +440,7 @@ public class PboChain
 		}
 	}
 
-	static class Pbo implements tpietzsch.backend.Pbo
+	static class Pbo implements StagingBuffer
 	{
 		private final int bufSize; // size in blocks of this PBO
 		private final int blockSize; // size in bytes of each block
@@ -470,7 +471,7 @@ public class PboChain
 			uncommitted = 0;
 		}
 
-		// for GpuContext to initialized Pbo to correct size
+		// for GpuContext to initialize StagingBuffer to correct size
 		@Override
 		public int getSizeInBytes()
 		{
@@ -553,7 +554,7 @@ public class PboChain
 			if ( state != UNMAPPED )
 				throw new IllegalStateException();
 
-			final int restoreId = context.bindPbo( this );
+			final int restoreId = context.bindStagingBuffer( this );
 
 			int bi = 0; // index of next buffer
 			while ( bi < buffers.size() )
@@ -592,7 +593,7 @@ public class PboChain
 				bi += nb;
 			}	// repeat until bi == buffers.size()
 
-			context.bindPboId( restoreId );
+			context.bindStagingBufferId( restoreId );
 
 			buffers.clear();
 			state = CLEAN;

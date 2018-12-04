@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.joml.Matrix3fc;
 import org.joml.Matrix4fc;
 
 import tpietzsch.backend.GpuContext;
@@ -109,6 +110,12 @@ public abstract class AbstractShader implements Shader
 	public UniformMatrix4f getUniformMatrix4f( final String key )
 	{
 		return getUniform( getUniqueName( key ), UniformImpMatrix4f.class, UniformImpMatrix4f::new );
+	}
+
+	@Override
+	public UniformMatrix3f getUniformMatrix3f( final String key )
+	{
+		return getUniform( getUniqueName( key ), UniformImpMatrix3f.class, UniformImpMatrix3f::new );
 	}
 
 	@Override
@@ -531,6 +538,29 @@ public abstract class AbstractShader implements Shader
 		}
 	}
 
+	static class UniformImpMatrix3f extends UniformImp implements UniformMatrix3f
+	{
+		private final FloatBuffer value = Buffers.newDirectFloatBuffer( 9 );
+
+		public UniformImpMatrix3f( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		void setInShader( final SetUniforms visitor )
+		{
+			visitor.setUniformMatrix3f( name, false, value );
+		}
+
+		@Override
+		public synchronized void set( final Matrix3fc m33 )
+		{
+			m33.get( 0, value );
+			modified = true;
+		}
+	}
+
 	static class UniformImpMatrix4f extends UniformImp implements UniformMatrix4f
 	{
 		private final FloatBuffer value = Buffers.newDirectFloatBuffer( 16 );
@@ -579,9 +609,12 @@ public abstract class AbstractShader implements Shader
 		@Override
 		void setInShader( final SetUniforms visitor )
 		{
-			if ( !valid )
-				throw new IllegalStateException( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
-			visitor.setUniform1i( name, v0 );
+			if ( !valid ) {
+//				throw new IllegalStateException( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
+				System.out.println("Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?");
+			} else {
+				visitor.setUniform1i(name, v0);
+			}
 		}
 	}
 }

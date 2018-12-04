@@ -16,6 +16,7 @@ import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 
 import static com.jogamp.opengl.GL.GL_ARRAY_BUFFER;
+import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_COLOR_ATTACHMENT0;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_ATTACHMENT;
@@ -33,6 +34,8 @@ import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
 import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 import static com.jogamp.opengl.GL.GL_VIEWPORT;
@@ -108,8 +111,8 @@ public class OffScreenFrameBufferWithDepth
 		this.fbHeight = fbHeight;
 		this.internalFormat = internalFormat;
 
-		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp", Collections.emptyList() ).instantiate();
-		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp", Collections.emptyList() ).instantiate();
+		final Segment quadvp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.vp" ).instantiate();
+		final Segment quadfp = new SegmentTemplate( OffScreenFrameBufferWithDepth.class, "osfbquad.fp" ).instantiate();
 		progQuad = new DefaultShader( quadvp.getCode(), quadfp.getCode() );
 
 		depthTexture = new DepthTexture( fbWidth, fbHeight );
@@ -172,8 +175,8 @@ public class OffScreenFrameBufferWithDepth
 		gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
 
 		final int indices[] = {
-				0, 1, 3,   // first triangle
-				1, 2, 3    // second triangle
+				0, 3, 1,   // first triangle
+				1, 3, 2    // second triangle
 		};
 		gl.glGenBuffers( 1, tmp, 0 );
 		final int eboQuad = tmp[ 0 ];
@@ -297,6 +300,8 @@ public class OffScreenFrameBufferWithDepth
 		gl.glBindTexture( GL_TEXTURE_2D, texColorBuffer );
 		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter );
 		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter );
+		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 		gl.glBindVertexArray( vaoQuad );
 		gl.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
 		gl.glBindVertexArray( 0 );

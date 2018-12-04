@@ -1,0 +1,9 @@
+layout (location = 0) in vec3 aPos;
+
+layout (location = 0) out vec3 texCoord;
+
+void main()
+{
+	texCoord = 0.5 * ( vec3( aPos.xy, 0 ) + 1 );
+	gl_Position = vec4( aPos, 1.0 );
+}

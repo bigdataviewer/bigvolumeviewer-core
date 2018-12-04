@@ -29,8 +29,8 @@ import static tpietzsch.dither.DitherPattern.makeShader;
 
 public class DitherBuffer
 {
-	private final int width;
-	private final int height;
+	private final int paddedWidth;
+	private final int paddedHeight;
 
 	private final int spw;
 	private final int sps;
@@ -70,17 +70,16 @@ public class DitherBuffer
 
 	public DitherBuffer( final int width, final int height, final int spw, final int step, final int numSamples, final IntFunction< Double > sampleToSigma )
 	{
-		this.width = width;
-		this.height = height;
+		this.we = ( width - 1 ) / spw + 1;
+		this.he = ( height - 1 ) / spw + 1;
 		this.spw = spw;
+		this.paddedWidth = spw * we;
+		this.paddedHeight = spw * he;
 
 		sps = spw * spw;
 		spox = new int[ sps ];
 		spoy = new int[ sps ];
 		makePattern( spw, step, spox, spoy );
-
-		final int we = width / spw;
-		final int he = height / spw;
 
 		onws = new DitherWeights[ sps * sps ];
 		for ( int maxsp = 0; maxsp < sps; ++maxsp )
@@ -96,18 +95,15 @@ public class DitherBuffer
 			}
 		}
 
-		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp", Collections.emptyList() ).instantiate();
-		System.out.println( "makeShader(" + numSamples + ") = " + makeShader( numSamples ) );
+		final Segment ditherVp = new SegmentTemplate( DitherBuffer.class, "dither.vp" ).instantiate();
 		progDither = new DefaultShader( ditherVp.getCode(), makeShader( numSamples ) );
 
-		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp", Collections.emptyList() ).instantiate();
-		final Segment stichFp = new SegmentTemplate( DitherBuffer.class, "stitch.fp", Collections.emptyList() ).instantiate();
+		final Segment stitchVp = new SegmentTemplate( DitherBuffer.class, "stitch.vp" ).instantiate();
+		final Segment stichFp = new SegmentTemplate( DitherBuffer.class, "stitch.fp" ).instantiate();
 		progStitch = new DefaultShader( stitchVp.getCode(), stichFp.getCode() );
 
-		dither = new OffScreenFrameBuffer( width, height, GL_RGBA8 );
-		stitch = new OffScreenFrameBuffer( width, height, GL_RGBA8 );
-		this.we = width / spw;
-		this.he = height / spw;
+		dither = new OffScreenFrameBuffer( paddedWidth, paddedHeight, GL_RGBA8 );
+		stitch = new OffScreenFrameBuffer( paddedWidth, paddedHeight, GL_RGBA8 );
 	}
 
 	public int numSteps()
@@ -134,8 +130,8 @@ public class DitherBuffer
 
 	public Matrix4f ndcTransform( int step )
 	{
-		final float wvByWe = ( float ) width / we;
-		final float hvByHe = ( float ) height / he;
+		final float wvByWe = ( float ) paddedWidth / we;
+		final float hvByHe = ( float ) paddedHeight / he;
 		return new Matrix4f()
 				.scale( 1.0f / wvByWe, 1.0f / hvByHe, 1 )
 				.translate( 1 + 2 * spox[ step ] - wvByWe, 1 + 2 * spoy[ step ] - hvByHe, 0 );
@@ -179,8 +175,8 @@ public class DitherBuffer
 			progDither.getUniform2f( "dsp" ).set(
 					( float ) ( deltaSp( spw, spox[ i ], we ) - 0.5 ),
 					( float ) ( deltaSp( spw, spoy[ i ], he ) - 0.5 ) );
-			final float wvByWe = ( float ) width / we;
-			final float hvByHe = ( float ) height / he;
+			final float wvByWe = ( float ) paddedWidth / we;
+			final float hvByHe = ( float ) paddedHeight / he;
 			Matrix4f transform = new Matrix4f()
 					.scale( 1.0f / wvByWe, 1.0f / hvByHe, 1 )
 					.translate( 1 + 2 * spox[ i ] - wvByWe, 1 + 2 * spoy[ i ] - hvByHe, 0 );
@@ -199,8 +195,8 @@ public class DitherBuffer
 		gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 		progStitch.getUniform1i( "tex" ).set( 0 );
 		progStitch.getUniform2f( "viewportScale" ).set(
-				( float ) width / destWidth,
-				( float ) height / destHeight );
+				( float ) paddedWidth / destWidth,
+				( float ) paddedHeight / destHeight );
 		progStitch.getUniform2f( "spw" ).set( spw, spw );
 		progStitch.getUniform2f( "tls" ).set( we, he );
 		progStitch.setUniforms( context );

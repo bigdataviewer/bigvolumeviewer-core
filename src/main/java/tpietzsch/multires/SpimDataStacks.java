@@ -105,6 +105,11 @@ public class SpimDataStacks
 		return cacheControl;
 	}
 
+	public int getNumTimepoints()
+	{
+		return timepoints.size();
+	}
+
 	static class MultiResolutionStack3DImp< T > implements MultiResolutionStack3D< T >
 	{
 		private final int timepointId;

@@ -2,8 +2,10 @@ package tpietzsch.example2;
 
 import java.nio.ByteBuffer;
 import net.imglib2.util.IntervalIndexer;
+import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.blocks.ByteUtils;
 import tpietzsch.cache.TextureCache.Tile;
 
 import static tpietzsch.backend.Texture.InternalFormat.RGBA8UI;
@@ -36,7 +38,7 @@ public class LookupTextureARGB implements Texture3D
 
 	private int baseLevel;
 
-	private byte[] data;
+	private ByteBuffer data;
 
 	/**
 	 * Reinitialize the lut data.
@@ -56,7 +58,10 @@ public class LookupTextureARGB implements Texture3D
 		offset[ 1 ] = rmin[ 1 ] - pad[ 1 ];
 		offset[ 2 ] = rmin[ 2 ] - pad[ 2 ];
 
-		data = new byte[ 4 * size[ 0 ] * size[ 1 ] * size[ 2 ] ];
+		final int numBytes = 4 * size[ 0 ] * size[ 1 ] * size[ 2 ];
+		if ( data == null || data.capacity() < numBytes )
+			data = ByteBuffer.allocateDirect( 3 * numBytes / 2 ); // allocate a bit more than needed...
+		ByteUtils.setBytes( ( byte ) 0, ByteUtils.addressOf( data ), numBytes );
 	}
 
 	/**
@@ -67,16 +72,16 @@ public class LookupTextureARGB implements Texture3D
 	public void putTile( final int[] g0, final Tile tile, final int level )
 	{
 		final int i = IntervalIndexer.positionWithOffsetToIndex( g0, size, offset );
-		data[ i * 4 ]     = ( byte ) tile.x();
-		data[ i * 4 + 1 ] = ( byte ) tile.y();
-		data[ i * 4 + 2 ] = ( byte ) tile.z();
-		data[ i * 4 + 3 ] = ( byte ) ( level - baseLevel + 1 );
+		data.put( i * 4, ( byte ) tile.x() );
+		data.put( i * 4 + 1, ( byte ) tile.y() );
+		data.put( i * 4 + 2, ( byte ) tile.z() );
+		data.put( i * 4 + 3, ( byte ) ( level - baseLevel + 1 ) );
 	}
 
-	public void upload( final JoglGpuContext context )
+	public void upload( final GpuContext context )
 	{
 		context.delete( this );
-		context.texSubImage3D( this, 0,0,0, texWidth(), texHeight(), texDepth(), ByteBuffer.wrap( data ) );
+		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
 	}
 
 	@Override

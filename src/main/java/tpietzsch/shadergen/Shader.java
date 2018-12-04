@@ -26,6 +26,8 @@ public interface Shader
 
 	Uniform3fv getUniform3fv( final String key );
 
+	UniformMatrix3f getUniformMatrix3f( final String key );
+
 	UniformMatrix4f getUniformMatrix4f( final String key );
 
 	UniformSampler getUniformSampler( final String key );

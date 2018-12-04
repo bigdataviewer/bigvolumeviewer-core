@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import tpietzsch.backend.GpuContext;
-import tpietzsch.backend.Pbo;
+import tpietzsch.backend.StagingBuffer;
 import tpietzsch.backend.SetUniforms;
 import tpietzsch.backend.Texture;
 import tpietzsch.backend.Texture3D;
@@ -62,19 +62,19 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
-	public int bindPbo( final Pbo pbo )
+	public int bindStagingBuffer( final StagingBuffer stagingBuffer )
 	{
 		final int[] tmp = new int[ 1 ];
 		gl.glGetIntegerv( GL_PIXEL_UNPACK_BUFFER_BINDING, tmp, 0 );
 		final int restoreId = tmp[ 0 ];
 
-		gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, getPboId( pbo ) );
+		gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, getPboId( stagingBuffer ) );
 
 		return restoreId;
 	}
 
 	@Override
-	public int bindPboId( final int id )
+	public int bindStagingBufferId( final int id )
 	{
 		final int[] tmp = new int[ 1 ];
 		gl.glGetIntegerv( GL_PIXEL_UNPACK_BUFFER_BINDING, tmp, 0 );
@@ -129,9 +129,9 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
-	public Buffer map( final Pbo pbo )
+	public Buffer map( final StagingBuffer stagingBuffer )
 	{
-		final int pboId = getPboId( pbo );
+		final int pboId = getPboId( stagingBuffer );
 
 		final int[] tmp = new int[ 1 ];
 		gl.glGetIntegerv( GL_PIXEL_UNPACK_BUFFER_BINDING, tmp, 0 );
@@ -140,7 +140,7 @@ public class JoglGpuContext implements GpuContext
 		if ( restoreId != pboId )
 			gl.glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pboId );
 
-		gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, pbo.getSizeInBytes(), null, GL_STREAM_DRAW );
+		gl.glBufferData( GL_PIXEL_UNPACK_BUFFER, stagingBuffer.getSizeInBytes(), null, GL_STREAM_DRAW );
 		final ByteBuffer buffer = gl.glMapBuffer( GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY );
 
 		if ( restoreId != pboId )
@@ -150,9 +150,9 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
-	public void unmap( final Pbo pbo )
+	public void unmap( final StagingBuffer stagingBuffer )
 	{
-		final int pboId = getPboId( pbo );
+		final int pboId = getPboId( stagingBuffer );
 
 		final int[] tmp = new int[ 1 ];
 		gl.glGetIntegerv( GL_PIXEL_UNPACK_BUFFER_BINDING, tmp, 0 );
@@ -176,9 +176,9 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
-	public void texSubImage3D( final Pbo pbo, final Texture3D texture, final int xoffset, final int yoffset, final int zoffset, final int width, final int height, final int depth, final long pixels_buffer_offset )
+	public void texSubImage3D( final StagingBuffer stagingBuffer, final Texture3D texture, final int xoffset, final int yoffset, final int zoffset, final int width, final int height, final int depth, final long pixels_buffer_offset )
 	{
-		final int pboId = getPboId( pbo );
+		final int pboId = getPboId( stagingBuffer );
 		final int textureId = getTextureId( texture ).id;
 
 		final int[] tmp = new int[ 1 ];
@@ -230,9 +230,9 @@ public class JoglGpuContext implements GpuContext
 	 * direct access to OpenGL objects
 	 */
 
-	public int getPboIdHack( Pbo pbo )
+	public int getPboIdHack( StagingBuffer stagingBuffer )
 	{
-		return pbos.get( pbo );
+		return pbos.get( stagingBuffer );
 	}
 
 	public int getTextureIdHack( Texture texture )
@@ -255,7 +255,7 @@ public class JoglGpuContext implements GpuContext
 
 	private final Map< Shader, ShaderProgram > shaders = new WeakHashMap<>();
 
-	private final Map< Pbo, Integer > pbos = new WeakHashMap<>();
+	private final Map< StagingBuffer, Integer > pbos = new WeakHashMap<>();
 
 	private final Map< Texture, TexId > textures = new WeakHashMap<>();
 
@@ -281,9 +281,9 @@ public class JoglGpuContext implements GpuContext
 		} );
 	}
 
-	private int getPboId( final Pbo pbo )
+	private int getPboId( final StagingBuffer stagingBuffer )
 	{
-		return pbos.computeIfAbsent( pbo, o -> {
+		return pbos.computeIfAbsent( stagingBuffer, o -> {
 			final int[] tmp = new int[ 1 ];
 			gl.glGenBuffers( 1, tmp, 0 );
 			return tmp[ 0 ];

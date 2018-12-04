@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.util.Intervals;
 import tpietzsch.backend.Texture3D;
+import tpietzsch.blocks.ByteUtils;
 
 import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
 
@@ -161,12 +162,20 @@ public class TextureCache implements Texture3D
 		return spec;
 	}
 
+	/**
+	 * @return number of tiles that can fit into this cache
+	 */
+	public int getMaxNumTiles()
+	{
+		return numUnblockedTiles;
+	}
+
 	public Tile get( final ImageBlockKey< ? > key )
 	{
 		return tilemap.get( key );
 	}
 
-	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask >  tasks )
+	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask > tasks )
 	{
 		final int timestamp = timestampGen.incrementAndGet();
 
@@ -204,7 +213,31 @@ public class TextureCache implements Texture3D
 		}
 		tileFillTasks.addAll( update );
 
+		initializeBlockedTiles( tileFillTasks );
+
 		return tileFillTasks;
+	}
+
+	private boolean blockedTileInitialized = false;
+
+	/**
+	 * Initialize out-of-bounds blocks etc.
+	 */
+	private void initializeBlockedTiles( ArrayList< TileFillTask > tileFillTasks )
+	{
+		if ( blockedTileInitialized )
+			return;
+
+		blockedTileInitialized = true;
+
+		final Tile oobTile = tiles[ 0 ];
+		final Object dummyImage = new Object();
+		final ImageBlockKey< Object > oobDummyKey = new ImageBlockKey<>( dummyImage, new int[] { 0, 0, 0 } );
+		final int elementsPerTile = ( int ) Intervals.numElements( spec.paddedBlockSize() );
+		tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
+			ByteUtils.setShorts( ( short ) 0, buf.getAddress(), elementsPerTile );
+			return true;
+		} ), oobTile ) );
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
@@ -277,7 +310,7 @@ public class TextureCache implements Texture3D
 	 */
 	public static int[] findSuitableGridSize( final CacheSpec cacheSpec, final int maxMemoryInMB )
 	{
-		final double numVoxels = maxMemoryInMB * 1024 * 1024 / cacheSpec.format().getBytesPerElement();
+		final long numVoxels = ( long ) maxMemoryInMB * 1024 * 1024 / cacheSpec.format().getBytesPerElement();
 		final double sideLength = Math.pow( numVoxels, 1.0 / 3.0 );
 		final int[] gridSize = new int[ 3 ];
 		for ( int d = 0; d < 3; ++d )

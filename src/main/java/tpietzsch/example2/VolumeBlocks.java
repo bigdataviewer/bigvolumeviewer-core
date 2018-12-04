@@ -92,6 +92,27 @@ public class VolumeBlocks
 	}
 
 	/**
+	 * Get the base resolution level for rendering the volume.
+	 * Every block in the volumes LUT is at this level or higher (coarser).
+	 * <p>
+	 * This is chosen automatically, when calling {@link #init(MultiResolutionStack3D, int, Matrix4fc)}.
+	 * It can be manually adjusted using {@link #setBaseLevel(int)}.
+	 */
+	public int getBaseLevel()
+	{
+		return baseLevel;
+	}
+
+	/**
+	 * Set the base resolution level for rendering the volume.
+	 * Every block in the volumes LUT is at this level or higher (coarser).
+	 */
+	public void setBaseLevel( final int baseLevel )
+	{
+		this.baseLevel = baseLevel;
+	}
+
+	/**
 	 * Get the size of a voxel at base resolution in world coordinates.
 	 * Take a source voxel (0,0,0)-(1,1,1) at the
 	 * base mipmap level and transform it to world coordinates.
