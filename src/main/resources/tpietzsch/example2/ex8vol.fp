@@ -14,6 +14,7 @@ uniform vec3 cachePadOffset;
 
 // -- comes from TextureCache --
 uniform vec3 cacheSize; // TODO: get from texture!?
+uniform mat4 transform;
 
 void main()
 {
