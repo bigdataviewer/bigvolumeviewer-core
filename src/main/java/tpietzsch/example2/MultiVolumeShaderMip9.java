@@ -1,7 +1,6 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
-import net.imglib2.display.ColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -12,13 +11,7 @@ import tpietzsch.backend.Texture2D;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.dither.DitherBuffer;
-import tpietzsch.shadergen.Uniform1f;
-import tpietzsch.shadergen.Uniform2f;
-import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.Uniform3fv;
-import tpietzsch.shadergen.Uniform4f;
-import tpietzsch.shadergen.UniformMatrix4f;
-import tpietzsch.shadergen.UniformSampler;
+import tpietzsch.shadergen.*;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
@@ -51,6 +44,8 @@ public class MultiVolumeShaderMip9
 	private final Uniform2f uniformDsp;
 
 	private int viewportWidth;
+
+	private String sceneDepthTextureName = "sceneDepth";
 
 	public MultiVolumeShaderMip9( final int numVolumes, final boolean useDepthTexture, final double degrade )
 	{
@@ -150,7 +145,12 @@ public class MultiVolumeShaderMip9
 		if ( !useDepthTexture )
 			throw new UnsupportedOperationException();
 
-		prog.getUniformSampler( "sceneDepth" ).set( depth );
+		prog.getUniformSampler( sceneDepthTextureName ).set( depth );
+	}
+
+	public void setDepthTextureName(String name)
+	{
+		sceneDepthTextureName = name;
 	}
 
 	public void setConverter( int index, ConverterSetup converter )
@@ -214,9 +214,17 @@ public class MultiVolumeShaderMip9
 		uniformViewportSize.set( width, height );
 	}
 
+	public void init( GpuContext context )
+	{
+		prog.use( context );
+		prog.setUniforms( context );
+	}
+
 	public void use( GpuContext context )
 	{
 		prog.use( context );
+		// TODO: Ask Tobi, is this necessary? SceneryContext needs it
+		prog.setUniforms( context );
 	}
 
 	public void bindSamplers( GpuContext context )
