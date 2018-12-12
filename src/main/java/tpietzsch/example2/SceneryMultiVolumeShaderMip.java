@@ -54,7 +54,7 @@ public class SceneryMultiVolumeShaderMip
         this.degrade = degrade;
 
         final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-        final Segment vp = new SegmentTemplate("ex8vol.vp" ).instantiate();
+        final Segment vp = new SegmentTemplate("SceneryMultiVolume.vert" ).instantiate();
         builder.vertex( vp );
 
         final SegmentTemplate templateIntersectBox = new SegmentTemplate(
@@ -71,7 +71,7 @@ public class SceneryMultiVolumeShaderMip
                 useDepthTexture ? "maxdepthtexture_scenery.fp" : "maxdepthone.fp" );
         builder.fragment( templateMaxDepth.instantiate() );
         final SegmentTemplate templateFp = new SegmentTemplate(
-                "ex8vol.fp",
+                "SceneryMultiVolume.frag",
                 "intersectBoundingBox", "blockTexture", "convert", "vis" );
         final Segment fp = templateFp.instantiate();
         fp.repeat( "vis", numVolumes );
