@@ -54,6 +54,8 @@ void main()
     //	vec2 viewportSizeActual = (vrParameters.stereoEnabled ^ 1) * viewportSize + vrParameters.stereoEnabled * vec2(viewportSize.x/2.0, viewportSize.y);
     //	vec2 uv = 2 * ( gl_FragCoord.xy + dsp ) / viewportSizeActual - 1;
     vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
+    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
+    depthUV = depthUV * 2.0 - vec2(1.0);
 
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
@@ -66,7 +68,7 @@ void main()
 	wback *= 1 / wback.w;
 
 	// -- bounding box intersection for all volumes ----------
-	float tnear = 1, tfar = 0, tmax = getMaxDepth( uv );
+	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
 	// $repeat:{vis,intersectBoundingBox|
