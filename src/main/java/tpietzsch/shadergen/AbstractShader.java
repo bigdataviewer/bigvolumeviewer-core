@@ -609,11 +609,13 @@ public abstract class AbstractShader implements Shader
 		@Override
 		void setInShader( final SetUniforms visitor )
 		{
-			if ( !valid )
+			if ( !valid ) {
 //				throw new IllegalStateException( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
-				System.out.println( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
-			else
-				visitor.setUniform1i( name, v0 );
+//				System.out.println( "Trying to set uniform sampler from texture that has no valid texture unit yet. Forgot to call Shader.bindSamplers()?" );
+			}
+			else {
+				visitor.setUniform1i(name, v0);
+			}
 		}
 	}
 }

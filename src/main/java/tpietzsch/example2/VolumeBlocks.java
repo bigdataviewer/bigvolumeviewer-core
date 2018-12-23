@@ -81,12 +81,28 @@ public class VolumeBlocks
 	public void init(
 			final MultiResolutionStack3D< ? > multiResolutionStack,
 			final int viewportWidth,
-			final Matrix4fc pv )
+			final Matrix4fc pv)
 	{
 		this.multiResolutionStack = multiResolutionStack;
 
 		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
 		pvm.set( pv ).mul( model );
+		sizes.init( pvm, viewportWidth, multiResolutionStack.resolutions() );
+		baseLevel = sizes.getBaseLevel();
+	}
+
+	public void initWithModel(
+			final MultiResolutionStack3D< ? > multiResolutionStack,
+			final int viewportWidth,
+			final Matrix4fc pv,
+			final Matrix4fc m)
+	{
+		this.multiResolutionStack = multiResolutionStack;
+
+		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
+		pvm.set( pv )
+				.mul( m )
+				.mul( model );
 		sizes.init( pvm, viewportWidth, multiResolutionStack.resolutions() );
 		baseLevel = sizes.getBaseLevel();
 	}

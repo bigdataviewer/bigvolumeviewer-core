@@ -1,7 +1,6 @@
 out vec4 FragColor;
 uniform vec2 viewportSize;
 uniform vec2 dsp;
-uniform mat4 ipv;
 uniform float fwnw;
 uniform float nw;
 
@@ -16,10 +15,47 @@ uniform vec3 cachePadOffset;
 uniform vec3 cacheSize; // TODO: get from texture!?
 uniform mat4 transform;
 
+#pragma scenery verbatim
+layout(location = 0) in VertexData {
+	vec2 textureCoord;
+	mat4 inverseProjection;
+	mat4 inverseView;
+} Vertex;
+
+layout(set = 0, binding = 0) uniform VRParameters {
+	mat4 projectionMatrices[2];
+	mat4 inverseProjectionMatrices[2];
+	mat4 headShift;
+	float IPD;
+	int stereoEnabled;
+} vrParameters;
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 1, binding = 0) uniform LightParameters {
+	mat4 ViewMatrices[2];
+	mat4 InverseViewMatrices[2];
+	mat4 ProjectionMatrix;
+	mat4 InverseProjectionMatrix;
+	vec3 CamPosition;
+};
+
+layout(push_constant) uniform currentEye_t {
+	int eye;
+} currentEye;
+#pragma scenery endverbatim
+
 void main()
 {
+	mat4 ipv = Vertex.inverseView * Vertex.inverseProjection;
 	// frag coord in NDC
-	vec2 uv = 2 * ( gl_FragCoord.xy + dsp ) / viewportSize - 1;
+	// TODO: Re-introduce dithering
+	//	vec2 fragCoord = (vrParameters.stereoEnabled ^ 1) * gl_FragCoord.xy + vrParameters.stereoEnabled * vec2((gl_FragCoord.x/2.0 + currentEye.eye * gl_FragCoord.x/2.0), gl_FragCoord.y);
+	//	vec2 viewportSizeActual = (vrParameters.stereoEnabled ^ 1) * viewportSize + vrParameters.stereoEnabled * vec2(viewportSize.x/2.0, viewportSize.y);
+	//	vec2 uv = 2 * ( gl_FragCoord.xy + dsp ) / viewportSizeActual - 1;
+	vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
+	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
+	depthUV = depthUV * 2.0 - vec2(1.0);
 
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
@@ -32,7 +68,7 @@ void main()
 	wback *= 1 / wback.w;
 
 	// -- bounding box intersection for all volumes ----------
-	float tnear = 1, tfar = 0, tmax = getMaxDepth( uv );
+	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
 	// $repeat:{vis,intersectBoundingBox|
