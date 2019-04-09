@@ -410,8 +410,7 @@ public class Example9 implements GLEventListener, RequestRepaint
 				progvol.bindSamplers( context );
 				gl.glDepthFunc( GL_ALWAYS );
 				gl.glDisable( GL_BLEND );
-				final StopWatch stopWatch = new StopWatch();
-				stopWatch.start();
+				final StopWatch stopWatch = StopWatch.createAndStart();
 //				final int start = ditherStep;
 				while ( ditherStep < targetDitherSteps )
 				{
