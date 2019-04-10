@@ -37,6 +37,15 @@ public class LookupTextureARGB implements Texture3D
 
 	private int baseLevel;
 
+	/**
+	 * Contains the block lut data.
+	 * It is modified voxel-wise with {@link #putTile(int[], Tile, int)},
+	 * then uploaded to the GPU with {@link #upload(GpuContext)}.
+	 * <p>
+	 * Each voxel (4 bytes, "RGBA") represents a tile in the cache:
+	 * X,Y,Z grid coordinates, and
+	 * resolution relative to {@code baseLevel} (1 means {@code baseLevel}).
+	 */
 	private ByteBuffer data;
 
 	/**
