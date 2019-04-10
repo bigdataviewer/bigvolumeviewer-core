@@ -105,7 +105,7 @@ public class MatrixMath
 
 		if ( ( matrix.properties() & Matrix4fc.PROPERTY_IDENTITY ) != 0 )
 			matrix.set( m );
-		else if ( ( matrix.properties() & Matrix4fc.PROPERTY_IDENTITY ) != 0 )
+		else if ( ( matrix.properties() & Matrix4fc.PROPERTY_AFFINE ) != 0 )
 			matrix.mulAffine( new Matrix4f().set( m ) );
 		else
 			matrix.mul( new Matrix4f().set( m ) );
