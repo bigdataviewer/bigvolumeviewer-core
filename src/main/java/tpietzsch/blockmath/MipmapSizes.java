@@ -63,6 +63,7 @@ public class MipmapSizes
 		v0y = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 1, 0 ) );
 		v0z = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 0, 1 ) );
 
+		// voxel size (max of x,y,z) on near plane for each resolution level
 		sls = new float[ resolutions.size() ];
 		for ( int i = 0; i < resolutions.size(); i++ )
 			sls[ i ] = sl( resolutions.get( i ).getR() );
@@ -141,6 +142,10 @@ public class MipmapSizes
 		return Math.max( x * v0x, Math.max( y * v0y, z * v0z ) );
 	}
 
+	/**
+	 * Get best resolution level at source coordinates {@code x}.
+	 * (Queried for block centers.)
+	 */
 	public int bestLevel( final Vector3fc x, final Vector3f temp )
 	{
 		final float drel = x.sub( pNear, temp ).dot( pFarMinusNear ) * drels;
