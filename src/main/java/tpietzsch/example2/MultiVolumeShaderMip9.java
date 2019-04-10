@@ -1,7 +1,6 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
-import net.imglib2.display.ColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -68,7 +67,7 @@ public class MultiVolumeShaderMip9
 		final SegmentTemplate templateBlkVol = new SegmentTemplate(
 				"blkvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
-				"lutSampler", "blockScales", "lutScale", "lutOffset", "blockTexture" );
+				"lutSampler", "blockScales", "lutSize", "lutOffset", "blockTexture" );
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
@@ -272,7 +271,7 @@ public class MultiVolumeShaderMip9
 	{
 		private final Uniform3fv uniformBlockScales;
 		private final UniformSampler uniformLutSampler;
-		private final Uniform3f uniformLutScale;
+		private final Uniform3f uniformLutSize;
 		private final Uniform3f uniformLutOffset;
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemin;
@@ -282,7 +281,7 @@ public class MultiVolumeShaderMip9
 		{
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
-			uniformLutScale = prog.getUniform3f( volume, "lutScale" );
+			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
 			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
 			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
@@ -293,7 +292,7 @@ public class MultiVolumeShaderMip9
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
 			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutScale.set( blocks.getLutScale() );
+			uniformLutSize.set( blocks.getLutSize() );
 			uniformLutOffset.set( blocks.getLutOffset() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );

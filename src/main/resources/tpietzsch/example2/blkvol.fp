@@ -15,15 +15,15 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 
 uniform usampler3D lutSampler;
 uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
-uniform vec3 lutScale;
+uniform vec3 lutSize;
 uniform vec3 lutOffset;
 
 float blockTexture( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
-	vec3 q = pos * lutScale - lutOffset;
+	vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
 
-	uvec4 lutv = texture( lutSampler, q );
+	uvec4 lutv = texture( lutSampler, q / lutSize );
 	vec3 B0 = lutv.xyz * paddedBlockSize + padOffset;
 	vec3 sj = blockScales[ lutv.w ];
 

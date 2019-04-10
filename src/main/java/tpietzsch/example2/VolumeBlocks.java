@@ -288,24 +288,21 @@ public class VolumeBlocks
 	}
 
 	// TODO: revise / remove
-	public Vector3f getLutScale()
+
+	/**
+	 * @return size of lut texture
+	 */
+	public Vector3f getLutSize()
 	{
 		final int[] size = lut.getSize();
-		return new Vector3f(
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * size[ 0 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * size[ 1 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * size[ 2 ] ) ) );
+		return new Vector3f( size[ 0 ], size[ 1 ], size[ 2 ] );
 	}
 
 	// TODO: revise / remove
 	public Vector3f getLutOffset()
 	{
-		final int[] size = lut.getSize();
 		final int[] offset = lut.getOffset();
-		return new Vector3f(
-				( float ) ( ( double ) offset[ 0 ] / size[ 0 ] ),
-				( float ) ( ( double ) offset[ 1 ] / size[ 1 ] ),
-				( float ) ( ( double ) offset[ 2 ] / size[ 2 ] ) );
+		return new Vector3f( offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 	}
 
 	public LookupTextureARGB getLookupTexture()
