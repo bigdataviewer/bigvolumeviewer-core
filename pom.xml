@@ -93,7 +93,6 @@
 		<dependency>
 			<groupId>org.joml</groupId>
 			<artifactId>joml</artifactId>
-			<version>1.9.9</version>
 		</dependency>
 		<dependency>
 			<!-- only used for linear programming, get rid of this, we only need something extremely simple -->
