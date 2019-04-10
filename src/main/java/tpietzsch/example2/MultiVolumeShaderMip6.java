@@ -9,7 +9,6 @@ import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.shadergen.Uniform1f;
-import tpietzsch.shadergen.Uniform2f;
 import tpietzsch.shadergen.Uniform3f;
 import tpietzsch.shadergen.Uniform3fv;
 import tpietzsch.shadergen.Uniform4f;
@@ -258,7 +257,7 @@ public class MultiVolumeShaderMip6
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
 			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutScale.set( blocks.getLutScale() );
+			uniformLutScale.set( blocks.getLutSize() );
 			uniformLutOffset.set( blocks.getLutOffset() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );

@@ -292,7 +292,7 @@ public class MultiVolumeShaderMip8
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
 			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutScale.set( blocks.getLutScale() );
+			uniformLutScale.set( blocks.getLutSize() );
 			uniformLutOffset.set( blocks.getLutOffset() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
