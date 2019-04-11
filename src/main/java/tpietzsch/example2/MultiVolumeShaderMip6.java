@@ -48,7 +48,7 @@ public class MultiVolumeShaderMip6
 		final SegmentTemplate templateBlkVol = new SegmentTemplate(
 				"blkvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
-				"lutSampler", "blockScales", "lutScale", "lutOffset", "blockTexture" );
+				"lutSampler", "blockScales", "lutSize", "lutOffset", "blockTexture" );
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
@@ -236,7 +236,7 @@ public class MultiVolumeShaderMip6
 	{
 		private final Uniform3fv uniformBlockScales;
 		private final UniformSampler uniformLutSampler;
-		private final Uniform3f uniformLutScale;
+		private final Uniform3f uniformLutSize;
 		private final Uniform3f uniformLutOffset;
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemin;
@@ -246,7 +246,7 @@ public class MultiVolumeShaderMip6
 		{
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
-			uniformLutScale = prog.getUniform3f( volume, "lutScale" );
+			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
 			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
 			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
@@ -257,7 +257,7 @@ public class MultiVolumeShaderMip6
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
 			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutScale.set( blocks.getLutSize() );
+			uniformLutSize.set( blocks.getLutSize() );
 			uniformLutOffset.set( blocks.getLutOffset() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );

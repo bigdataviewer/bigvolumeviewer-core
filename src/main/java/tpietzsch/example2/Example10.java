@@ -517,36 +517,13 @@ public class Example10 implements GLEventListener, RequestRepaint
 
 		final int maxTimepoint = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered().size() - 1;
 
-		final int ditherStep;
-		switch ( ditherWidth )
-		{
-		case 1:
-			ditherStep = 1;
-			break;
-		case 2:
-			ditherStep = 3;
-			break;
-		case 3:
-			ditherStep = 5;
-			break;
-		case 4:
-			ditherStep = 9;
-			break;
-		case 5:
-			ditherStep = 11;
-			break;
-		case 6:
-			ditherStep = 19;
-			break;
-		case 7:
-			ditherStep = 23;
-			break;
-		case 8:
-			ditherStep = 29;
-			break;
-		default:
+		final int[] ditherSteps = new int[] {
+				// width = 0, 1, 2, 3, 4,  5,  6,  7,  8
+				0, 1, 3, 5, 9, 11, 19, 23, 29
+		};
+		if ( ditherWidth >= ditherSteps.length )
 			throw new IllegalArgumentException( "unsupported dither width" );
-		}
+		final int ditherStep = ditherSteps[ ditherWidth ];
 
 		final InputFrame frame = new InputFrame( "Example10", windowWidth, windowHeight );
 		InputFrame.DEBUG = false;
@@ -624,7 +601,7 @@ public class Example10 implements GLEventListener, RequestRepaint
 		final int windowHeight = 480;
 		final int renderWidth = 640;
 		final int renderHeight = 480;
-		final int ditherWidth = 8;
+		final int ditherWidth = 0;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
 		final int maxCacheSizeInMB = 300;
