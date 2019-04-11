@@ -214,13 +214,13 @@ public class DitherBuffer
 	}
 
 	// for debug
-	OffScreenFrameBuffer getDitherBuffer()
+	public OffScreenFrameBuffer getDitherBuffer()
 	{
 		return dither;
 	}
 
 	// for debug
-	OffScreenFrameBuffer getStitchBuffer()
+	public OffScreenFrameBuffer getStitchBuffer()
 	{
 		return stitch;
 	}

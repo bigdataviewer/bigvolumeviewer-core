@@ -265,6 +265,8 @@ public class VolumeRenderer
 				gl.glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 				final int stepsCompleted = Math.min( ditherStep, numDitherSteps );
 				dither.dither( gl, stepsCompleted, renderWidth, renderHeight );
+//				dither.getStitchBuffer().drawQuad( gl );
+//				dither.getDitherBuffer().drawQuad( gl );
 
 				if ( ditherStep != targetDitherSteps )
 					nextRequestedRepaint.request( DITHER );
