@@ -5,6 +5,7 @@ import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.ToggleDialogAction;
 import bdv.tools.VisibilityAndGroupingDialog;
+import bdv.tools.bookmarks.Bookmarks;
 import bdv.tools.brightness.BrightnessDialog;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.MinMaxGroup;
@@ -15,9 +16,12 @@ import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import com.jogamp.opengl.GL3;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileFilter;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -26,6 +30,8 @@ import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -43,10 +49,14 @@ public class BigVolumeViewer
 	private final VolumeViewerFrame frame;
 	private final VolumeViewerPanel viewer;
 	private final ManualTransformation manualTransformation;
+	private final Bookmarks bookmarks;
 	private final SetupAssignments setupAssignments;
 	private final BrightnessDialog brightnessDialog;
 	private final VisibilityAndGroupingDialog activeSourcesDialog;
 	private final ManualTransformationEditor manualTransformationEditor;
+
+	private final JFileChooser fileChooser;
+	private File proposedSettingsFile;
 
 	public BigVolumeViewer(
 			final ArrayList< ConverterSetup > converterSetups,
@@ -69,6 +79,8 @@ public class BigVolumeViewer
 		manualTransformation = new ManualTransformation( sources );
 		manualTransformationEditor = new ManualTransformationEditor( viewer, frame.getKeybindings() );
 
+		bookmarks = new Bookmarks();
+
 		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
 		{
@@ -81,14 +93,62 @@ public class BigVolumeViewer
 
 		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.getVisibilityAndGrouping() );
 
+		fileChooser = new JFileChooser();
+		fileChooser.setFileFilter( new FileFilter()
+		{
+			@Override
+			public String getDescription()
+			{
+				return "xml files";
+			}
+
+			@Override
+			public boolean accept( final File f )
+			{
+				if ( f.isDirectory() )
+					return true;
+				if ( f.isFile() )
+				{
+					final String s = f.getName();
+					final int i = s.lastIndexOf( '.' );
+					if ( i > 0 && i < s.length() - 1 )
+					{
+						final String ext = s.substring( i + 1 ).toLowerCase();
+						return ext.equals( "xml" );
+					}
+				}
+				return false;
+			}
+		} );
+
 		NavigationActions.installActionBindings( frame.getKeybindings(), viewer, keyConfig );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
 		frame.getDefaultActions().runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
+		frame.getDefaultActions().runnableAction( this::loadSettings, "load settings", "F12" );
+		frame.getDefaultActions().runnableAction( this::saveSettings, "save settings", "F11" );
 	}
 
 	// -------------------------------------------------------------------------------------------------------
 	// BDV ViewerPanel equivalents
+
+	public void loadSettings()
+	{
+		fileChooser.setSelectedFile( proposedSettingsFile );
+		final int returnVal = fileChooser.showOpenDialog( null );
+		if ( returnVal == JFileChooser.APPROVE_OPTION )
+		{
+			proposedSettingsFile = fileChooser.getSelectedFile();
+			try
+			{
+				loadSettings( proposedSettingsFile.getCanonicalPath() );
+			}
+			catch ( final Exception e )
+			{
+				e.printStackTrace();
+			}
+		}
+	}
 
 	public void loadSettings( final String xmlFilename ) throws IOException, JDOMException
 	{
@@ -98,14 +158,18 @@ public class BigVolumeViewer
 		viewer.stateFromXml( root );
 		setupAssignments.restoreFromXml( root );
 		manualTransformation.restoreFromXml( root );
+		bookmarks.restoreFromXml( root );
+		activeSourcesDialog.update();
+		viewer.requestRepaint();
 	}
 
 	public boolean tryLoadSettings( final String xmlFilename )
 	{
+		proposedSettingsFile = null;
 		if ( xmlFilename.endsWith( ".xml" ) )
 		{
 			final String settings = xmlFilename.substring( 0, xmlFilename.length() - ".xml".length() ) + ".settings" + ".xml";
-			final File proposedSettingsFile = new File( settings );
+			proposedSettingsFile = new File( settings );
 			if ( proposedSettingsFile.isFile() )
 			{
 				try
@@ -120,6 +184,36 @@ public class BigVolumeViewer
 			}
 		}
 		return false;
+	}
+
+	public void saveSettings()
+	{
+		fileChooser.setSelectedFile( proposedSettingsFile );
+		final int returnVal = fileChooser.showSaveDialog( null );
+		if ( returnVal == JFileChooser.APPROVE_OPTION )
+		{
+			proposedSettingsFile = fileChooser.getSelectedFile();
+			try
+			{
+				saveSettings( proposedSettingsFile.getCanonicalPath() );
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void saveSettings( final String xmlFilename ) throws IOException
+	{
+		final Element root = new Element( "Settings" );
+		root.addContent( viewer.stateToXml() );
+		root.addContent( setupAssignments.toXml() );
+		root.addContent( manualTransformation.toXml() );
+		root.addContent( bookmarks.toXml() );
+		final Document doc = new Document( root );
+		final XMLOutputter xout = new XMLOutputter( Format.getPrettyFormat() );
+		xout.output( doc, new FileWriter( xmlFilename ) );
 	}
 
 	/**
