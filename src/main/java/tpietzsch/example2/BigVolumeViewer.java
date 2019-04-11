@@ -31,6 +31,7 @@ import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
+import tpietzsch.frombdv.ManualTransformationEditor;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.scene.TexturedUnitCube;
 
@@ -45,7 +46,7 @@ public class BigVolumeViewer
 	private final SetupAssignments setupAssignments;
 	private final BrightnessDialog brightnessDialog;
 	private final VisibilityAndGroupingDialog activeSourcesDialog;
-
+	private final ManualTransformationEditor manualTransformationEditor;
 
 	public BigVolumeViewer(
 			final ArrayList< ConverterSetup > converterSetups,
@@ -66,6 +67,7 @@ public class BigVolumeViewer
 			setup.setViewer( viewer );
 
 		manualTransformation = new ManualTransformation( sources );
+		manualTransformationEditor = new ManualTransformationEditor( viewer, frame.getKeybindings() );
 
 		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
@@ -82,6 +84,7 @@ public class BigVolumeViewer
 		NavigationActions.installActionBindings( frame.getKeybindings(), viewer, keyConfig );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
 		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
+		frame.getDefaultActions().runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
 	}
 
 	// -------------------------------------------------------------------------------------------------------

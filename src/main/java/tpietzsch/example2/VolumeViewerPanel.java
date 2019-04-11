@@ -992,4 +992,12 @@ public class VolumeViewerPanel
 		{
 		}
 	};
+
+	/**
+	 * TODO overlay message as in BDV
+	 */
+	public void showMessage( final String msg )
+	{
+		System.out.println( msg );
+	}
 }
