@@ -3,7 +3,6 @@ package tpietzsch.example2;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.SourceAndConverter;
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.List;
@@ -18,7 +17,7 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import tpietzsch.example2.VolumeViewerPanel.RenderScene;
-import tpietzsch.multires.SpimDataStacks;
+import tpietzsch.multires.Stacks;
 
 public class VolumeViewerFrame extends JFrame
 {
@@ -42,7 +41,7 @@ public class VolumeViewerFrame extends JFrame
 	public VolumeViewerFrame(
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
-			final SpimDataStacks stacks,
+			final Stacks stacks,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{

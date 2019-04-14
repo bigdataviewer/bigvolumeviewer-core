@@ -5,102 +5,82 @@ import java.util.Arrays;
 import java.util.List;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 
-import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
 import bdv.cache.CacheControl;
-import mpicbg.spim.data.generic.AbstractSpimData;
-import mpicbg.spim.data.generic.sequence.BasicMultiResolutionSetupImgLoader;
-import mpicbg.spim.data.generic.sequence.BasicSetupImgLoader;
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
+import bdv.util.RandomAccessibleIntervalMipmapSource;
 
-public class SpimDataStacks implements Stacks
+public class SourceListStacks implements Stacks
 {
-	private final AbstractSpimData< ? > spimData;
-
-	private final ViewRegistrations registrations;
-
 	private final CacheControl cacheControl;
 
-	private final List< ? extends BasicViewSetup > setups;
+	private final List< RandomAccessibleIntervalMipmapSource< VolatileUnsignedShortType > > sources;
 
-	private final List< TimePoint > timepoints;
-
-	public SpimDataStacks( final AbstractSpimData< ? > spimData )
+	public SourceListStacks( final List< RandomAccessibleIntervalMipmapSource< VolatileUnsignedShortType > > sources )
 	{
-		this.spimData = spimData;
-		registrations = spimData.getViewRegistrations();
-
-		setups = spimData.getSequenceDescription().getViewSetupsOrdered();
-		timepoints = spimData.getSequenceDescription().getTimePoints().getTimePointsOrdered();
-
-		cacheControl = ( ( ViewerImgLoader ) spimData.getSequenceDescription().getImgLoader() ).getCacheControl();
+		this.sources = sources;
+		cacheControl = new CacheControl.Dummy(); // TODO
 	}
 
-	@Override
-	public int timepointId( final int timepointIndex )
+	public void resTEST()
 	{
-		return timepoints.get( timepointIndex ).getId();
-	}
+		final int timepointId = 0;
+		final int setupId = 0;
 
-	@Override
-	public int setupId( final int setupIndex )
-	{
-		return setups.get( setupIndex ).getId();
+		final RandomAccessibleIntervalMipmapSource< VolatileUnsignedShortType > source = sources.get( setupId );
+		final int numMipmapLevels = source.getNumMipmapLevels();
+
+		final RandomAccessibleInterval< ? >[] rais = new RandomAccessibleInterval[ numMipmapLevels ];
+		for ( int level = 0; level < numMipmapLevels; level++ )
+			rais[ level ] = source.getSource( timepointId, level );
+
+		final AffineTransform3D baseTransform = new AffineTransform3D();
+		source.getSourceTransform( timepointId, 0, baseTransform );
+
+		final int[][] resolutions = new int[ numMipmapLevels ][ 3 ];
+		for ( int level = 0; level < numMipmapLevels; level++ )
+		{
+			final AffineTransform3D levelTransform = new AffineTransform3D();
+			source.getSourceTransform( timepointId, level, levelTransform );
+			levelTransform.concatenate( baseTransform.inverse() );
+			for ( int d = 0; d < 3; ++d )
+				resolutions[ level ][ d ] = ( int ) levelTransform.get( d, d  );
+		}
 	}
 
 	@Override
 	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	public MultiResolutionStack3D< ? > getStack( final int timepointId, final int setupId, final boolean volatil )
 	{
-		final AffineTransform3D model = registrations.getViewRegistration( timepointId, setupId ).getModel();
+		final RandomAccessibleIntervalMipmapSource< VolatileUnsignedShortType > source = sources.get( setupId );
+		final int numMipmapLevels = source.getNumMipmapLevels();
 
-		final BasicSetupImgLoader< ? > sil = spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( setupId );
-		int numMipmapLevels = 1;
-		int[][] resolutions = { { 1, 1, 1 } };
-		if ( sil instanceof BasicMultiResolutionSetupImgLoader )
-		{
-			final BasicMultiResolutionSetupImgLoader< ? > msil = ( BasicMultiResolutionSetupImgLoader< ? > ) sil;
-			numMipmapLevels = msil.numMipmapLevels();
-			resolutions = new int[ numMipmapLevels ][ 3 ];
-			for ( int level = 0; level < numMipmapLevels; level++ )
-				for ( int d = 0; d < 3; ++d )
-					resolutions[ level ][ d ] = ( int ) msil.getMipmapResolutions()[ level ][ d ];
-		}
-
-		Object type;
 		final RandomAccessibleInterval< ? >[] rais = new RandomAccessibleInterval[ numMipmapLevels ];
-		if ( sil instanceof ViewerSetupImgLoader )
+		for ( int level = 0; level < numMipmapLevels; level++ )
+			rais[ level ] = source.getSource( timepointId, level );
+
+		final AffineTransform3D baseTransform = new AffineTransform3D();
+		source.getSourceTransform( timepointId, 0, baseTransform );
+
+		final int[][] resolutions = new int[ numMipmapLevels ][ 3 ];
+		final AffineTransform3D[] levelTransforms = new AffineTransform3D[ numMipmapLevels ];
+		for ( int level = 0; level < numMipmapLevels; level++ )
 		{
-			final ViewerSetupImgLoader< ?, ? > vsil = ( ViewerSetupImgLoader< ?, ? > ) sil;
-			type = volatil ? vsil.getVolatileImageType() : vsil.getImageType();
-			for ( int level = 0; level < numMipmapLevels; level++ )
-				rais[ level ] = vsil.getVolatileImage( timepointId, level );
-		}
-		else
-		{
-			type = sil.getImageType();
-			if ( volatil && ! ( type instanceof Volatile ) )
-				throw new IllegalArgumentException();
-			if ( sil instanceof BasicMultiResolutionSetupImgLoader )
-			{
-				final BasicMultiResolutionSetupImgLoader< ? > msil = ( BasicMultiResolutionSetupImgLoader< ? > ) sil;
-				for ( int level = 0; level < numMipmapLevels; level++ )
-					rais[ level ] = msil.getImage( timepointId, level );
-			}
-			else
-				rais[ 0 ] = sil.getImage( timepointId );
+			final AffineTransform3D levelTransform = new AffineTransform3D();
+			levelTransforms[ level ] = levelTransform;
+			source.getSourceTransform( timepointId, level, levelTransform );
+			levelTransform.concatenate( baseTransform.inverse() );
+			for ( int d = 0; d < 3; ++d )
+				resolutions[ level ][ d ] = ( int ) levelTransform.get( d, d  );
 		}
 
 		final ResolutionLevel3DImp< ? >[] resolutionLevels = new ResolutionLevel3DImp[ numMipmapLevels ];
 		for ( int level = 0; level < numMipmapLevels; level++ )
-			resolutionLevels[ level ] = new ResolutionLevel3DImp( level, timepointId, setupId, spimData, resolutions[ level ], rais[ level], type );
+			resolutionLevels[ level ] = new ResolutionLevel3DImp(
+					level, timepointId, setupId, resolutions[ level ], levelTransforms[ level ], rais[ level ], source.getType() );
 
-		return new MultiResolutionStack3DImp( timepointId, setupId, spimData, model, resolutionLevels, type );
+		return new MultiResolutionStack3DImp( timepointId, setupId, baseTransform, resolutionLevels, source.getType() );
 	}
 
 	@Override
@@ -109,19 +89,11 @@ public class SpimDataStacks implements Stacks
 		return cacheControl;
 	}
 
-	@Override
-	public int getNumTimepoints()
-	{
-		return timepoints.size();
-	}
-
 	static class MultiResolutionStack3DImp< T > implements MultiResolutionStack3D< T >
 	{
 		private final int timepointId;
 
 		private final int setupId;
-
-		private final AbstractSpimData< ? > spimData;
 
 		private final AffineTransform3D sourceTransform;
 
@@ -132,14 +104,12 @@ public class SpimDataStacks implements Stacks
 		public MultiResolutionStack3DImp(
 				final int timepointId,
 				final int setupId,
-				final AbstractSpimData< ? > spimData,
 				final AffineTransform3D sourceTransform,
 				final ResolutionLevel3DImp< T >[] resolutions,
 				final T type )
 		{
 			this.timepointId = timepointId;
 			this.setupId = setupId;
-			this.spimData = spimData;
 			this.sourceTransform = sourceTransform;
 			this.resolutions = new ArrayList<>( Arrays.asList( resolutions ) );
 			this.type = type;
@@ -175,9 +145,7 @@ public class SpimDataStacks implements Stacks
 
 			if ( timepointId != that.timepointId )
 				return false;
-			if ( setupId != that.setupId )
-				return false;
-			return spimData.equals( that.spimData );
+			return setupId == that.setupId;
 		}
 
 		@Override
@@ -185,7 +153,6 @@ public class SpimDataStacks implements Stacks
 		{
 			int result = timepointId;
 			result = 31 * result + setupId;
-			result = 31 * result + spimData.hashCode();
 			return result;
 		}
 	}
@@ -197,8 +164,6 @@ public class SpimDataStacks implements Stacks
 		private final int timepointId;
 
 		private final int setupId;
-
-		private final AbstractSpimData< ? > spimData;
 
 		private final int[] resolution;
 
@@ -214,27 +179,22 @@ public class SpimDataStacks implements Stacks
 				final int level,
 				final int timepointId,
 				final int setupId,
-				final AbstractSpimData< ? > spimData,
 				final int[] resolution,
+				final AffineTransform3D levelt,
 				final RandomAccessibleInterval< T > rai,
 				final T type )
 		{
 			this.level = level;
 			this.timepointId = timepointId;
 			this.setupId = setupId;
-			this.spimData = spimData;
 			this.resolution = resolution;
+			this.levelt = levelt;
 			this.rai = rai;
 			this.type = type;
 
 			scale = new double[ 3 ];
-			levelt = new AffineTransform3D();
 			for ( int d = 0; d < 3; ++d )
-			{
 				scale[ d ] = 1.0  / resolution[ d ];
-				levelt.set( resolution[ d ], d, d );
-				levelt.set( 0.5 * ( resolution[ d ] - 1 ), d, 3 );
-			}
 		}
 
 		@Override
@@ -287,9 +247,7 @@ public class SpimDataStacks implements Stacks
 				return false;
 			if ( timepointId != that.timepointId )
 				return false;
-			if ( setupId != that.setupId )
-				return false;
-			return spimData.equals( that.spimData );
+			return setupId == that.setupId;
 		}
 
 		@Override
@@ -298,7 +256,6 @@ public class SpimDataStacks implements Stacks
 			int result = level;
 			result = 31 * result + timepointId;
 			result = 31 * result + setupId;
-			result = 31 * result + spimData.hashCode();
 			return result;
 		}
 	}
