@@ -39,7 +39,7 @@ public class MultiVolumeShaderMip10
 
 	private final SegmentedShader prog;
 	private final VolumeSegment[] volumeSegments;
-	private final SmallVolumeSegment[] smallVolumeSegments;
+	private final SimpleVolumeSegment[] simpleVolumeSegments;
 	private final ConverterSegment[] converterSegments;
 
 	private final UniformMatrix4f uniformIpv;
@@ -133,9 +133,9 @@ public class MultiVolumeShaderMip10
 		for ( int i = 0; i < numBigVolumes; ++i )
 			volumeSegments[ i ] = new VolumeSegment( prog, blkVols[ i ] );
 
-		smallVolumeSegments = new SmallVolumeSegment[ numSmallVolumes ];
+		simpleVolumeSegments = new SimpleVolumeSegment[ numSmallVolumes ];
 		for ( int i = 0; i < numSmallVolumes; ++i )
-			smallVolumeSegments[ i ] = new SmallVolumeSegment( prog, smlVols[ i ] );
+			simpleVolumeSegments[ i ] = new SimpleVolumeSegment( prog, smlVols[ i ] );
 
 		final int numVolumes = numBigVolumes + numSmallVolumes;
 		converterSegments = new ConverterSegment[ numVolumes ];
@@ -329,23 +329,24 @@ public class MultiVolumeShaderMip10
 		public void setData( VolumeBlocks blocks )
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
-			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutSize.set( blocks.getLutSize() );
-			uniformLutOffset.set( blocks.getLutOffset() );
+			final LookupTextureARGB lut = blocks.getLookupTexture();
+			uniformLutSampler.set( lut );
+			uniformLutSize.set( lut.getSize3f() );
+			uniformLutOffset.set( lut.getOffset3f() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
 		}
 	}
 
-	static class SmallVolumeSegment
+	static class SimpleVolumeSegment
 	{
 		private final UniformSampler uniformVolumeSampler;
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
 
-		public SmallVolumeSegment( final SegmentedShader prog, final Segment volume )
+		public SimpleVolumeSegment( final SegmentedShader prog, final Segment volume )
 		{
 			uniformVolumeSampler = prog.getUniformSampler( volume,"volume" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
