@@ -1,5 +1,6 @@
 package tpietzsch.shadergen.generate;
 
+import java.util.List;
 import java.util.Map;
 import tpietzsch.shadergen.generate.SegmentTemplate.Identifier;
 
@@ -52,6 +53,12 @@ public class Segment
 	public synchronized Segment repeat( final String key, final int num )
 	{
 		keyToIdentifier.put( key, SegmentTemplate.proposeIdentifiers( key, num ) );
+		return this;
+	}
+
+	public synchronized Segment repeat( List< String > keys, final int num )
+	{
+		keys.forEach( k -> repeat( k, num ) );
 		return this;
 	}
 
