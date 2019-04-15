@@ -22,8 +22,6 @@ import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.UploadBuffer;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
-import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.Uniform3fv;
 import tpietzsch.util.MatrixMath;
 
 import static tpietzsch.blockmath.FindRequiredBlocks.getRequiredLevelBlocksFrustum;
@@ -87,22 +85,6 @@ public class VolumeBlocks
 
 		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
 		pvm.set( pv ).mul( model );
-		sizes.init( pvm, viewportWidth, multiResolutionStack.resolutions() );
-		baseLevel = sizes.getBaseLevel();
-	}
-
-	public void initWithModel(
-			final MultiResolutionStack3D< ? > multiResolutionStack,
-			final int viewportWidth,
-			final Matrix4fc pv,
-			final Matrix4fc m)
-	{
-		this.multiResolutionStack = multiResolutionStack;
-
-		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
-		pvm.set( pv )
-				.mul( m )
-				.mul( model );
 		sizes.init( pvm, viewportWidth, multiResolutionStack.resolutions() );
 		baseLevel = sizes.getBaseLevel();
 	}
@@ -239,33 +221,6 @@ public class VolumeBlocks
 	}
 
 	// TODO: revise / remove
-	public void setUniforms(
-			final int NUM_BLOCK_SCALES, // TODO: should this be here?
-			final Uniform3fv uniformBlockScales,
-			final Uniform3f uniformLutScale,
-			final Uniform3f uniformLutOffset )
-	{
-		uniformBlockScales.set( getLutBlockScales( NUM_BLOCK_SCALES ) );
-		final int[] size = lut.getSize();
-		final int[] offset = lut.getOffset();
-		uniformLutScale.set(
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 0 ] * size[ 0 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 1 ] * size[ 1 ] ) ),
-				( float ) ( 1.0 / ( cacheSpec.blockSize()[ 2 ] * size[ 2 ] ) ) );
-		uniformLutOffset.set(
-				( float ) ( ( double ) offset[ 0 ] / size[ 0 ] ),
-				( float ) ( ( double ) offset[ 1 ] / size[ 1 ] ),
-				( float ) ( ( double ) offset[ 2 ] / size[ 2 ] ) );
-	}
-
-	// TODO: revise / remove
-	public Matrix4f getIpvms( final Matrix4fc pv )
-	{
-		final Matrix4f model = MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() );
-		return new Matrix4f( pv ).mul( model ).mul( getUpscale( baseLevel ) ).invert();
-	}
-
-	// TODO: revise / remove
 	public Matrix4f getIms()
 	{
 		return MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() ).mul( getUpscale( baseLevel ) ).invert();
@@ -285,24 +240,6 @@ public class VolumeBlocks
 		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
 		final Vector3f sourceLevelMax = new Vector3f( lbb.max( 0 ), lbb.max( 1 ), lbb.max( 2 ) );
 		return sourceLevelMax;
-	}
-
-	// TODO: revise / remove
-
-	/**
-	 * @return size of lut texture
-	 */
-	public Vector3f getLutSize()
-	{
-		final int[] size = lut.getSize();
-		return new Vector3f( size[ 0 ], size[ 1 ], size[ 2 ] );
-	}
-
-	// TODO: revise / remove
-	public Vector3f getLutOffset()
-	{
-		final int[] offset = lut.getOffset();
-		return new Vector3f( offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 	}
 
 	public LookupTextureARGB getLookupTexture()

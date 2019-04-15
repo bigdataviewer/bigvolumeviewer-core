@@ -2,6 +2,7 @@ package tpietzsch.example2;
 
 import java.nio.ByteBuffer;
 import net.imglib2.util.IntervalIndexer;
+import org.joml.Vector3f;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.blocks.ByteUtils;
@@ -11,16 +12,6 @@ import static tpietzsch.backend.Texture.InternalFormat.RGBA8UI;
 
 public class LookupTextureARGB implements Texture3D
 {
-	int[] getSize()
-	{
-		return size;
-	}
-
-	int[] getOffset()
-	{
-		return offset;
-	}
-
 	/**
 	 * Size of the lut texture.
 	 */
@@ -90,6 +81,16 @@ public class LookupTextureARGB implements Texture3D
 	{
 		context.delete( this );
 		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
+	}
+
+	public Vector3f getOffset3f()
+	{
+		return new Vector3f( offset[ 0 ], offset[ 1 ], offset[ 2 ] );
+	}
+
+	public Vector3f getSize3f()
+	{
+		return new Vector3f( size[ 0 ], size[ 1 ], size[ 2 ] );
 	}
 
 	@Override

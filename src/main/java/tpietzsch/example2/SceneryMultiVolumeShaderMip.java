@@ -313,9 +313,10 @@ public class SceneryMultiVolumeShaderMip
 		public void setData( VolumeBlocks blocks )
 		{
 			uniformBlockScales.set( blocks.getLutBlockScales( NUM_BLOCK_SCALES ) );
-			uniformLutSampler.set( blocks.getLookupTexture() );
-			uniformLutSize.set( blocks.getLutSize() );
-			uniformLutOffset.set( blocks.getLutOffset() );
+			final LookupTextureARGB lut = blocks.getLookupTexture();
+			uniformLutSampler.set( lut );
+			uniformLutSize.set( lut.getSize3f() );
+			uniformLutOffset.set( lut.getOffset3f() );
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
