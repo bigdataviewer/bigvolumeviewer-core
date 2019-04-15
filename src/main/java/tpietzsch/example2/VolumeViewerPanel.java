@@ -5,7 +5,6 @@ import bdv.util.Affine3DHelpers;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TimePointListener;
-import bdv.viewer.ViewerPanel;
 import bdv.viewer.VisibilityAndGrouping;
 import bdv.viewer.animate.AbstractTransformAnimator;
 import bdv.viewer.animate.RotationAnimator;
@@ -37,12 +36,10 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import net.imglib2.Positionable;
-import net.imglib2.RealPositionable;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.ui.PainterThread;
-import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
 import org.jdom2.Element;
@@ -51,7 +48,7 @@ import org.joml.Matrix4fc;
 import tpietzsch.example2.VolumeRenderer.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
-import tpietzsch.multires.SpimDataStacks;
+import tpietzsch.multires.Stacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
 import tpietzsch.util.MatrixMath;
@@ -73,7 +70,7 @@ public class VolumeViewerPanel
 	/**
 	 * TODO should be more general...
 	 */
-	protected final SpimDataStacks stacks;
+	protected final Stacks stacks;
 	protected final List< ? extends ConverterSetup > converterSetups;
 
 	public static class RenderData
@@ -284,7 +281,7 @@ public class VolumeViewerPanel
 	public VolumeViewerPanel(
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
-			final SpimDataStacks stacks,
+			final Stacks stacks,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{

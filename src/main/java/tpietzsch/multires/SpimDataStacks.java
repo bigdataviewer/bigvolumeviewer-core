@@ -18,7 +18,7 @@ import mpicbg.spim.data.generic.sequence.BasicViewSetup;
 import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.TimePoint;
 
-public class SpimDataStacks
+public class SpimDataStacks implements Stacks
 {
 	private final AbstractSpimData< ? > spimData;
 
@@ -41,16 +41,19 @@ public class SpimDataStacks
 		cacheControl = ( ( ViewerImgLoader ) spimData.getSequenceDescription().getImgLoader() ).getCacheControl();
 	}
 
+	@Override
 	public int timepointId( final int timepointIndex )
 	{
 		return timepoints.get( timepointIndex ).getId();
 	}
 
+	@Override
 	public int setupId( final int setupIndex )
 	{
 		return setups.get( setupIndex ).getId();
 	}
 
+	@Override
 	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	public MultiResolutionStack3D< ? > getStack( final int timepointId, final int setupId, final boolean volatil )
 	{
@@ -100,11 +103,13 @@ public class SpimDataStacks
 		return new MultiResolutionStack3DImp( timepointId, setupId, spimData, model, resolutionLevels, type );
 	}
 
+	@Override
 	public CacheControl getCacheControl()
 	{
 		return cacheControl;
 	}
 
+	@Override
 	public int getNumTimepoints()
 	{
 		return timepoints.size();
