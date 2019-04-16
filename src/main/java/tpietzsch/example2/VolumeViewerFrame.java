@@ -17,6 +17,7 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import tpietzsch.example2.VolumeViewerPanel.RenderScene;
+import tpietzsch.multires.SimpleStack3D;
 import tpietzsch.multires.Stacks;
 
 public class VolumeViewerFrame extends JFrame
@@ -42,12 +43,13 @@ public class VolumeViewerFrame extends JFrame
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
 			final Stacks stacks,
+			final SimpleStack3D< ? > simpleStack,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
 		super( "BigVolumeViewer" );
 
-		viewer = new VolumeViewerPanel( sources, converterSetups, stacks, renderScene, optional );
+		viewer = new VolumeViewerPanel( sources, converterSetups, stacks, simpleStack, renderScene, optional );
 		keybindings = new InputActionBindings();
 		triggerbindings = new TriggerBehaviourBindings();
 

@@ -9,8 +9,11 @@ import bdv.tools.bookmarks.Bookmarks;
 import bdv.tools.brightness.BrightnessDialog;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.MinMaxGroup;
+import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
+import bdv.tools.transformation.TransformedSource;
+import bdv.util.RandomAccessibleIntervalSource;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
@@ -26,7 +29,9 @@ import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.display.RealARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.LinAlgHelpers;
 import org.jdom2.Document;
@@ -41,6 +46,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
+import tpietzsch.multires.SimpleStack3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.multires.Stacks;
 import tpietzsch.scene.TexturedUnitCube;
@@ -66,13 +72,14 @@ public class SmallVolumeViewer
 			final ArrayList< ConverterSetup > converterSetups,
 			final ArrayList< SourceAndConverter< ? > > sources,
 			final Stacks stacks,
+			final SimpleStack3D< ? > simpleStack,
 			final String windowTitle,
 			final VolumeViewerOptions options )
 	{
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, stacks, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, converterSetups, stacks, simpleStack, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
@@ -384,6 +391,7 @@ public class SmallVolumeViewer
 		initSetups( spimData, converterSetups, sources );
 		final SpimDataStacks stacks = new SpimDataStacks( spimData );
 
+		SimpleStack3D< UnsignedShortType > simpleStack3D = null;
 		{
 			/*
 			 * The small volume
@@ -400,11 +408,50 @@ public class SmallVolumeViewer
 				levelt.set( resolution[ d ], d, d );
 				levelt.set( 0.5 * ( resolution[ d ] - 1 ), d, 3 );
 			}
-			final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( timepointId, setupId ).getModel();
+			final AffineTransform3D sourceTransform = spimData.getViewRegistrations().getViewRegistration( timepointId, setupId ).getModel().copy();
 			sourceTransform.concatenate( levelt );
+
+			final UnsignedShortType type = new UnsignedShortType();
+			final RandomAccessibleIntervalSource< UnsignedShortType > source = new RandomAccessibleIntervalSource<>( rai, type, sourceTransform, "simple volume" );
+
+			final double typeMin = Math.max( 0, Math.min( type.getMinValue(), 65535 ) );
+			final double typeMax = Math.max( 0, Math.min( type.getMaxValue(), 65535 ) );
+			final RealARGBColorConverter< UnsignedShortType > converter = new RealARGBColorConverter.Imp1<>( typeMin, typeMax );
+			converter.setColor( new ARGBType( 0xffffffff ) );
+
+			// Decorate each source with an extra transformation, that can be
+			// edited manually in this viewer.
+			final TransformedSource< UnsignedShortType > ts = new TransformedSource<>( source );
+
+			final SourceAndConverter< UnsignedShortType > soc = new SourceAndConverter<>( ts, converter );
+
+			sources.add( soc );
+			final int newSetupId = 100;
+			converterSetups.add( new RealARGBColorConverterSetup( newSetupId, converter ) );
+
+			simpleStack3D = new SimpleStack3D< UnsignedShortType >()
+			{
+				@Override
+				public UnsignedShortType getType()
+				{
+					return type;
+				}
+
+				@Override
+				public AffineTransform3D getSourceTransform()
+				{
+					return sourceTransform;
+				}
+
+				@Override
+				public RandomAccessibleInterval getImage()
+				{
+					return rai;
+				}
+			};
 		}
 
-		final SmallVolumeViewer bvv = new SmallVolumeViewer( converterSetups, sources, stacks, new File( xmlFilename ).getName(),
+		final SmallVolumeViewer bvv = new SmallVolumeViewer( converterSetups, sources, stacks, simpleStack3D, new File( xmlFilename ).getName(),
 				VolumeViewerOptions.options().
 						width( windowWidth ).
 						height( windowHeight ).
