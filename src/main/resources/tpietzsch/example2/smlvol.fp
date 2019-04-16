@@ -13,8 +13,8 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 
 uniform sampler3D volume;
 
-float volumeTexture( vec4 wpos )
+float volTexture( vec4 wpos )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
-	return texture( volume, pos / textureSize( volume ) ).r;
+	return texture( volume, pos / textureSize( volume, 0 ) ).r;
 }

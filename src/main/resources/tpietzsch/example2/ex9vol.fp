@@ -81,10 +81,10 @@ void main()
                 v = max( v, convertC( x ) );
             }
             // }$
-            // $repeat:{visS,volumeTexture,convertS|
+            // $repeat:{visS,volTexture,convertS|
             if ( visS )
             {
-                float x = volumeTexture( wpos );
+                float x = volTexture( wpos );
                 v = max( v, convertS( x ) );
             }
             // }$

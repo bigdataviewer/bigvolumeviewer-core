@@ -75,7 +75,7 @@ public class MultiVolumeShaderMip10
 		final SegmentTemplate templateSmlVol = new SegmentTemplate(
 				"smlvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
-				"volume", "volumeTexture" );
+				"volume", "volTexture" );
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
@@ -84,10 +84,10 @@ public class MultiVolumeShaderMip10
 		builder.fragment( templateMaxDepth.instantiate() );
 		final SegmentTemplate templateFp = new SegmentTemplate(
 				"ex9vol.fp",
-				"intersectBoundingBoxC", "intersectBoundingBoxS", "blockTexture", "volumeTexture", "convertC", "convertS", "visC", "visS" );
+				"intersectBoundingBoxC", "intersectBoundingBoxS", "blockTexture", "volTexture", "convertC", "convertS", "visC", "visS" );
 		final Segment fp = templateFp.instantiate();
 		fp.repeat( Arrays.asList( "visC", "intersectBoundingBoxC", "blockTexture", "convertC" ), numBigVolumes );
-		fp.repeat( Arrays.asList( "visS", "intersectBoundingBoxS", "volumeTexture", "convertS" ), numSmallVolumes );
+		fp.repeat( Arrays.asList( "visS", "intersectBoundingBoxS", "volTexture", "convertS" ), numSmallVolumes );
 		final Segment blkVols[] = new Segment[ numBigVolumes ];
 		final Segment colConvs[] = new Segment[ numBigVolumes + numSmallVolumes ];
 		for ( int i = 0; i < numBigVolumes; ++i )
@@ -109,7 +109,7 @@ public class MultiVolumeShaderMip10
 			final Segment smlVol = templateSmlVol.instantiate();
 			builder.fragment( smlVol );
 			fp.bind( "intersectBoundingBoxS", i, smlVol, "intersectBoundingBox" );
-			fp.bind( "volumeTexture", i, smlVol, "volumeTexture" );
+			fp.bind( "volTexture", i, smlVol, "volTexture" );
 			smlVols[ i ] = smlVol;
 
 			final Segment colConv = templateColConv.instantiate();
@@ -191,14 +191,15 @@ public class MultiVolumeShaderMip10
 		volumeSegments[ index ].setData( volume );
 	}
 
-	// TODO
-	// TODO
-	// TODO
-	// TODO
-	// TODO
-	// TODO
-	// TODO
-	// TODO
+	public void setVolume( int index, SimpleVolume volume )
+	{
+		final int numVolumes = numBigVolumes + numSmallVolumes;
+		if ( index < numBigVolumes || index >= numVolumes )
+			throw new IllegalArgumentException();
+
+		simpleVolumeSegments[ index - numBigVolumes ].setData( volume );
+	}
+
 
 	public void setDither( DitherBuffer dither, int step )
 	{
@@ -354,18 +355,12 @@ public class MultiVolumeShaderMip10
 			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
 		}
 
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-//		public void setData( VolumeBlocks blocks )
-//		{
-//			uniformVolumeSampler.set( blocks.getLookupTexture() );
-//			uniformIm.set( blocks.getIms() );
-//			uniformSourcemin.set( blocks.getSourceLevelMin() );
-//			uniformSourcemax.set( blocks.getSourceLevelMax() );
-//		}
+		public void setData( SimpleVolume volume )
+		{
+			uniformVolumeSampler.set( volume.getVolumeTexture() );
+			uniformIm.set( volume.getIms() );
+			uniformSourcemin.set( volume.getSourceMin() );
+			uniformSourcemax.set( volume.getSourceMax() );
+		}
 	}
 }

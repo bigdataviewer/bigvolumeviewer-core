@@ -3,7 +3,6 @@ package tpietzsch.example2;
 import bdv.tools.brightness.ConverterSetup;
 import com.jogamp.opengl.GL3;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -149,6 +148,11 @@ public class VolumeRenderer2
 	 */
 	private final ArrayList< VolumeBlocks > volumes;
 
+	/**
+	 * SimpleVolume for each SimpleStack that has been seen and not freed yet.
+	 */
+	private final HashMap< SimpleStack3D< ? >, SimpleVolume > simpleVolumeMap;
+
 	private final DefaultQuad quad;
 
 
@@ -191,6 +195,7 @@ public class VolumeRenderer2
 
 
 		volumes = new ArrayList<>();
+		simpleVolumeMap = new HashMap<>();
 		progvols = new HashMap<>();
 		progvols.put( new NumVolumes( 0, 0 ), null );
 		quad = new DefaultQuad();
@@ -207,17 +212,6 @@ public class VolumeRenderer2
 	{
 		while ( volumes.size() < n )
 			volumes.add( new VolumeBlocks( textureCache ) );
-	}
-
-	/**
-	 * Make sure that we can deal with at least {@code n} simple volumes.
-	 *
-	 * @param n
-	 * 		number of simple volumes that shall be rendered
-	 */
-	private void needAtLeastNumSimpleVolumes( int n )
-	{
-		// TODO
 	}
 
 	private MultiVolumeShaderMip10 createMultiVolumeShader( final NumVolumes numVolumes )
@@ -263,8 +257,8 @@ public class VolumeRenderer2
 		if ( type == FULL || type == LOAD )
 		{
 			needAtLeastNumBlockVolumes( multiResStacks.size() );
-			needAtLeastNumSimpleVolumes( simpleStacks.size() );
 			updateBlocks( context, multiResStacks, pv );
+			updateSimpleVolumes( context, simpleStacks );
 
 			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
 			progvol = progvols.computeIfAbsent( new NumVolumes( multiResStacks.size(), simpleStacks.size() ), this::createMultiVolumeShader );
@@ -273,8 +267,17 @@ public class VolumeRenderer2
 				for ( int i = 0; i < multiResStacks.size(); i++ )
 				{
 					progvol.setConverter( i, renderConverters.get( i ) );
-					progvol.setVolume( i, volumes.get( i ) );
-					minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
+					final VolumeBlocks volume = volumes.get( i );
+					progvol.setVolume( i, volume );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
+				}
+				for ( int i = 0; i < simpleStacks.size(); i++ )
+				{
+					final int j = i + multiResStacks.size();
+					progvol.setConverter( j, renderConverters.get( j ) );
+					final SimpleVolume volume = simpleVolumeMap.get( simpleStacks.get( i ) );
+					progvol.setVolume( j, volume );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
 				}
 				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 				progvol.setViewportWidth( renderWidth );
@@ -415,4 +418,17 @@ public class VolumeRenderer2
 			nextRequestedRepaint.request( LOAD );
 	}
 
+	private void updateSimpleVolumes(
+			final JoglGpuContext context,
+			final List< SimpleStack3D< VolatileUnsignedShortType > > renderStacks )
+	{
+		for ( SimpleStack3D< VolatileUnsignedShortType > stack : renderStacks )
+		{
+			simpleVolumeMap.computeIfAbsent( stack, s -> {
+				final SimpleVolume volume = new SimpleVolume( s );
+				volume.upload( context ); // TODO offload copy to ByteBuffer to ForkJoinPool
+				return volume;
+			} );
+		}
+	}
 }
