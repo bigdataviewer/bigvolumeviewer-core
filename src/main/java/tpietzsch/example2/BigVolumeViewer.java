@@ -68,7 +68,7 @@ public class BigVolumeViewer
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, stacks, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, converterSetups, stacks, null, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
@@ -420,9 +420,11 @@ public class BigVolumeViewer
 
 		final int windowWidth = 640;
 		final int windowHeight = 480;
-		final int renderWidth = 512	;
+		final int renderWidth = 512;
 		final int renderHeight = 512;
-		final int ditherWidth = 8;
+//		final int renderWidth = 3840;
+//		final int renderHeight = 1600;
+		final int ditherWidth = 2;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
 		final int maxCacheSizeInMB = 300;

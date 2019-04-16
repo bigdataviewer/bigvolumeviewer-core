@@ -1,7 +1,9 @@
 package tpietzsch.example2;
 
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
 import org.joml.Matrix4f;
@@ -93,7 +95,9 @@ public class SimpleVolume
 		// TODO
 		// TODO
 		// TODO
+		System.out.println( "SimpleVolume.upload" );
 		texture.init( Intervals.dimensionsAsIntArray( simpleStack.getImage() ) );
+		texture.setRAI( ( RandomAccessibleInterval< UnsignedShortType > ) simpleStack.getImage() );
 		texture.upload( context );
 	}
 }

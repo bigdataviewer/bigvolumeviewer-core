@@ -45,9 +45,10 @@ import net.imglib2.util.LinAlgHelpers;
 import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
-import tpietzsch.example2.VolumeRenderer.RepaintType;
+import tpietzsch.example2.VolumeRenderer2.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
+import tpietzsch.multires.SimpleStack3D;
 import tpietzsch.multires.Stacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
@@ -58,10 +59,10 @@ import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
 import static com.jogamp.opengl.GL.GL_RGB8;
-import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
-import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
-import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
-import static tpietzsch.example2.VolumeRenderer.RepaintType.SCENE;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.SCENE;
 
 public class VolumeViewerPanel
 		extends JPanel
@@ -71,6 +72,7 @@ public class VolumeViewerPanel
 	 * TODO should be more general...
 	 */
 	protected final Stacks stacks;
+	protected final SimpleStack3D< ? > simpleStack;
 	protected final List< ? extends ConverterSetup > converterSetups;
 
 	public static class RenderData
@@ -221,7 +223,7 @@ public class VolumeViewerPanel
 	/**
 	 * Renders the current state to gl context.
 	 */
-	protected final VolumeRenderer renderer;
+	protected final VolumeRenderer2 renderer;
 
 	/**
 	 * Transformation set by the interactive viewer.
@@ -282,6 +284,7 @@ public class VolumeViewerPanel
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
 			final Stacks stacks,
+			final SimpleStack3D< ? > simpleStack,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
@@ -289,6 +292,7 @@ public class VolumeViewerPanel
 
 		this.converterSetups = converterSetups;
 		this.stacks = stacks;
+		this.simpleStack = simpleStack;
 		this.renderScene = renderScene;
 
 		final VolumeViewerOptions.Values options = optional.values;
@@ -312,7 +316,7 @@ public class VolumeViewerPanel
 		maxRenderMillis = options.getMaxRenderMillis();
 
 		viewerTransform = new AffineTransform3D();
-		renderer = new VolumeRenderer(
+		renderer = new VolumeRenderer2(
 				renderWidth,
 				renderHeight,
 				options.getDitherWidth(),
@@ -853,6 +857,7 @@ public class VolumeViewerPanel
 
 	// ... RenderState ...
 	private final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks = new ArrayList<>();
+	private final List< SimpleStack3D< VolatileUnsignedShortType > > simpleStacks = new ArrayList<>();
 	private final List< ConverterSetup > renderConverters = new ArrayList<>();
 	private final Matrix4f pv = new Matrix4f();
 	private double dCam;
@@ -896,9 +901,17 @@ public class VolumeViewerPanel
 			MatrixMath.screenPerspective( dCam, dClipNear, dClipFar, screenWidth, screenHeight, 0, pv ).mul( view );
 
 			renderStacks.clear();
+			simpleStacks.clear();
 			renderConverters.clear();
 			for( int i : visibleSourceIndices )
 			{
+				if( i == 3 )
+				{
+					simpleStacks.add( ( SimpleStack3D< VolatileUnsignedShortType > ) simpleStack );
+					final ConverterSetup converter = converterSetups.get( 3 );
+					renderConverters.add( converter );
+					continue;
+				}
 				final MultiResolutionStack3D< VolatileUnsignedShortType > stack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
 						stacks.getStack(
 								stacks.timepointId( currentTimepoint ),
@@ -973,7 +986,7 @@ public class VolumeViewerPanel
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
-			RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
+			RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, simpleStacks, renderConverters, pv, maxRenderMillis );
 			repaint.request( rerender );
 			offscreen.unbind( gl, false );
 			offscreen.drawQuad( gl );

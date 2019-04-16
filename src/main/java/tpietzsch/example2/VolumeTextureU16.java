@@ -1,7 +1,13 @@
 package tpietzsch.example2;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.IntervalIndexer;
+import net.imglib2.view.Views;
 import org.joml.Vector3f;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
@@ -27,8 +33,20 @@ public class VolumeTextureU16 implements Texture3D
 
 		final int numBytes = 2 * size[ 0 ] * size[ 1 ] * size[ 2 ];
 		if ( data == null || data.capacity() < numBytes )
+		{
 			data = ByteBuffer.allocateDirect( numBytes ); // allocate a bit more than needed...
+			data.order( ByteOrder.nativeOrder() );
+		}
 		ByteUtils.setBytes( ( byte ) 8, ByteUtils.addressOf( data ), numBytes );
+	}
+
+	public void setRAI( final RandomAccessibleInterval< UnsignedShortType  > rai )
+	{
+		final Cursor< UnsignedShortType > cursor = Views.flatIterable( rai ).cursor();
+		final ShortBuffer sdata = data.asShortBuffer();
+		int i = 0;
+		while ( cursor.hasNext() )
+			sdata.put( i++, cursor.next().getShort() );
 	}
 
 	public void upload( final GpuContext context )
