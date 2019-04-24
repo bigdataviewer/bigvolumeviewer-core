@@ -1,23 +1,21 @@
 package tpietzsch.example2;
 
-import bdv.tools.brightness.ConverterSetup;
-import bdv.util.Affine3DHelpers;
-import bdv.viewer.RequestRepaint;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.TimePointListener;
-import bdv.viewer.VisibilityAndGrouping;
-import bdv.viewer.animate.AbstractTransformAnimator;
-import bdv.viewer.animate.RotationAnimator;
-import bdv.viewer.state.SourceGroup;
-import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
-import bdv.viewer.state.XmlIoViewerState;
+import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
+import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
+import static com.jogamp.opengl.GL.GL_LESS;
+import static com.jogamp.opengl.GL.GL_RGB8;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer2.RepaintType.SCENE;
+
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLCanvas;
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -32,9 +30,11 @@ import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
+
 import net.imglib2.Positionable;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -42,27 +42,33 @@ import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
+
 import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+
+import bdv.tools.brightness.ConverterSetup;
+import bdv.util.Affine3DHelpers;
+import bdv.viewer.RequestRepaint;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.TimePointListener;
+import bdv.viewer.VisibilityAndGrouping;
+import bdv.viewer.animate.AbstractTransformAnimator;
+import bdv.viewer.animate.RotationAnimator;
+import bdv.viewer.state.SourceGroup;
+import bdv.viewer.state.SourceState;
+import bdv.viewer.state.ViewerState;
+import bdv.viewer.state.XmlIoViewerState;
 import tpietzsch.example2.VolumeRenderer2.RepaintType;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.ResolutionLevel3D;
 import tpietzsch.multires.SimpleStack3D;
+import tpietzsch.multires.Stack3D;
 import tpietzsch.multires.Stacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
 import tpietzsch.util.MatrixMath;
 import tpietzsch.util.TransformHandler;
-
-import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
-import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
-import static com.jogamp.opengl.GL.GL_LESS;
-import static com.jogamp.opengl.GL.GL_RGB8;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.FULL;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.SCENE;
 
 public class VolumeViewerPanel
 		extends JPanel
@@ -186,7 +192,7 @@ public class VolumeViewerPanel
 			this.type = FULL;
 		}
 
-		protected synchronized void request( RepaintType type )
+		protected synchronized void request( final RepaintType type )
 		{
 			if ( this.type.ordinal() < type.ordinal() )
 			{
@@ -197,7 +203,7 @@ public class VolumeViewerPanel
 
 		protected synchronized RepaintType getAndClear()
 		{
-			RepaintType t = type;
+			final RepaintType t = type;
 			type = NONE;
 			return t;
 		}
@@ -210,7 +216,7 @@ public class VolumeViewerPanel
 	protected final OffScreenFrameBuffer offscreen;
 
 	// TODO: should be settable
-	private long[] iobudget = new long[] { 100l * 1000000l,  10l * 1000000l };
+	private final long[] iobudget = new long[] { 100l * 1000000l,  10l * 1000000l };
 
 	protected final int maxRenderMillis;
 
@@ -490,7 +496,7 @@ public class VolumeViewerPanel
 	/**
 	 * Repaint as soon as possible.
 	 */
-	public void requestRepaint( RepaintType type )
+	public void requestRepaint( final RepaintType type )
 	{
 		repaint.request( type );
 	}
@@ -856,8 +862,7 @@ public class VolumeViewerPanel
 
 
 	// ... RenderState ...
-	private final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks = new ArrayList<>();
-	private final List< SimpleStack3D< VolatileUnsignedShortType > > simpleStacks = new ArrayList<>();
+	private final List< Stack3D< ? > > renderStacks = new ArrayList<>();
 	private final List< ConverterSetup > renderConverters = new ArrayList<>();
 	private final Matrix4f pv = new Matrix4f();
 	private double dCam;
@@ -901,13 +906,12 @@ public class VolumeViewerPanel
 			MatrixMath.screenPerspective( dCam, dClipNear, dClipFar, screenWidth, screenHeight, 0, pv ).mul( view );
 
 			renderStacks.clear();
-			simpleStacks.clear();
 			renderConverters.clear();
-			for( int i : visibleSourceIndices )
+			for( final int i : visibleSourceIndices )
 			{
 				if( i == 3 )
 				{
-					simpleStacks.add( ( SimpleStack3D< VolatileUnsignedShortType > ) simpleStack );
+					renderStacks.add( simpleStack );
 					final ConverterSetup converter = converterSetups.get( 3 );
 					renderConverters.add( converter );
 					continue;
@@ -986,7 +990,7 @@ public class VolumeViewerPanel
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
-			RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, simpleStacks, renderConverters, pv, maxRenderMillis );
+			final RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
 			repaint.request( rerender );
 			offscreen.unbind( gl, false );
 			offscreen.drawQuad( gl );
