@@ -149,9 +149,9 @@ public class VolumeRenderer2
 	private final ArrayList< VolumeBlocks > volumes;
 
 	/**
-	 * SimpleVolume for each SimpleStack that has been seen and not freed yet.
+	 * provides SimpleVolumes for SimpleStacks.
 	 */
-	private final HashMap< SimpleStack3D< ? >, SimpleVolume > simpleVolumeMap;
+	private final SimpleStackManager simpleStackManager = new DefaultSimpleStackManager();
 
 	private final DefaultQuad quad;
 
@@ -195,7 +195,6 @@ public class VolumeRenderer2
 
 
 		volumes = new ArrayList<>();
-		simpleVolumeMap = new HashMap<>();
 		progvols = new HashMap<>();
 		progvols.put( new NumVolumes( 0, 0 ), null );
 		quad = new DefaultQuad();
@@ -258,7 +257,6 @@ public class VolumeRenderer2
 		{
 			needAtLeastNumBlockVolumes( multiResStacks.size() );
 			updateBlocks( context, multiResStacks, pv );
-			updateSimpleVolumes( context, simpleStacks );
 
 			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
 			progvol = progvols.computeIfAbsent( new NumVolumes( multiResStacks.size(), simpleStacks.size() ), this::createMultiVolumeShader );
@@ -275,7 +273,7 @@ public class VolumeRenderer2
 				{
 					final int j = i + multiResStacks.size();
 					progvol.setConverter( j, renderConverters.get( j ) );
-					final SimpleVolume volume = simpleVolumeMap.get( simpleStacks.get( i ) );
+					final SimpleVolume volume = simpleStackManager.getSimpleVolume( context, simpleStacks.get( i ) );
 					progvol.setVolume( j, volume );
 					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
 				}
@@ -416,19 +414,5 @@ public class VolumeRenderer2
 
 		if ( needsRepaint )
 			nextRequestedRepaint.request( LOAD );
-	}
-
-	private void updateSimpleVolumes(
-			final JoglGpuContext context,
-			final List< SimpleStack3D< VolatileUnsignedShortType > > renderStacks )
-	{
-		for ( SimpleStack3D< VolatileUnsignedShortType > stack : renderStacks )
-		{
-			simpleVolumeMap.computeIfAbsent( stack, s -> {
-				final SimpleVolume volume = new SimpleVolume( s );
-				volume.upload( context ); // TODO offload copy to ByteBuffer to ForkJoinPool
-				return volume;
-			} );
-		}
 	}
 }

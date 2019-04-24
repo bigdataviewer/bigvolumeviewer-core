@@ -1,15 +1,11 @@
 package tpietzsch.example2;
 
-import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.multires.SimpleStack3D;
+
 import tpietzsch.util.MatrixMath;
 
 /**
@@ -17,25 +13,29 @@ import tpietzsch.util.MatrixMath;
  */
 public class SimpleVolume
 {
-	private final SimpleStack3D< ? > simpleStack;
-
 	private final VolumeTextureU16 texture;
+
+	private final AffineTransform3D sourceToWorld;
+
+	private final Vector3f sourceMin;
+
+	private final Vector3f sourceMax;
 
 	private final Matrix4f ims;
 
 	/**
-	 * @param simpleStack single-channel source
+	 * @param texture with source data
+	 * @param sourceTransform transforms source coordinates to world coordinates
+	 * @param sourceMin minimum source coordinates
+	 * @param sourceMax maximum source coordinates
 	 */
-	public SimpleVolume( final SimpleStack3D< ? > simpleStack )
+	public SimpleVolume( final VolumeTextureU16 texture, final AffineTransform3D sourceTransform, final Vector3f sourceMin, final Vector3f sourceMax )
 	{
-		this.simpleStack = simpleStack;
-		this.texture = new VolumeTextureU16();
-		this.ims = MatrixMath.affine( simpleStack.getSourceTransform(), new Matrix4f() ).invert();
-	}
-
-	public SimpleStack3D< ? > getSimpleStack()
-	{
-		return simpleStack;
+		this.texture = texture;
+		this.sourceToWorld = sourceTransform;
+		this.sourceMin = sourceMin;
+		this.sourceMax = sourceMax;
+		this.ims = MatrixMath.affine( sourceTransform, new Matrix4f() ).invert();
 	}
 
 	public VolumeTextureU16 getVolumeTexture()
@@ -55,8 +55,6 @@ public class SimpleVolume
 	 */
 	public double getVoxelSizeInWorldCoordinates()
 	{
-		final AffineTransform3D sourceToWorld = simpleStack.getSourceTransform();
-
 		final double[] tzero = new double[ 3 ];
 		sourceToWorld.apply( new double[ 3 ], tzero );
 
@@ -76,28 +74,11 @@ public class SimpleVolume
 
 	public Vector3f getSourceMin()
 	{
-		final Interval lbb = simpleStack.getImage();
-		final Vector3f sourceMin = new Vector3f( lbb.min( 0 ), lbb.min( 1 ), lbb.min( 2 ) );
 		return sourceMin;
 	}
 
 	public Vector3f getSourceMax()
 	{
-		final Interval lbb = simpleStack.getImage();
-		final Vector3f sourceMax = new Vector3f( lbb.max( 0 ), lbb.max( 1 ), lbb.max( 2 ) );
 		return sourceMax;
-	}
-
-	public void upload( final JoglGpuContext context )
-	{
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		System.out.println( "SimpleVolume.upload" );
-		texture.init( Intervals.dimensionsAsIntArray( simpleStack.getImage() ) );
-		texture.setRAI( ( RandomAccessibleInterval< UnsignedShortType > ) simpleStack.getImage() );
-		texture.upload( context );
 	}
 }
