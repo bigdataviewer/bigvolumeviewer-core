@@ -444,7 +444,7 @@ public class SmallVolumeViewer
 				}
 
 				@Override
-				public RandomAccessibleInterval getImage()
+				public RandomAccessibleInterval< UnsignedShortType > getImage()
 				{
 					return rai;
 				}
