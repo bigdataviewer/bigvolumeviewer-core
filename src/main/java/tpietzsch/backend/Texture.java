@@ -36,6 +36,7 @@ public interface Texture
 	enum Wrap
 	{
 		CLAMP_TO_EDGE,
+		CLAMP_TO_BORDER_ZERO,
 		REPEAT
 	}
 
