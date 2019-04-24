@@ -9,8 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import tpietzsch.backend.GpuContext;
-import tpietzsch.backend.StagingBuffer;
 import tpietzsch.backend.SetUniforms;
+import tpietzsch.backend.StagingBuffer;
 import tpietzsch.backend.Texture;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.shadergen.Shader;
@@ -30,11 +30,13 @@ import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_SHORT;
 import static com.jogamp.opengl.GL.GL_WRITE_ONLY;
+import static com.jogamp.opengl.GL2ES2.GL_CLAMP_TO_BORDER;
 import static com.jogamp.opengl.GL2ES2.GL_FRAGMENT_SHADER;
 import static com.jogamp.opengl.GL2ES2.GL_RED;
 import static com.jogamp.opengl.GL2ES2.GL_STREAM_DRAW;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_3D;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_BINDING_3D;
+import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_BORDER_COLOR;
 import static com.jogamp.opengl.GL2ES2.GL_TEXTURE_WRAP_R;
 import static com.jogamp.opengl.GL2ES2.GL_VERTEX_SHADER;
 import static com.jogamp.opengl.GL2ES3.GL_PIXEL_UNPACK_BUFFER;
@@ -44,6 +46,7 @@ import static com.jogamp.opengl.GL2ES3.GL_RGBA_INTEGER;
 import static com.jogamp.opengl.GL2GL3.GL_R16;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_1D;
 import static com.jogamp.opengl.GL2GL3.GL_TEXTURE_BINDING_1D;
+import static tpietzsch.backend.Texture.Wrap.CLAMP_TO_BORDER_ZERO;
 
 public class JoglGpuContext implements GpuContext
 {
@@ -326,6 +329,8 @@ public class JoglGpuContext implements GpuContext
 				gl.glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap( tex ) );
 			if ( tex.texDims() > 2 )
 				gl.glTexParameteri( target, GL_TEXTURE_WRAP_R, wrap( tex ) );
+			if ( tex.texWrap() == CLAMP_TO_BORDER_ZERO )
+				gl.glTexParameterfv( target, GL_TEXTURE_BORDER_COLOR, new float[ 4 ], 1 );
 
 			gl.glBindTexture( target, restoreId );
 
@@ -469,6 +474,8 @@ public class JoglGpuContext implements GpuContext
 		{
 		case CLAMP_TO_EDGE:
 			return GL_CLAMP_TO_EDGE;
+		case CLAMP_TO_BORDER_ZERO:
+			return GL_CLAMP_TO_BORDER;
 		case REPEAT:
 			return GL_REPEAT;
 		default:
