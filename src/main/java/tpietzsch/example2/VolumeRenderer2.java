@@ -1,26 +1,5 @@
 package tpietzsch.example2;
 
-import bdv.tools.brightness.ConverterSetup;
-import com.jogamp.opengl.GL3;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.ForkJoinPool;
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import org.joml.Matrix4f;
-import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.cache.CacheSpec;
-import tpietzsch.cache.FillTask;
-import tpietzsch.cache.PboChain;
-import tpietzsch.cache.ProcessFillTasks;
-import tpietzsch.cache.TextureCache;
-import tpietzsch.dither.DitherBuffer;
-import tpietzsch.multires.MultiResolutionStack3D;
-import tpietzsch.multires.SimpleStack3D;
-import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
-import tpietzsch.util.DefaultQuad;
-
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -32,6 +11,32 @@ import static tpietzsch.example2.VolumeRenderer2.RepaintType.DITHER;
 import static tpietzsch.example2.VolumeRenderer2.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
+
+import com.jogamp.opengl.GL3;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+
+import net.imglib2.type.volatiles.VolatileUnsignedShortType;
+
+import org.joml.Matrix4f;
+
+import bdv.tools.brightness.ConverterSetup;
+import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.cache.CacheSpec;
+import tpietzsch.cache.FillTask;
+import tpietzsch.cache.PboChain;
+import tpietzsch.cache.ProcessFillTasks;
+import tpietzsch.cache.TextureCache;
+import tpietzsch.dither.DitherBuffer;
+import tpietzsch.multires.MultiResolutionStack3D;
+import tpietzsch.multires.SimpleStack3D;
+import tpietzsch.multires.Stack3D;
+import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
+import tpietzsch.util.DefaultQuad;
 
 public class VolumeRenderer2
 {
@@ -69,7 +74,7 @@ public class VolumeRenderer2
 			this.type = NONE;
 		}
 
-		void request( RepaintType type )
+		void request( final RepaintType type )
 		{
 			if ( this.type.ordinal() < type.ordinal() )
 				this.type = type;
@@ -207,7 +212,7 @@ public class VolumeRenderer2
 	 * @param n
 	 * 		number of blocked volumes that shall be rendered
 	 */
-	private void needAtLeastNumBlockVolumes( int n )
+	private void needAtLeastNumBlockVolumes( final int n )
 	{
 		while ( volumes.size() < n )
 			volumes.add( new VolumeBlocks( textureCache ) );
@@ -230,8 +235,7 @@ public class VolumeRenderer2
 			final GL3 gl,
 			final RepaintType type,
 			final OffScreenFrameBufferWithDepth sceneBuf,
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResStacks,
-			final List< SimpleStack3D< VolatileUnsignedShortType > > simpleStacks,
+			final List< Stack3D< ? > > renderStacks,
 			final List< ConverterSetup > renderConverters,
 			final Matrix4f pv,
 			final int maxRenderMillis )
@@ -255,6 +259,29 @@ public class VolumeRenderer2
 
 		if ( type == FULL || type == LOAD )
 		{
+			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResStacks = new ArrayList<>();
+			final List< ConverterSetup > multiResConverters = new ArrayList<>();
+			final List< SimpleStack3D< ? > > simpleStacks = new ArrayList<>();
+			final List< ConverterSetup > simpleConverters = new ArrayList<>();
+			for ( int i = 0; i < renderStacks.size(); i++ )
+			{
+				final Stack3D< ? > stack = renderStacks.get( i );
+				if ( stack instanceof MultiResolutionStack3D )
+				{
+					final MultiResolutionStack3D< ? > mrstack = ( MultiResolutionStack3D< ? > ) stack;
+					if ( ! ( mrstack.getType() instanceof VolatileUnsignedShortType ) )
+						throw new IllegalArgumentException();
+					multiResStacks.add( ( MultiResolutionStack3D< VolatileUnsignedShortType > ) mrstack );
+					multiResConverters.add( renderConverters.get( i ) );
+				}
+				else if ( stack instanceof SimpleStack3D )
+				{
+					simpleStacks.add( ( SimpleStack3D< ? > ) stack );
+					simpleConverters.add( renderConverters.get( i ) );
+				}
+				else
+					throw new IllegalArgumentException();
+			}
 			needAtLeastNumBlockVolumes( multiResStacks.size() );
 			updateBlocks( context, multiResStacks, pv );
 
@@ -264,7 +291,7 @@ public class VolumeRenderer2
 			{
 				for ( int i = 0; i < multiResStacks.size(); i++ )
 				{
-					progvol.setConverter( i, renderConverters.get( i ) );
+					progvol.setConverter( i, multiResConverters.get( i ) );
 					final VolumeBlocks volume = volumes.get( i );
 					progvol.setVolume( i, volume );
 					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
@@ -272,7 +299,7 @@ public class VolumeRenderer2
 				for ( int i = 0; i < simpleStacks.size(); i++ )
 				{
 					final int j = i + multiResStacks.size();
-					progvol.setConverter( j, renderConverters.get( j ) );
+					progvol.setConverter( j, simpleConverters.get( i ) );
 					final SimpleVolume volume = simpleStackManager.getSimpleVolume( context, simpleStacks.get( i ) );
 					progvol.setVolume( j, volume );
 					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
@@ -352,14 +379,14 @@ public class VolumeRenderer2
 
 	private void updateBlocks(
 			final JoglGpuContext context,
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks,
+			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResStacks,
 			final Matrix4f pv )
 	{
 		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
 		int numTasks = 0;
-		for ( int i = 0; i < renderStacks.size(); i++ )
+		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = renderStacks.get( i );
+			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = multiResStacks.get( i );
 			final VolumeBlocks volume = volumes.get( i );
 			volume.init( stack, renderWidth, pv );
 			final List< FillTask > tasks = volume.getFillTasks();
@@ -403,7 +430,7 @@ public class VolumeRenderer2
 		}
 
 		boolean needsRepaint = false;
-		for ( int i = 0; i < renderStacks.size(); i++ )
+		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
 			final boolean complete = volume.makeLut();
