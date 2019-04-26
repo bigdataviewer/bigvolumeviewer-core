@@ -119,9 +119,9 @@ public class MultiVolumeShaderMip10
 		}
 		builder.fragment( fp );
 		prog = builder.build();
-		System.out.println( "\n\n\n\n\n\n\n\n\n========================================================" );
-		System.out.println( "FRAGMENT SHADER FOR " + numBigVolumes + " BIG AND " + numSmallVolumes + " SMALL VOLUMES" );
-		System.out.println( prog.getFragmentShaderCode() );
+//		System.out.println( "\n\n\n\n\n\n\n\n\n========================================================" );
+//		System.out.println( "FRAGMENT SHADER FOR " + numBigVolumes + " BIG AND " + numSmallVolumes + " SMALL VOLUMES" );
+//		System.out.println( prog.getFragmentShaderCode() );
 
 		uniformIpv = prog.getUniformMatrix4f( "ipv" );
 		uniformViewportSize = prog.getUniform2f( "viewportSize" );
