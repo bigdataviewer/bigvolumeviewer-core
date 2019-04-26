@@ -1,5 +1,7 @@
 package tpietzsch.shadergen.generate;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import tpietzsch.shadergen.generate.SegmentTemplate.Identifier;
@@ -33,6 +35,11 @@ public class Segment
 		return this;
 	}
 
+	public Segment bind( final String key, final Segment segment )
+	{
+		return bind( key, segment, key );
+	}
+
 	public synchronized Segment bind( final String key, final int index, final Segment segment, final String segmentKey )
 	{
 		if ( code != null )
@@ -50,6 +57,11 @@ public class Segment
 		return this;
 	}
 
+	public Segment bind( final String key, final int index, final Segment segment )
+	{
+		return bind( key, index, segment, key );
+	}
+
 	public synchronized Segment repeat( final String key, final int num )
 	{
 		keyToIdentifier.put( key, SegmentTemplate.proposeIdentifiers( key, num ) );
@@ -63,6 +75,11 @@ public class Segment
 	}
 
 	public synchronized void insert( final String key, final Segment ... segments )
+	{
+		insert( key, Arrays.asList( segments ) );
+	}
+
+	public synchronized void insert( final String key, final Collection< Segment > segments )
 	{
 		StringBuilder sb = new StringBuilder( "\n" );
 		for ( Segment segment : segments )
