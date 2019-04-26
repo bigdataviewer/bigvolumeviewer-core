@@ -90,7 +90,7 @@ public class VolumeRenderer2
 	 * Currently used volume shader program.
 	 * This is used when redrawing without changing {@code RenderState}.
 	 */
-	private MultiVolumeShaderMip10 progvol;
+	private MultiVolumeShaderMip11 progvol;
 
 
 
@@ -144,7 +144,7 @@ public class VolumeRenderer2
 	/**
 	 * Shader programs for rendering multiple cached and/or simple volumes.
 	 */
-	private final HashMap< NumVolumes, MultiVolumeShaderMip10 > progvols;
+	private final HashMap< NumVolumes, MultiVolumeShaderMip11 > progvols;
 
 	/**
 	 * VolumeBlocks for one volume each.
@@ -218,9 +218,9 @@ public class VolumeRenderer2
 			volumes.add( new VolumeBlocks( textureCache ) );
 	}
 
-	private MultiVolumeShaderMip10 createMultiVolumeShader( final NumVolumes numVolumes )
+	private MultiVolumeShaderMip11 createMultiVolumeShader( final NumVolumes numVolumes )
 	{
-		final MultiVolumeShaderMip10 progvol = new MultiVolumeShaderMip10( numVolumes.cached, numVolumes.simple, true, 1.0 );
+		final MultiVolumeShaderMip11 progvol = new MultiVolumeShaderMip11( numVolumes.cached, numVolumes.simple, true, 1.0 );
 		progvol.setTextureCache( textureCache );
 		return progvol;
 	}
