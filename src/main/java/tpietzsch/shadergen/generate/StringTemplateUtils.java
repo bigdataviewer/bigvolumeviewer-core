@@ -37,6 +37,11 @@ public class StringTemplateUtils
 		final String PAT_REPEAT = "$"+REPEAT+":{";
 		final int REPEAT_START = 1;
 
+		final String INSERT = "insert";
+		final String PAT_INSERT = "$"+INSERT+"{";
+		final int INSERT_START = PAT_INSERT.length();
+		final char PAT_INSERT_END = '}';
+
 		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
 		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
 		final StringBuilder builder = new StringBuilder();
@@ -44,6 +49,17 @@ public class StringTemplateUtils
 		boolean inRepeatBlock = false;
 		while ( ( line = reader.readLine() ) != null )
 		{
+			final int ii = line.indexOf( PAT_INSERT );
+			if ( ii != -1 )
+			{
+				// length of leading whitespace
+				int lws = 0;
+				while ( lws < line.length() && line.charAt( lws ) <= ' ' )
+					++lws;
+				final int ie = line.indexOf( PAT_INSERT_END, ii );
+				line = line.substring( 0, lws ) + line.substring( ii + INSERT_START, ie );
+			}
+
 			final int ri = line.indexOf( PAT_REPEAT );
 			if ( ri != -1 )
 			{

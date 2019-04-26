@@ -62,6 +62,14 @@ public class Segment
 		return this;
 	}
 
+	public synchronized void insert( final String key, final Segment ... segments )
+	{
+		StringBuilder sb = new StringBuilder( "\n" );
+		for ( Segment segment : segments )
+			sb.append( segment.getCode() );
+		keyToIdentifier.put( key, new Identifier( sb.toString() ) );
+	}
+
 	Identifier getIdentifier( final String key )
 	{
 		final Identifier identifier = keyToIdentifier.get( key );
@@ -84,5 +92,4 @@ public class Segment
 	{
 		return keyToIdentifier;
 	}
-
 }
