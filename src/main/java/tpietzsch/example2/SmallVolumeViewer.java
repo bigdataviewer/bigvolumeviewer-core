@@ -1,39 +1,24 @@
 package tpietzsch.example2;
 
-import bdv.spimdata.SpimDataMinimal;
-import bdv.spimdata.XmlIoSpimDataMinimal;
-import bdv.tools.InitializeViewerState;
-import bdv.tools.ToggleDialogAction;
-import bdv.tools.VisibilityAndGroupingDialog;
-import bdv.tools.bookmarks.Bookmarks;
-import bdv.tools.brightness.BrightnessDialog;
-import bdv.tools.brightness.ConverterSetup;
-import bdv.tools.brightness.MinMaxGroup;
-import bdv.tools.brightness.RealARGBColorConverterSetup;
-import bdv.tools.brightness.SetupAssignments;
-import bdv.tools.transformation.ManualTransformation;
-import bdv.tools.transformation.TransformedSource;
-import bdv.util.RandomAccessibleIntervalSource;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
+import static bdv.BigDataViewer.initSetups;
+
 import com.jogamp.opengl.GL3;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
+
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileFilter;
-import mpicbg.spim.data.SpimDataException;
-import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
+
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.display.RealARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.LinAlgHelpers;
+
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -44,14 +29,31 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+
+import bdv.BigDataViewer;
+import bdv.spimdata.SpimDataMinimal;
+import bdv.spimdata.XmlIoSpimDataMinimal;
+import bdv.tools.InitializeViewerState;
+import bdv.tools.ToggleDialogAction;
+import bdv.tools.VisibilityAndGroupingDialog;
+import bdv.tools.bookmarks.Bookmarks;
+import bdv.tools.brightness.BrightnessDialog;
+import bdv.tools.brightness.ConverterSetup;
+import bdv.tools.brightness.MinMaxGroup;
+import bdv.tools.brightness.SetupAssignments;
+import bdv.tools.transformation.ManualTransformation;
+import bdv.util.RandomAccessibleIntervalSource;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.state.SourceState;
+import bdv.viewer.state.ViewerState;
+import mpicbg.spim.data.SpimDataException;
+import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
 import tpietzsch.multires.SimpleStack3D;
 import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.multires.Stacks;
 import tpietzsch.scene.TexturedUnitCube;
-
-import static bdv.BigDataViewer.initSetups;
 
 public class SmallVolumeViewer
 {
@@ -303,14 +305,14 @@ public class SmallVolumeViewer
 	{
 		synchronized ( cubeAndTransforms )
 		{
-			for ( CubeAndTransform cubeAndTransform : cubeAndTransforms )
+			for ( final CubeAndTransform cubeAndTransform : cubeAndTransforms )
 			{
 				cubeAndTransform.cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubeAndTransform.model ) );
 			}
 		}
 	}
 
-	private Random random = new Random();
+	private final Random random = new Random();
 
 	void removeRandomCube()
 	{
@@ -349,8 +351,8 @@ public class SmallVolumeViewer
 			LinAlgHelpers.subtract( tone, tzero, tone );
 			size[ i ] = LinAlgHelpers.length( tone );
 		}
-		TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
-		Matrix4f model = new Matrix4f()
+		final TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
+		final Matrix4f model = new Matrix4f()
 				.translation(
 						( float ) ( tzero[ 0 ] + random.nextDouble() * size[ 0 ] ),
 						( float ) ( tzero[ 1 ] + random.nextDouble() * size[ 1 ] ),
@@ -398,7 +400,7 @@ public class SmallVolumeViewer
 			 */
 			final int timepointId = 1;
 			final int setupId = 2;
-			MultiResolutionSetupImgLoader< UnsignedShortType > sil = ( MultiResolutionSetupImgLoader< UnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( setupId );
+			final MultiResolutionSetupImgLoader< UnsignedShortType > sil = ( MultiResolutionSetupImgLoader< UnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( setupId );
 			final int level = sil.numMipmapLevels() - 1;
 			final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( timepointId, level );
 			final double[] resolution = sil.getMipmapResolutions()[ level ];
@@ -413,21 +415,10 @@ public class SmallVolumeViewer
 
 			final UnsignedShortType type = new UnsignedShortType();
 			final RandomAccessibleIntervalSource< UnsignedShortType > source = new RandomAccessibleIntervalSource<>( rai, type, sourceTransform, "simple volume" );
-
-			final double typeMin = Math.max( 0, Math.min( type.getMinValue(), 65535 ) );
-			final double typeMax = Math.max( 0, Math.min( type.getMaxValue(), 65535 ) );
-			final RealARGBColorConverter< UnsignedShortType > converter = new RealARGBColorConverter.Imp1<>( typeMin, typeMax );
-			converter.setColor( new ARGBType( 0xffffffff ) );
-
-			// Decorate each source with an extra transformation, that can be
-			// edited manually in this viewer.
-			final TransformedSource< UnsignedShortType > ts = new TransformedSource<>( source );
-
-			final SourceAndConverter< UnsignedShortType > soc = new SourceAndConverter<>( ts, converter );
-
+			final SourceAndConverter< UnsignedShortType > soc = BigDataViewer.wrapWithTransformedSource( new SourceAndConverter<>( source, BigDataViewer.createConverterToARGB( type ) ) );
 			sources.add( soc );
 			final int newSetupId = 100;
-			converterSetups.add( new RealARGBColorConverterSetup( newSetupId, converter ) );
+			converterSetups.add( BigDataViewer.createConverterSetup( soc, newSetupId ) );
 
 			simpleStack3D = new SimpleStack3D< UnsignedShortType >()
 			{
