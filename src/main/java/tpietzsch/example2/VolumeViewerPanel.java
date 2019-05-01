@@ -38,7 +38,6 @@ import javax.swing.SwingConstants;
 import net.imglib2.Positionable;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
@@ -47,6 +46,7 @@ import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 
+import bdv.cache.CacheControl;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.RequestRepaint;
@@ -60,11 +60,8 @@ import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
 import tpietzsch.example2.VolumeRenderer2.RepaintType;
-import tpietzsch.multires.MultiResolutionStack3D;
-import tpietzsch.multires.ResolutionLevel3D;
-import tpietzsch.multires.SimpleStack3D;
+import tpietzsch.multires.SourceStacks;
 import tpietzsch.multires.Stack3D;
-import tpietzsch.multires.Stacks;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
 import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
 import tpietzsch.util.MatrixMath;
@@ -74,12 +71,9 @@ public class VolumeViewerPanel
 		extends JPanel
 		implements RequestRepaint, PainterThread.Paintable
 {
-	/**
-	 * TODO should be more general...
-	 */
-	protected final Stacks stacks;
-	protected final SimpleStack3D< ? > simpleStack;
 	protected final List< ? extends ConverterSetup > converterSetups;
+
+	protected final CacheControl cacheControl;
 
 	public static class RenderData
 	{
@@ -283,22 +277,28 @@ public class VolumeViewerPanel
 	/**
 	 * @param sources
 	 *            the {@link SourceAndConverter sources} to display.
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup} that control min/max and color
+	 *            of sources.
+	 * @param numTimepoints
+	 *            number of available timepoints.
+	 * @param cacheControl
+	 *            to control IO budgeting and fetcher queue.
 	 * @param optional
 	 *            optional parameters. See {@link VolumeViewerOptions}.
 	 */
 	public VolumeViewerPanel(
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
-			final Stacks stacks,
-			final SimpleStack3D< ? > simpleStack,
+			final int numTimepoints,
+			final CacheControl cacheControl,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
 		super( new BorderLayout() );
 
 		this.converterSetups = converterSetups;
-		this.stacks = stacks;
-		this.simpleStack = simpleStack;
+		this.cacheControl = cacheControl;
 		this.renderScene = renderScene;
 
 		final VolumeViewerOptions.Values options = optional.values;
@@ -307,7 +307,6 @@ public class VolumeViewerPanel
 		final ArrayList< SourceGroup > groups = new ArrayList<>( numGroups );
 		for ( int i = 0; i < numGroups; ++i )
 			groups.add( new SourceGroup( "group " + Integer.toString( i + 1 ) ) );
-		final int numTimepoints = stacks.getNumTimepoints();
 		state = new ViewerState( sources, groups, numTimepoints );
 		for ( int i = Math.min( numGroups, sources.size() ) - 1; i >= 0; --i )
 			state.getSourceGroups().get( i ).addSource( i );
@@ -909,42 +908,12 @@ public class VolumeViewerPanel
 			renderConverters.clear();
 			for( final int i : visibleSourceIndices )
 			{
-				if( i == 3 )
-				{
-					renderStacks.add( simpleStack );
-					final ConverterSetup converter = converterSetups.get( 3 );
-					renderConverters.add( converter );
-					continue;
-				}
-				final MultiResolutionStack3D< VolatileUnsignedShortType > stack = ( MultiResolutionStack3D< VolatileUnsignedShortType > )
-						stacks.getStack(
-								stacks.timepointId( currentTimepoint ),
-								stacks.setupId( i ),
-								true );
-				final AffineTransform3D sourceTransform = new AffineTransform3D();
-				state.getSources().get( i ).getSpimSource().getSourceTransform( currentTimepoint, 0, sourceTransform );
-				final MultiResolutionStack3D< VolatileUnsignedShortType > wrappedStack = new MultiResolutionStack3D< VolatileUnsignedShortType >()
-				{
-					@Override
-					public VolatileUnsignedShortType getType()
-					{
-						return stack.getType();
-					}
-
-					@Override
-					public AffineTransform3D getSourceTransform()
-					{
-						return sourceTransform;
-					}
-
-					@Override
-					public List< ? extends ResolutionLevel3D< VolatileUnsignedShortType > > resolutions()
-					{
-						return stack.resolutions();
-					}
-				};
-				renderStacks.add( wrappedStack );
+				SourceState< ? > soc = state.getSources().get( i );
+				if ( soc.asVolatile() != null )
+					soc = soc.asVolatile();
+				final Stack3D< ? > stack3D = SourceStacks.getStack3D( soc.getSpimSource(), currentTimepoint );
 				final ConverterSetup converter = converterSetups.get( i );
+				renderStacks.add( stack3D );
 				renderConverters.add( converter );
 			}
 		}
@@ -984,7 +953,7 @@ public class VolumeViewerPanel
 			if ( type == FULL || type == LOAD )
 			{
 				CacheIoTiming.getIoTimeBudget().reset( iobudget );
-				stacks.getCacheControl().prepareNextFrame();
+				cacheControl.prepareNextFrame();
 			}
 
 			offscreen.bind( gl, false );
