@@ -1,5 +1,36 @@
 package tpietzsch.example2;
 
+import static bdv.BigDataViewer.initSetups;
+
+import com.jogamp.opengl.GL3;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Random;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileFilter;
+
+import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.LinAlgHelpers;
+
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+
+import bdv.ViewerImgLoader;
+import bdv.cache.CacheControl;
+import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.tools.InitializeViewerState;
@@ -14,34 +45,10 @@ import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
-import com.jogamp.opengl.GL3;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Random;
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileFilter;
 import mpicbg.spim.data.SpimDataException;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.LinAlgHelpers;
-import org.jdom2.Document;
-import org.jdom2.Element;
-import org.jdom2.JDOMException;
-import org.jdom2.input.SAXBuilder;
-import org.jdom2.output.Format;
-import org.jdom2.output.XMLOutputter;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
-import tpietzsch.multires.SpimDataStacks;
 import tpietzsch.scene.TexturedUnitCube;
-
-import static bdv.BigDataViewer.initSetups;
 
 public class BigVolumeViewer
 {
@@ -58,17 +65,34 @@ public class BigVolumeViewer
 	private final JFileChooser fileChooser;
 	private File proposedSettingsFile;
 
+	/**
+	 *
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup} that control min/max and color
+	 *            of sources.
+	 * @param sources
+	 *            the {@link SourceAndConverter sources} to display.
+	 * @param numTimepoints
+	 *            number of available timepoints.
+	 * @param cacheControl
+	 *            handle to cache. This is used to control io timing.
+	 * @param windowTitle
+	 *            title of the viewer window.
+	 * @param options
+	 *            optional parameters. See {@link VolumeViewerOptions}.
+	 */
 	public BigVolumeViewer(
 			final ArrayList< ConverterSetup > converterSetups,
 			final ArrayList< SourceAndConverter< ? > > sources,
-			final SpimDataStacks stacks,
+			final int numTimepoints,
+			final CacheControl cacheControl,
 			final String windowTitle,
 			final VolumeViewerOptions options )
 	{
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, stacks, null, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, converterSetups, numTimepoints, cacheControl, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
@@ -292,14 +316,14 @@ public class BigVolumeViewer
 	{
 		synchronized ( cubeAndTransforms )
 		{
-			for ( CubeAndTransform cubeAndTransform : cubeAndTransforms )
+			for ( final CubeAndTransform cubeAndTransform : cubeAndTransforms )
 			{
 				cubeAndTransform.cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubeAndTransform.model ) );
 			}
 		}
 	}
 
-	private Random random = new Random();
+	private final Random random = new Random();
 
 	void removeRandomCube()
 	{
@@ -338,8 +362,8 @@ public class BigVolumeViewer
 			LinAlgHelpers.subtract( tone, tzero, tone );
 			size[ i ] = LinAlgHelpers.length( tone );
 		}
-		TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
-		Matrix4f model = new Matrix4f()
+		final TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
+		final Matrix4f model = new Matrix4f()
 				.translation(
 						( float ) ( tzero[ 0 ] + random.nextDouble() * size[ 0 ] ),
 						( float ) ( tzero[ 1 ] + random.nextDouble() * size[ 1 ] ),
@@ -378,9 +402,13 @@ public class BigVolumeViewer
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
 		initSetups( spimData, converterSetups, sources );
-		final SpimDataStacks stacks = new SpimDataStacks( spimData );
 
-		final BigVolumeViewer bvv = new BigVolumeViewer( converterSetups, sources, stacks, new File( xmlFilename ).getName(),
+
+		final SequenceDescriptionMinimal seq = spimData.getSequenceDescription();
+		final int numTimepoints = seq.getTimePoints().size();
+		final CacheControl cacheControl = ( ( ViewerImgLoader ) seq.getImgLoader() ).getCacheControl();
+
+		final BigVolumeViewer bvv = new BigVolumeViewer( converterSetups, sources, numTimepoints, cacheControl, new File( xmlFilename ).getName(),
 				VolumeViewerOptions.options().
 						width( windowWidth ).
 						height( windowHeight ).
@@ -424,7 +452,7 @@ public class BigVolumeViewer
 		final int renderHeight = 512;
 //		final int renderWidth = 3840;
 //		final int renderHeight = 1600;
-		final int ditherWidth = 2;
+		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
 		final int cacheBlockSize = 32;
 		final int maxCacheSizeInMB = 300;

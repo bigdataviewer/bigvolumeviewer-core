@@ -31,6 +31,9 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 
 import bdv.BigDataViewer;
+import bdv.ViewerImgLoader;
+import bdv.cache.CacheControl;
+import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.tools.InitializeViewerState;
@@ -50,9 +53,7 @@ import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.sequence.MultiResolutionSetupImgLoader;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
-import tpietzsch.multires.SimpleStack3D;
-import tpietzsch.multires.SpimDataStacks;
-import tpietzsch.multires.Stacks;
+import tpietzsch.multires.SourceStacks;
 import tpietzsch.scene.TexturedUnitCube;
 
 public class SmallVolumeViewer
@@ -70,18 +71,34 @@ public class SmallVolumeViewer
 	private final JFileChooser fileChooser;
 	private File proposedSettingsFile;
 
+	/**
+	 *
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup} that control min/max and color
+	 *            of sources.
+	 * @param sources
+	 *            the {@link SourceAndConverter sources} to display.
+	 * @param numTimepoints
+	 *            number of available timepoints.
+	 * @param cacheControl
+	 *            handle to cache. This is used to control io timing.
+	 * @param windowTitle
+	 *            title of the viewer window.
+	 * @param options
+	 *            optional parameters. See {@link VolumeViewerOptions}.
+	 */
 	public SmallVolumeViewer(
 			final ArrayList< ConverterSetup > converterSetups,
 			final ArrayList< SourceAndConverter< ? > > sources,
-			final Stacks stacks,
-			final SimpleStack3D< ? > simpleStack,
+			final int numTimepoints,
+			final CacheControl cacheControl,
 			final String windowTitle,
 			final VolumeViewerOptions options )
 	{
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, stacks, simpleStack, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, converterSetups, numTimepoints, cacheControl, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
@@ -391,16 +408,15 @@ public class SmallVolumeViewer
 		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
 		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
 		initSetups( spimData, converterSetups, sources );
-		final SpimDataStacks stacks = new SpimDataStacks( spimData );
 
-		SimpleStack3D< UnsignedShortType > simpleStack3D = null;
+		final SequenceDescriptionMinimal seq = spimData.getSequenceDescription();
 		{
 			/*
 			 * The small volume
 			 */
 			final int timepointId = 1;
 			final int setupId = 2;
-			final MultiResolutionSetupImgLoader< UnsignedShortType > sil = ( MultiResolutionSetupImgLoader< UnsignedShortType > ) spimData.getSequenceDescription().getImgLoader().getSetupImgLoader( setupId );
+			final MultiResolutionSetupImgLoader< UnsignedShortType > sil = ( MultiResolutionSetupImgLoader< UnsignedShortType > ) seq.getImgLoader().getSetupImgLoader( setupId );
 			final int level = sil.numMipmapLevels() - 1;
 			final RandomAccessibleInterval< UnsignedShortType > rai = sil.getImage( timepointId, level );
 			final double[] resolution = sil.getMipmapResolutions()[ level ];
@@ -419,30 +435,13 @@ public class SmallVolumeViewer
 			sources.add( soc );
 			final int newSetupId = 100;
 			converterSetups.add( BigDataViewer.createConverterSetup( soc, newSetupId ) );
-
-			simpleStack3D = new SimpleStack3D< UnsignedShortType >()
-			{
-				@Override
-				public UnsignedShortType getType()
-				{
-					return type;
-				}
-
-				@Override
-				public AffineTransform3D getSourceTransform()
-				{
-					return sourceTransform;
-				}
-
-				@Override
-				public RandomAccessibleInterval< UnsignedShortType > getImage()
-				{
-					return rai;
-				}
-			};
+			SourceStacks.setSourceStackType( soc.getSpimSource(), SourceStacks.SourceStackType.SIMPLE );
 		}
 
-		final SmallVolumeViewer bvv = new SmallVolumeViewer( converterSetups, sources, stacks, simpleStack3D, new File( xmlFilename ).getName(),
+		final int numTimepoints = seq.getTimePoints().size();
+		final CacheControl cacheControl = ( ( ViewerImgLoader ) seq.getImgLoader() ).getCacheControl();
+
+		final SmallVolumeViewer bvv = new SmallVolumeViewer( converterSetups, sources, numTimepoints, cacheControl, new File( xmlFilename ).getName(),
 				VolumeViewerOptions.options().
 						width( windowWidth ).
 						height( windowHeight ).

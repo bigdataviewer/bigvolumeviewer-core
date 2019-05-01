@@ -1,24 +1,26 @@
 package tpietzsch.example2;
 
-import bdv.tools.brightness.ConverterSetup;
-import bdv.viewer.SourceAndConverter;
 import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.List;
+
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
+
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+
+import bdv.cache.CacheControl;
+import bdv.tools.brightness.ConverterSetup;
+import bdv.viewer.SourceAndConverter;
 import tpietzsch.example2.VolumeViewerPanel.RenderScene;
-import tpietzsch.multires.SimpleStack3D;
-import tpietzsch.multires.Stacks;
 
 public class VolumeViewerFrame extends JFrame
 {
@@ -36,20 +38,27 @@ public class VolumeViewerFrame extends JFrame
 	 *
 	 * @param sources
 	 *            the {@link SourceAndConverter sources} to display.
+	 * @param converterSetups
+	 *            list of {@link ConverterSetup} that control min/max and color
+	 *            of sources.
+	 * @param numTimepoints
+	 *            number of available timepoints.
+	 * @param cacheControl
+	 *            handle to cache. This is used to control io timing.
 	 * @param optional
 	 *            optional parameters. See {@link VolumeViewerOptions}.
 	 */
 	public VolumeViewerFrame(
 			final List< SourceAndConverter< ? > > sources,
 			final List< ? extends ConverterSetup > converterSetups,
-			final Stacks stacks,
-			final SimpleStack3D< ? > simpleStack,
+			final int numTimepoints,
+			final CacheControl cacheControl,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
 		super( "BigVolumeViewer" );
 
-		viewer = new VolumeViewerPanel( sources, converterSetups, stacks, simpleStack, renderScene, optional );
+		viewer = new VolumeViewerPanel( sources, converterSetups, numTimepoints, cacheControl, renderScene, optional );
 		keybindings = new InputActionBindings();
 		triggerbindings = new TriggerBehaviourBindings();
 
