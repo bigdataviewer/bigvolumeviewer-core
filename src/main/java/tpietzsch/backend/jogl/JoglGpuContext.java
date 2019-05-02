@@ -19,6 +19,7 @@ import static com.jogamp.opengl.GL.GL_ACTIVE_TEXTURE;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
+import static com.jogamp.opengl.GL.GL_R8;
 import static com.jogamp.opengl.GL.GL_REPEAT;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
@@ -407,6 +408,8 @@ public class JoglGpuContext implements GpuContext
 	{
 		switch( texture.texInternalFormat() )
 		{
+		case R8:
+			return GL_R8;
 		case R16:
 			return GL_R16;
 		case RGBA8UI:
@@ -420,6 +423,8 @@ public class JoglGpuContext implements GpuContext
 	{
 		switch( texture.texInternalFormat() )
 		{
+		case R8:
+			return GL_RED;
 		case R16:
 			return GL_RED;
 		case RGBA8UI:
@@ -433,6 +438,8 @@ public class JoglGpuContext implements GpuContext
 	{
 		switch( texture.texInternalFormat() )
 		{
+		case R8:
+			return GL_UNSIGNED_BYTE;
 		case R16:
 			return GL_UNSIGNED_SHORT;
 		case RGBA8UI:
