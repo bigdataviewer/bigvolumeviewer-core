@@ -8,11 +8,8 @@ import java.util.WeakHashMap;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.PrimitiveType;
-import net.imglib2.util.Fraction;
+import tpietzsch.blocks.TileAccess;
 
-import static net.imglib2.type.PrimitiveType.SHORT;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static tpietzsch.multires.SourceStacks.SourceStackType.SIMPLE;
 import static tpietzsch.multires.SourceStacks.SourceStackType.UNDEFINED;
@@ -66,13 +63,9 @@ public class SourceStacks
 	{
 		final Object type = source.getType();
 
-		// Currently only [Volatile]UnsignedShortType CellImgs are handled by GPU cache
-		if ( type instanceof NativeType )
+		if ( TileAccess.isSupportedType( type ) )
 		{
-			final PrimitiveType primitive = ( ( NativeType ) type ).getNativeTypeFactory().getPrimitiveType();
-			final Fraction epp = ( ( NativeType ) type ).getEntitiesPerPixel();
-			final boolean cellimg = source.getSource( timepoint, 0 ) instanceof AbstractCellImg;
-			if ( primitive == SHORT && cellimg && epp.getNumerator() == epp.getDenominator() )
+			if ( source.getSource( timepoint, 0 ) instanceof AbstractCellImg )
 				return MULTIRESOLUTION;
 		}
 
