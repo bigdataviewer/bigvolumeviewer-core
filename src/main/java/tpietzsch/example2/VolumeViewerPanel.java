@@ -1,5 +1,7 @@
 package tpietzsch.example2;
 
+import static bdv.viewer.VisibilityAndGrouping.Event.NUM_GROUPS_CHANGED;
+import static bdv.viewer.VisibilityAndGrouping.Event.NUM_SOURCES_CHANGED;
 import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
@@ -9,6 +11,8 @@ import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
 import static tpietzsch.example2.VolumeRenderer2.RepaintType.SCENE;
 
+import bdv.util.InvokeOnEDT;
+import bdv.viewer.Source;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
@@ -27,10 +31,16 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelListener;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import java.util.stream.Collectors;
+import javax.swing.DefaultBoundedRangeModel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
@@ -71,7 +81,7 @@ public class VolumeViewerPanel
 		extends JPanel
 		implements RequestRepaint, PainterThread.Paintable
 {
-	protected final List< ? extends ConverterSetup > converterSetups;
+	protected final Map< Source< ? >, ConverterSetup > sourceToConverterSetup;
 
 	protected final CacheControl cacheControl;
 
@@ -248,7 +258,21 @@ public class VolumeViewerPanel
 	 * Manages visibility and currentness of sources and groups, as well as
 	 * grouping of sources, and display mode.
 	 */
-	protected final VisibilityAndGrouping visibilityAndGrouping;
+	protected final MyVisibilityAndGrouping visibilityAndGrouping;
+
+	static class MyVisibilityAndGrouping extends VisibilityAndGrouping
+	{
+		public MyVisibilityAndGrouping( final ViewerState viewerState )
+		{
+			super( viewerState );
+		}
+
+		@Override
+		protected void update( final int id )
+		{
+			super.update( id );
+		}
+	}
 
 	/**
 	 * These listeners will be notified about changes to the
@@ -289,7 +313,7 @@ public class VolumeViewerPanel
 	 */
 	public VolumeViewerPanel(
 			final List< SourceAndConverter< ? > > sources,
-			final List< ? extends ConverterSetup > converterSetups,
+			final List< ConverterSetup > converterSetups,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final RenderScene renderScene,
@@ -297,7 +321,12 @@ public class VolumeViewerPanel
 	{
 		super( new BorderLayout() );
 
-		this.converterSetups = converterSetups;
+		this.sourceToConverterSetup = new HashMap<>();
+		for ( int i = 0; i < converterSetups.size(); i++ )
+		{
+			sourceToConverterSetup.put( sources.get( i ).getSpimSource(), converterSetups.get( i ) );
+		}
+
 		this.cacheControl = cacheControl;
 		this.renderScene = renderScene;
 
@@ -341,7 +370,7 @@ public class VolumeViewerPanel
 		canvas.setPreferredSize( new Dimension( options.getWidth(), options.getHeight() ) );
 		canvas.addGLEventListener( glEventListener );
 
-		visibilityAndGrouping = new VisibilityAndGrouping( state );
+		visibilityAndGrouping = new MyVisibilityAndGrouping( state );
 		visibilityAndGrouping.addUpdateListener( e -> {
 			if ( e.id == VISIBILITY_CHANGED )
 				requestRepaint();
@@ -395,6 +424,67 @@ public class VolumeViewerPanel
 		painterThread.start();
 	}
 
+	public void addSource( final SourceAndConverter< ? > sourceAndConverter, final ConverterSetup converterSetup )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			sourceToConverterSetup.put( sourceAndConverter.getSpimSource(), converterSetup );
+			state.addSource( sourceAndConverter );
+			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+		}
+		requestRepaint();
+	}
+
+	public void removeSource( final Source< ? > source )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			sourceToConverterSetup.remove( source );
+			state.removeSource( source );
+			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+		}
+		requestRepaint();
+	}
+
+	public void removeSources( final Collection< Source< ? > > sources )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			sources.forEach( sourceToConverterSetup::remove );
+			sources.forEach( state::removeSource );
+			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+		}
+		requestRepaint();
+	}
+
+	public void removeAllSources()
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			removeSources( getState().getSources().stream().map( SourceAndConverter::getSpimSource ).collect( Collectors.toList() ) );
+		}
+	}
+
+	public void addGroup( final SourceGroup group )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			state.addGroup( group );
+			visibilityAndGrouping.update( NUM_GROUPS_CHANGED );
+		}
+		requestRepaint();
+	}
+
+	public void removeGroup( final SourceGroup group )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			state.removeGroup( group );
+			visibilityAndGrouping.update( NUM_GROUPS_CHANGED );
+		}
+		requestRepaint();
+	}
+
 	/**
 	 * Set the viewer transform.
 	 */
@@ -437,6 +527,49 @@ public class VolumeViewerPanel
 	{
 		if ( state.getNumTimepoints() > 1 )
 			sliderTime.setValue( sliderTime.getValue() - 1 );
+	}
+
+	/**
+	 * Set the number of available timepoints. If {@code numTimepoints == 1}
+	 * this will hide the time slider, otherwise show it. If the currently
+	 * displayed timepoint would be out of range with the new number of
+	 * timepoints, the current timepoint is set to {@code numTimepoints - 1}.
+	 *
+	 * @param numTimepoints
+	 *            number of available timepoints. Must be {@code >= 1}.
+	 */
+	public void setNumTimepoints( final int numTimepoints )
+	{
+		try
+		{
+			InvokeOnEDT.invokeAndWait( () -> setNumTimepointsSynchronized( numTimepoints ) );
+		}
+		catch ( InvocationTargetException | InterruptedException e )
+		{
+			e.printStackTrace();
+		}
+	}
+
+	private synchronized void setNumTimepointsSynchronized( final int numTimepoints )
+	{
+		if ( numTimepoints < 1 || state.getNumTimepoints() == numTimepoints )
+			return;
+		else if ( numTimepoints == 1 && state.getNumTimepoints() > 1 )
+			remove( sliderTime );
+		else if ( numTimepoints > 1 && state.getNumTimepoints() == 1 )
+			add( sliderTime, BorderLayout.SOUTH );
+
+		state.setNumTimepoints( numTimepoints );
+		if ( state.getCurrentTimepoint() >= numTimepoints )
+		{
+			final int timepoint = numTimepoints - 1;
+			state.setCurrentTimepoint( timepoint );
+			for ( final TimePointListener l : timePointListeners )
+				l.timePointChanged( timepoint );
+		}
+		sliderTime.setModel( new DefaultBoundedRangeModel( state.getCurrentTimepoint(), 0, 0, numTimepoints - 1 ) );
+		revalidate();
+		requestRepaint();
 	}
 
 	public synchronized Element stateToXml()
@@ -909,10 +1042,10 @@ public class VolumeViewerPanel
 			for( final int i : visibleSourceIndices )
 			{
 				SourceState< ? > soc = state.getSources().get( i );
+				final ConverterSetup converter = sourceToConverterSetup.get( soc.getSpimSource() );
 				if ( soc.asVolatile() != null )
 					soc = soc.asVolatile();
 				final Stack3D< ? > stack3D = SourceStacks.getStack3D( soc.getSpimSource(), currentTimepoint );
-				final ConverterSetup converter = converterSetups.get( i );
 				renderStacks.add( stack3D );
 				renderConverters.add( converter );
 			}
