@@ -71,17 +71,14 @@ public class TileAccess< S >
 	static TileAccess< ? > create( final ResolutionLevel3D< ? > resolutionLevel3D, final CacheSpec cacheSpec )
 	{
 		final Object type = resolutionLevel3D.getType();
-		if ( type instanceof NativeType )
+		if ( isSupportedType( type ) )
 		{
-			final boolean volatil = type instanceof Volatile;
-			final PrimitiveType primitive = ( ( NativeType ) type ).getNativeTypeFactory().getPrimitiveType();
-			final Fraction epp = ( ( NativeType ) type ).getEntitiesPerPixel();
-
 			final RandomAccessibleInterval< ? > img = resolutionLevel3D.getImage();
 			final boolean cellimg = img instanceof AbstractCellImg;
 
-			if ( cacheSpec.format() == R16 && primitive == SHORT && cellimg && epp.getNumerator() == epp.getDenominator() )
+			if ( cacheSpec.format() == R16 && cellimg )
 			{
+				final boolean volatil = type instanceof Volatile;
 				return new TileAccess<>(
 						volatil
 								? new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img )
@@ -93,6 +90,20 @@ public class TileAccess< S >
 		}
 
 		throw new UnsupportedOperationException( "pixel and/or image type not supported (yet)." );
+	}
+
+	public static boolean isSupportedType( final Object type )
+	{
+		// Currently only [Volatile]UnsignedShortType CellImgs are handled correctly
+		if ( type instanceof NativeType )
+		{
+			final PrimitiveType primitive = ( ( NativeType ) type ).getNativeTypeFactory().getPrimitiveType();
+			final Fraction epp = ( ( NativeType ) type ).getEntitiesPerPixel();
+			if ( primitive == SHORT && epp.getNumerator() == epp.getDenominator() )
+				return true;
+		}
+
+		return false;
 	}
 
 	/**

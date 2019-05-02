@@ -20,12 +20,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-
 import org.joml.Matrix4f;
 
 import bdv.tools.brightness.ConverterSetup;
 import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.blocks.TileAccess;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.FillTask;
 import tpietzsch.cache.PboChain;
@@ -259,7 +258,7 @@ public class VolumeRenderer2
 
 		if ( type == FULL || type == LOAD )
 		{
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResStacks = new ArrayList<>();
+			final List< MultiResolutionStack3D< ? > > multiResStacks = new ArrayList<>();
 			final List< ConverterSetup > multiResConverters = new ArrayList<>();
 			final List< SimpleStack3D< ? > > simpleStacks = new ArrayList<>();
 			final List< ConverterSetup > simpleConverters = new ArrayList<>();
@@ -269,9 +268,9 @@ public class VolumeRenderer2
 				if ( stack instanceof MultiResolutionStack3D )
 				{
 					final MultiResolutionStack3D< ? > mrstack = ( MultiResolutionStack3D< ? > ) stack;
-					if ( ! ( mrstack.getType() instanceof VolatileUnsignedShortType ) )
+					if ( !TileAccess.isSupportedType( mrstack.getType() ) )
 						throw new IllegalArgumentException();
-					multiResStacks.add( ( MultiResolutionStack3D< VolatileUnsignedShortType > ) mrstack );
+					multiResStacks.add( mrstack );
 					multiResConverters.add( renderConverters.get( i ) );
 				}
 				else if ( stack instanceof SimpleStack3D )
@@ -379,14 +378,14 @@ public class VolumeRenderer2
 
 	private void updateBlocks(
 			final JoglGpuContext context,
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > multiResStacks,
+			final List< ? extends MultiResolutionStack3D< ? > > multiResStacks,
 			final Matrix4f pv )
 	{
 		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
 		int numTasks = 0;
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = multiResStacks.get( i );
+			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
 			final VolumeBlocks volume = volumes.get( i );
 			volume.init( stack, renderWidth, pv );
 			final List< FillTask > tasks = volume.getFillTasks();
