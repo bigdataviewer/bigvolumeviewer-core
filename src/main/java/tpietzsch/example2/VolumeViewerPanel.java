@@ -6,10 +6,10 @@ import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
 import static com.jogamp.opengl.GL.GL_RGB8;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.FULL;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.LOAD;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.NONE;
-import static tpietzsch.example2.VolumeRenderer2.RepaintType.SCENE;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeRenderer.RepaintType.SCENE;
 
 import bdv.util.InvokeOnEDT;
 import bdv.viewer.Source;
@@ -69,7 +69,7 @@ import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
-import tpietzsch.example2.VolumeRenderer2.RepaintType;
+import tpietzsch.example2.VolumeRenderer.RepaintType;
 import tpietzsch.multires.SourceStacks;
 import tpietzsch.multires.Stack3D;
 import tpietzsch.offscreen.OffScreenFrameBuffer;
@@ -233,7 +233,7 @@ public class VolumeViewerPanel
 	/**
 	 * Renders the current state to gl context.
 	 */
-	protected final VolumeRenderer2 renderer;
+	protected final VolumeRenderer renderer;
 
 	/**
 	 * Transformation set by the interactive viewer.
@@ -350,7 +350,7 @@ public class VolumeViewerPanel
 		maxRenderMillis = options.getMaxRenderMillis();
 
 		viewerTransform = new AffineTransform3D();
-		renderer = new VolumeRenderer2(
+		renderer = new VolumeRenderer(
 				renderWidth,
 				renderHeight,
 				options.getDitherWidth(),

@@ -1,25 +1,5 @@
 package tpietzsch.example2;
 
-import bdv.tools.brightness.ConverterSetup;
-import com.jogamp.opengl.GL3;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.ForkJoinPool;
-import net.imglib2.type.volatiles.VolatileUnsignedShortType;
-import org.joml.Matrix4f;
-import tpietzsch.backend.jogl.JoglGpuContext;
-import tpietzsch.cache.CacheSpec;
-import tpietzsch.cache.FillTask;
-import tpietzsch.cache.PboChain;
-import tpietzsch.cache.ProcessFillTasks;
-import tpietzsch.cache.TextureCache;
-import tpietzsch.dither.DitherBuffer;
-import tpietzsch.multires.MultiResolutionStack3D;
-import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
-import tpietzsch.util.DefaultQuad;
-
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -31,6 +11,31 @@ import static tpietzsch.example2.VolumeRenderer.RepaintType.DITHER;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
+
+import com.jogamp.opengl.GL3;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+
+import org.joml.Matrix4f;
+
+import bdv.tools.brightness.ConverterSetup;
+import tpietzsch.backend.jogl.JoglGpuContext;
+import tpietzsch.blocks.TileAccess;
+import tpietzsch.cache.CacheSpec;
+import tpietzsch.cache.FillTask;
+import tpietzsch.cache.PboChain;
+import tpietzsch.cache.ProcessFillTasks;
+import tpietzsch.cache.TextureCache;
+import tpietzsch.dither.DitherBuffer;
+import tpietzsch.multires.MultiResolutionStack3D;
+import tpietzsch.multires.SimpleStack3D;
+import tpietzsch.multires.Stack3D;
+import tpietzsch.offscreen.OffScreenFrameBufferWithDepth;
+import tpietzsch.util.DefaultQuad;
 
 public class VolumeRenderer
 {
@@ -68,7 +73,7 @@ public class VolumeRenderer
 			this.type = NONE;
 		}
 
-		void request( RepaintType type )
+		void request( final RepaintType type )
 		{
 			if ( this.type.ordinal() < type.ordinal() )
 				this.type = type;
@@ -84,7 +89,7 @@ public class VolumeRenderer
 	 * Currently used volume shader program.
 	 * This is used when redrawing without changing {@code RenderState}.
 	 */
-	private MultiVolumeShaderMip9 progvol;
+	private MultiVolumeShaderMip progvol;
 
 
 
@@ -106,12 +111,39 @@ public class VolumeRenderer
 
 
 
+	private static class NumVolumes
+	{
+		final int cached;
+		final int simple;
+
+		NumVolumes( final int cached, final int simple )
+		{
+			this.cached = cached;
+			this.simple = simple;
+		}
+
+		@Override
+		public boolean equals( final Object o )
+		{
+			if ( o instanceof NumVolumes )
+			{
+				final NumVolumes that = ( NumVolumes ) o;
+				return cached == that.cached && simple == that.simple;
+			}
+			return false;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return 31 * cached + simple;
+		}
+	}
+
 	/**
-	 * Shader programs for rendering {@code 1 .. N} volumes.
-	 * At index {@code i} in the list is the shader for {@code i} volumes.
-	 * At index {@code 0} there is {@code null}.
+	 * Shader programs for rendering multiple cached and/or simple volumes.
 	 */
-	private final ArrayList< MultiVolumeShaderMip9 > progvols;
+	private final HashMap< NumVolumes, MultiVolumeShaderMip > progvols;
 
 	/**
 	 * VolumeBlocks for one volume each.
@@ -119,6 +151,11 @@ public class VolumeRenderer
 	 * And deleting textures is not yet in the backend... (TODO)
 	 */
 	private final ArrayList< VolumeBlocks > volumes;
+
+	/**
+	 * provides SimpleVolumes for SimpleStacks.
+	 */
+	private final SimpleStackManager simpleStackManager = new DefaultSimpleStackManager();
 
 	private final DefaultQuad quad;
 
@@ -162,27 +199,29 @@ public class VolumeRenderer
 
 
 		volumes = new ArrayList<>();
-		progvols = new ArrayList<>( Collections.singletonList( null ) );
+		progvols = new HashMap<>();
+		progvols.put( new NumVolumes( 0, 0 ), null );
 		quad = new DefaultQuad();
 	}
 
 	/**
-	 * Make sure that we can deal with at least {@code n} volumes.
-	 * I.e., add shader programs and VolumeBlock luts if necessary.
+	 * Make sure that we can deal with at least {@code n} blocked volumes.
+	 * I.e., add VolumeBlock luts if necessary.
 	 *
 	 * @param n
-	 * 		number of volumes that shall be rendered
+	 * 		number of blocked volumes that shall be rendered
 	 */
-	private void needAtLeastNumVolumes( int n )
+	private void needAtLeastNumBlockVolumes( final int n )
 	{
 		while ( volumes.size() < n )
-		{
 			volumes.add( new VolumeBlocks( textureCache ) );
+	}
 
-			final MultiVolumeShaderMip9 progvol = new MultiVolumeShaderMip9( volumes.size(), true, 1.0 );
-			progvol.setTextureCache( textureCache );
-			progvols.add( progvol );
-		}
+	private MultiVolumeShaderMip createMultiVolumeShader( final NumVolumes numVolumes )
+	{
+		final MultiVolumeShaderMip progvol = new MultiVolumeShaderMip( numVolumes.cached, numVolumes.simple, true, 1.0 );
+		progvol.setTextureCache( textureCache );
+		return progvol;
 	}
 
 	public void init( final GL3 gl )
@@ -195,7 +234,7 @@ public class VolumeRenderer
 			final GL3 gl,
 			final RepaintType type,
 			final OffScreenFrameBufferWithDepth sceneBuf,
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks,
+			final List< Stack3D< ? > > renderStacks,
 			final List< ConverterSetup > renderConverters,
 			final Matrix4f pv,
 			final int maxRenderMillis )
@@ -219,18 +258,50 @@ public class VolumeRenderer
 
 		if ( type == FULL || type == LOAD )
 		{
-			needAtLeastNumVolumes( renderStacks.size() );
-			updateBlocks( context, renderStacks, pv );
+			final List< MultiResolutionStack3D< ? > > multiResStacks = new ArrayList<>();
+			final List< ConverterSetup > multiResConverters = new ArrayList<>();
+			final List< SimpleStack3D< ? > > simpleStacks = new ArrayList<>();
+			final List< ConverterSetup > simpleConverters = new ArrayList<>();
+			for ( int i = 0; i < renderStacks.size(); i++ )
+			{
+				final Stack3D< ? > stack = renderStacks.get( i );
+				if ( stack instanceof MultiResolutionStack3D )
+				{
+					final MultiResolutionStack3D< ? > mrstack = ( MultiResolutionStack3D< ? > ) stack;
+					if ( !TileAccess.isSupportedType( mrstack.getType() ) )
+						throw new IllegalArgumentException();
+					multiResStacks.add( mrstack );
+					multiResConverters.add( renderConverters.get( i ) );
+				}
+				else if ( stack instanceof SimpleStack3D )
+				{
+					simpleStacks.add( ( SimpleStack3D< ? > ) stack );
+					simpleConverters.add( renderConverters.get( i ) );
+				}
+				else
+					throw new IllegalArgumentException();
+			}
+			needAtLeastNumBlockVolumes( multiResStacks.size() );
+			updateBlocks( context, multiResStacks, pv );
 
 			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
-			progvol = progvols.get( renderStacks.size() );
+			progvol = progvols.computeIfAbsent( new NumVolumes( multiResStacks.size(), simpleStacks.size() ), this::createMultiVolumeShader );
 			if ( progvol != null )
 			{
-				for ( int i = 0; i < renderStacks.size(); i++ )
+				for ( int i = 0; i < multiResStacks.size(); i++ )
 				{
-					progvol.setConverter( i, renderConverters.get( i ) );
-					progvol.setVolume( i, volumes.get( i ) );
-					minWorldVoxelSize = Math.min( minWorldVoxelSize, volumes.get( i ).getBaseLevelVoxelSizeInWorldCoordinates() );
+					progvol.setConverter( i, multiResConverters.get( i ) );
+					final VolumeBlocks volume = volumes.get( i );
+					progvol.setVolume( i, volume );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
+				}
+				for ( int i = 0; i < simpleStacks.size(); i++ )
+				{
+					final int j = i + multiResStacks.size();
+					progvol.setConverter( j, simpleConverters.get( i ) );
+					final SimpleVolume volume = simpleStackManager.getSimpleVolume( context, simpleStacks.get( i ) );
+					progvol.setVolume( j, volume );
+					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
 				}
 				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 				progvol.setViewportWidth( renderWidth );
@@ -307,14 +378,14 @@ public class VolumeRenderer
 
 	private void updateBlocks(
 			final JoglGpuContext context,
-			final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks,
+			final List< ? extends MultiResolutionStack3D< ? > > multiResStacks,
 			final Matrix4f pv )
 	{
 		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
 		int numTasks = 0;
-		for ( int i = 0; i < renderStacks.size(); i++ )
+		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
-			final MultiResolutionStack3D< VolatileUnsignedShortType > stack = renderStacks.get( i );
+			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
 			final VolumeBlocks volume = volumes.get( i );
 			volume.init( stack, renderWidth, pv );
 			final List< FillTask > tasks = volume.getFillTasks();
@@ -358,7 +429,7 @@ public class VolumeRenderer
 		}
 
 		boolean needsRepaint = false;
-		for ( int i = 0; i < renderStacks.size(); i++ )
+		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
 			final boolean complete = volume.makeLut();
@@ -370,5 +441,4 @@ public class VolumeRenderer
 		if ( needsRepaint )
 			nextRequestedRepaint.request( LOAD );
 	}
-
 }
