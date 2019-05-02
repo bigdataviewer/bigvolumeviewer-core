@@ -1,15 +1,10 @@
 package tpietzsch.multires;
 
-import bdv.spimdata.SpimDataMinimal;
-import bdv.spimdata.XmlIoSpimDataMinimal;
-import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
-import mpicbg.spim.data.SpimDataException;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -17,7 +12,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.PrimitiveType;
 import net.imglib2.util.Fraction;
 
-import static bdv.BigDataViewer.initSetups;
 import static net.imglib2.type.PrimitiveType.SHORT;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static tpietzsch.multires.SourceStacks.SourceStackType.SIMPLE;
@@ -87,13 +81,13 @@ public class SourceStacks
 
 	static abstract class Stack3DImp< T > implements Stack3D< T >
 	{
-		protected final int timepoint;
+		final int timepoint;
 
 		protected final Source< T > source;
 
 		private final AffineTransform3D sourceTransform;
 
-		public Stack3DImp( final Source< T > source, final int timepoint )
+		Stack3DImp( final Source< T > source, final int timepoint )
 		{
 			this.timepoint = timepoint;
 			this.source = source;
@@ -139,7 +133,7 @@ public class SourceStacks
 
 	static class SimpleStack3DImp< T > extends Stack3DImp< T > implements SimpleStack3D< T >
 	{
-		public SimpleStack3DImp( final Source< T > source, final int timepoint )
+		SimpleStack3DImp( final Source< T > source, final int timepoint )
 		{
 			super( source, timepoint );
 		}
@@ -155,13 +149,15 @@ public class SourceStacks
 	{
 		private final ArrayList< ResolutionLevel3DImp< T > > resolutions;
 
-		public MultiResolutionStack3DImp( final Source< T > source, final int timepoint )
+		MultiResolutionStack3DImp( final Source< T > source, final int timepoint )
 		{
 			super( source, timepoint );
 
+			final SourceStackResolutions ssr = SourceStacks.sourceStackResolutions.computeIfAbsent( source, s -> new SourceStackResolutions( source, timepoint ) );
+
 			resolutions = new ArrayList<>();
 			for ( int level = 0; level < source.getNumMipmapLevels(); level++ )
-				resolutions.add( new ResolutionLevel3DImp<>( source, timepoint, level ) );
+				resolutions.add( new ResolutionLevel3DImp<>( source, timepoint, level, ssr ) );
 		}
 
 		@Override
@@ -185,38 +181,15 @@ public class SourceStacks
 
 		private final AffineTransform3D levelt;
 
-		public ResolutionLevel3DImp( final Source< T > source, final int timepoint, final int level )
+		ResolutionLevel3DImp( final Source< T > source, final int timepoint, final int level, final SourceStackResolutions sourceStackResolutions )
 		{
 			this.level = level;
 			this.timepoint = timepoint;
 			this.source = source;
 
-			levelt = new AffineTransform3D();
-			if ( level == 0 )
-			{
-				resolution = new int[] { 1, 1, 1 };
-				scale = new double[] { 1, 1, 1 };
-			}
-			else
-			{
-				resolution = new int[ 3 ];
-				scale = new double[ 3 ];
-
-				final AffineTransform3D sourceTransform = new AffineTransform3D();
-				source.getSourceTransform( timepoint, 0, sourceTransform );
-				final AffineTransform3D levelTransform = new AffineTransform3D();
-				source.getSourceTransform( timepoint, level, levelTransform );
-				levelTransform.preConcatenate( sourceTransform.inverse() );
-				for ( int d = 0; d < 3; ++d )
-				{
-					resolution[ d ] = ( int ) Math.round( levelTransform.get( d, d ) );
-					scale[ d ] = 1.0 / resolution[ d ];
-					levelt.set( resolution[ d ], d, d );
-					levelt.set( 0.5 * ( resolution[ d ] - 1 ), d, 3 );
-				}
-
-				// TODO: sanity check: levelt * levelTransform^-1 ~= identity
-			}
+			resolution = sourceStackResolutions.resolutions[ level ];
+			scale = sourceStackResolutions.scales[ level ];
+			levelt = sourceStackResolutions.levelts[ level ];
 		}
 
 		@Override
@@ -279,6 +252,58 @@ public class SourceStacks
 			result = 31 * result + timepoint;
 			result = 31 * result + source.hashCode();
 			return result;
+		}
+	}
+
+	/**
+	 * Caches resolution level parameters extracted from Sources
+	 */
+	private static final Map< Source< ? >, SourceStackResolutions > sourceStackResolutions = new WeakHashMap<>();
+
+	/**
+	 * Extract resolution level parameters from a Source
+	 */
+	static class SourceStackResolutions
+	{
+		final int[][] resolutions;
+
+		final double[][] scales;
+
+		final AffineTransform3D[] levelts;
+
+		SourceStackResolutions( final Source< ? > source, final int timepoint )
+		{
+			final int numLevels = source.getNumMipmapLevels();
+
+			resolutions = new int[ numLevels ][];
+			scales = new double[ numLevels ][];
+			levelts = new AffineTransform3D[ numLevels ];
+
+			resolutions[ 0 ] = new int[] { 1, 1, 1 };
+			scales[ 0 ] = new double[] { 1, 1, 1 };
+			levelts[ 0 ] = new AffineTransform3D();
+
+			final AffineTransform3D sourceTransform = new AffineTransform3D();
+			source.getSourceTransform( timepoint, 0, sourceTransform );
+			for ( int level = 1; level < numLevels; level++ )
+			{
+				final int[] resolution = resolutions[ level ] = new int[ 3 ];
+				final double[] scale = scales[ level ] = new double[ 3 ];
+				final AffineTransform3D levelt = levelts[ level ] = new AffineTransform3D();
+
+				final AffineTransform3D levelTransform = new AffineTransform3D();
+				source.getSourceTransform( timepoint, level, levelTransform );
+				levelTransform.preConcatenate( sourceTransform.inverse() );
+				for ( int d = 0; d < 3; ++d )
+				{
+					resolution[ d ] = ( int ) Math.round( levelTransform.get( d, d ) );
+					scale[ d ] = 1.0 / resolution[ d ];
+					levelt.set( resolution[ d ], d, d );
+					levelt.set( 0.5 * ( resolution[ d ] - 1 ), d, 3 );
+				}
+
+				// TODO: sanity check: levelt * levelTransform^-1 ~= identity
+			}
 		}
 	}
 }
