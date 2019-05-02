@@ -6,6 +6,7 @@ import net.imglib2.util.LinAlgHelpers;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import tpietzsch.backend.Texture3D;
 import tpietzsch.util.MatrixMath;
 
 /**
@@ -13,7 +14,7 @@ import tpietzsch.util.MatrixMath;
  */
 public class SimpleVolume
 {
-	private final VolumeTextureU16 texture;
+	private final Texture3D texture;
 
 	private final AffineTransform3D sourceToWorld;
 
@@ -29,7 +30,7 @@ public class SimpleVolume
 	 * @param sourceMin minimum source coordinates
 	 * @param sourceMax maximum source coordinates
 	 */
-	public SimpleVolume( final VolumeTextureU16 texture, final AffineTransform3D sourceTransform, final Vector3f sourceMin, final Vector3f sourceMax )
+	public SimpleVolume( final Texture3D texture, final AffineTransform3D sourceTransform, final Vector3f sourceMin, final Vector3f sourceMax )
 	{
 		this.texture = texture;
 		this.sourceToWorld = sourceTransform;
@@ -38,7 +39,7 @@ public class SimpleVolume
 		this.ims = MatrixMath.affine( sourceTransform, new Matrix4f() ).invert();
 	}
 
-	public VolumeTextureU16 getVolumeTexture()
+	public Texture3D getVolumeTexture()
 	{
 		return texture;
 	}

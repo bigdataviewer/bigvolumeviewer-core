@@ -4,6 +4,7 @@ public interface Texture
 {
 	enum InternalFormat
 	{
+		R8( 1 ),
 		R16( 2 ),
 		RGBA8UI( 4 ),
 		UNKNOWN( -1 );
