@@ -153,6 +153,26 @@ public class BigVolumeViewer
 		frame.getDefaultActions().runnableAction( this::saveSettings, "save settings", "F11" );
 	}
 
+	public VolumeViewerPanel getViewer()
+	{
+		return viewer;
+	}
+
+	public VolumeViewerFrame getViewerFrame()
+	{
+		return frame;
+	}
+
+	public SetupAssignments getSetupAssignments()
+	{
+		return setupAssignments;
+	}
+
+	public ManualTransformationEditor getManualTransformEditor()
+	{
+		return manualTransformationEditor;
+	}
+
 	// -------------------------------------------------------------------------------------------------------
 	// BDV ViewerPanel equivalents
 

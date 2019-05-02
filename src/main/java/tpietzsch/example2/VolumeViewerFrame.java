@@ -50,7 +50,7 @@ public class VolumeViewerFrame extends JFrame
 	 */
 	public VolumeViewerFrame(
 			final List< SourceAndConverter< ? > > sources,
-			final List< ? extends ConverterSetup > converterSetups,
+			final List< ConverterSetup > converterSetups,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final RenderScene renderScene,
