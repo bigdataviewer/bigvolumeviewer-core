@@ -107,18 +107,6 @@ public class VolumeViewerOptions
 	}
 
 	/**
-	 * Set how many threads to use for rendering.
-	 *
-	 * @param n
-	 *            How many threads to use for rendering.
-	 */
-	public VolumeViewerOptions numRenderingThreads( final int n )
-	{
-		values.numRenderingThreads = n;
-		return this;
-	}
-
-	/**
 	 * Sets the dither window width.
 	 * E.g., {@code w=3} means {@code 3x3} dither window size.
 	 *
@@ -293,7 +281,6 @@ public class VolumeViewerOptions
 		private int width = 800;
 		private int height = 600;
 		private int maxRenderMillis = 30;
-		private int numRenderingThreads = 3;
 
 		private int renderWidth = 512;
 		private int renderHeight = 512;
@@ -317,7 +304,6 @@ public class VolumeViewerOptions
 					renderWidth( renderWidth ).
 					renderHeight( renderHeight ).
 					maxRenderMillis( maxRenderMillis ).
-					numRenderingThreads( numRenderingThreads ).
 					ditherWidth( ditherWidth ).
 					numDitherSamples( numDitherSamples ).
 					cacheBlockSize( cacheBlockSize ).
@@ -353,11 +339,6 @@ public class VolumeViewerOptions
 		public int getMaxRenderMillis()
 		{
 			return maxRenderMillis;
-		}
-
-		public int getNumRenderingThreads()
-		{
-			return numRenderingThreads;
 		}
 
 		public int getDitherWidth()
