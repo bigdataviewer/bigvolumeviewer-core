@@ -2,7 +2,6 @@ package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
@@ -14,6 +13,8 @@ import tpietzsch.backend.Texture2D;
 import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.dither.DitherBuffer;
+import tpietzsch.example2.VolumeShaderSignature.PixelType;
+import tpietzsch.example2.VolumeShaderSignature.VolumeSignature;
 import tpietzsch.shadergen.Uniform1f;
 import tpietzsch.shadergen.Uniform2f;
 import tpietzsch.shadergen.Uniform3f;
@@ -26,12 +27,14 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
+import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
+import static tpietzsch.multires.SourceStacks.SourceStackType.SIMPLE;
+
 public class MultiVolumeShaderMip
 {
 	private static final int NUM_BLOCK_SCALES = 10;
 
-	private final int numBigVolumes;
-	private final int numSmallVolumes;
+	private final VolumeShaderSignature signature;
 
 	private final boolean useDepthTexture;
 
@@ -41,7 +44,6 @@ public class MultiVolumeShaderMip
 
 	private final SegmentedShader prog;
 	private final VolumeSegment[] volumeSegments;
-	private final SimpleVolumeSegment[] simpleVolumeSegments;
 	private final ConverterSegment[] converterSegments;
 
 	private final UniformMatrix4f uniformIpv;
@@ -56,12 +58,13 @@ public class MultiVolumeShaderMip
 
 	private int viewportWidth;
 
-	public MultiVolumeShaderMip( final int numBigVolumes, final int numSmallVolumes, final boolean useDepthTexture, final double degrade )
+	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
 	{
-		this.numBigVolumes = numBigVolumes;
-		this.numSmallVolumes = numSmallVolumes;
+		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
+
+		final int numVolumes = signature.getVolumeSignatures().size();
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
 		final Segment vp = new SegmentTemplate("ex11vol.vp" ).instantiate();
@@ -88,7 +91,7 @@ public class MultiVolumeShaderMip
 				"ex11vol.fp",
 				"intersectBoundingBox", "vis", "SampleTextures" );
 		final Segment fp = templateFp.instantiate();
-		fp.repeat( "vis", numBigVolumes + numSmallVolumes );
+		fp.repeat( "vis", numVolumes );
 
 		final SegmentTemplate templateCallTexSampleBlocked = new SegmentTemplate(
 				"ex11vol_tex_blk.fp",
@@ -99,46 +102,48 @@ public class MultiVolumeShaderMip
 
 		final List< Segment > callTexSampleSegments = new ArrayList<>();
 
-		final Segment blkVols[] = new Segment[ numBigVolumes ];
-		final Segment colConvs[] = new Segment[ numBigVolumes + numSmallVolumes ];
-		for ( int i = 0; i < numBigVolumes; ++i )
+		final Segment texSampleSegs[] = new Segment[ numVolumes ];
+		final Segment colConvSegs[] = new Segment[ numVolumes ];
+		for ( int i = 0; i < numVolumes; ++i )
 		{
-			final Segment texSample = templateCallTexSampleBlocked.instantiate();
-			final Segment blkVol = templateBlkVol.instantiate();
-			final Segment colConv = templateColConv.instantiate();
+			// TODO: use switch() instead of if(), pull out common parts
+			final VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
+			if ( volumeSignature.getSourceStackType() == MULTIRESOLUTION )
+			{
+				final Segment callTexSample = templateCallTexSampleBlocked.instantiate();
+				final Segment texSample = templateBlkVol.instantiate();
+				final Segment colConv = templateColConv.instantiate();
 
-			fp.bind( "intersectBoundingBox", i, blkVol );
-			fp.bind( "vis", i, texSample );
-			texSample.bind( "blockTexture", blkVol );
-			texSample.bind( "convert", colConv );
+				fp.bind( "intersectBoundingBox", i, texSample );
+				fp.bind( "vis", i, callTexSample );
+				callTexSample.bind( "blockTexture", texSample );
+				callTexSample.bind( "convert", colConv );
 
-			builder.fragment( blkVol );
-			blkVols[ i ] = blkVol;
-			builder.fragment( colConv );
-			colConvs[ i ] = colConv;
+				builder.fragment( texSample );
+				texSampleSegs[ i ] = texSample;
+				builder.fragment( colConv );
+				colConvSegs[ i ] = colConv;
 
-			callTexSampleSegments.add( texSample );
-		}
-		final Segment smlVols[] = new Segment[ numSmallVolumes ];
-		for ( int j = 0; j < numSmallVolumes; ++j )
-		{
-			final int i = j + numBigVolumes;
+				callTexSampleSegments.add( callTexSample );
+			}
+			else if ( volumeSignature.getSourceStackType() == SIMPLE )
+			{
+				final Segment callTexSample = templateCallTexSampleSimple.instantiate();
+				final Segment texSample = templateSmlVol.instantiate();
+				final Segment colConv = templateColConv.instantiate();
 
-			final Segment texSample = templateCallTexSampleSimple.instantiate();
-			final Segment smlVol = templateSmlVol.instantiate();
-			final Segment colConv = templateColConv.instantiate();
+				fp.bind( "intersectBoundingBox", i, texSample );
+				fp.bind( "vis", i, callTexSample );
+				callTexSample.bind( "volTexture", texSample );
+				callTexSample.bind( "convert", colConv );
 
-			fp.bind( "intersectBoundingBox", i, smlVol );
-			fp.bind( "vis", i, texSample );
-			texSample.bind( "volTexture", smlVol );
-			texSample.bind( "convert", colConv );
+				builder.fragment( texSample );
+				texSampleSegs[ i ] = texSample;
+				builder.fragment( colConv );
+				colConvSegs[ i ] = colConv;
 
-			builder.fragment( smlVol );
-			smlVols[ j ] = smlVol;
-			builder.fragment( colConv );
-			colConvs[ i ] = colConv;
-
-			callTexSampleSegments.add( texSample );
+				callTexSampleSegments.add( callTexSample );
+			}
 		}
 		fp.insert( "SampleTextures", callTexSampleSegments );
 		builder.fragment( fp );
@@ -150,18 +155,22 @@ public class MultiVolumeShaderMip
 		uniformFwnw = prog.getUniform1f( "fwnw" );
 		uniformXf = prog.getUniform1f( "xf" );
 
-		volumeSegments = new VolumeSegment[ numBigVolumes ];
-		for ( int i = 0; i < numBigVolumes; ++i )
-			volumeSegments[ i ] = new VolumeSegment( prog, blkVols[ i ] );
-
-		simpleVolumeSegments = new SimpleVolumeSegment[ numSmallVolumes ];
-		for ( int i = 0; i < numSmallVolumes; ++i )
-			simpleVolumeSegments[ i ] = new SimpleVolumeSegment( prog, smlVols[ i ] );
-
-		final int numVolumes = numBigVolumes + numSmallVolumes;
+		volumeSegments = new VolumeSegment[ numVolumes ];
 		converterSegments = new ConverterSegment[ numVolumes ];
 		for ( int i = 0; i < numVolumes; ++i )
-			converterSegments[ i ] = new ConverterSegment( prog, colConvs[ i ] );
+		{
+			final VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
+			switch ( volumeSignature.getSourceStackType() )
+			{
+			case SIMPLE:
+				volumeSegments[ i ] = new SimpleVolumeSegment( prog, texSampleSegs[ i ] );
+				break;
+			case MULTIRESOLUTION:
+				volumeSegments[ i ] = new MultiResVolumeSegment( prog, texSampleSegs[ i ] );
+				break;
+			}
+			converterSegments[ i ] = new ConverterSegment( prog, colConvSegs[ i ], volumeSignature.getPixelType() );
+		}
 
 		uniformTransform = prog.getUniformMatrix4f( "transform" );
 		uniformDsp = prog.getUniform2f( "dsp" );
@@ -206,19 +215,20 @@ public class MultiVolumeShaderMip
 
 	public void setVolume( int index, VolumeBlocks volume )
 	{
-		if ( index < 0 || index >= numBigVolumes )
+		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
+		if ( vs.getSourceStackType() != MULTIRESOLUTION )
 			throw new IllegalArgumentException();
 
-		volumeSegments[ index ].setData( volume );
+		( ( MultiResVolumeSegment ) volumeSegments[ index ] ).setData( volume );
 	}
 
 	public void setVolume( int index, SimpleVolume volume )
 	{
-		final int numVolumes = numBigVolumes + numSmallVolumes;
-		if ( index < numBigVolumes || index >= numVolumes )
+		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
+		if ( vs.getSourceStackType() != SIMPLE )
 			throw new IllegalArgumentException();
 
-		simpleVolumeSegments[ index - numBigVolumes ].setData( volume );
+		( ( SimpleVolumeSegment ) volumeSegments[ index ] ).setData( volume );
 	}
 
 
@@ -292,17 +302,28 @@ public class MultiVolumeShaderMip
 	{
 		private final Uniform4f uniformOffset;
 		private final Uniform4f uniformScale;
+		private final double rangeScale;
 
-		public ConverterSegment( final SegmentedShader prog, final Segment segment )
+		public ConverterSegment( final SegmentedShader prog, final Segment segment, final PixelType pixelType )
 		{
 			uniformOffset = prog.getUniform4f( segment,"offset" );
 			uniformScale = prog.getUniform4f( segment,"scale" );
+			switch ( pixelType )
+			{
+			default:
+			case USHORT:
+				rangeScale = 0xffff;
+				break;
+			case UBYTE:
+				rangeScale = 0xff;
+				break;
+			}
 		}
 
 		public void setData( ConverterSetup converter )
 		{
-			final double fmin = converter.getDisplayRangeMin() / 0xffff;
-			final double fmax = converter.getDisplayRangeMax() / 0xffff;
+			final double fmin = converter.getDisplayRangeMin() / rangeScale;
+			final double fmax = converter.getDisplayRangeMax() / rangeScale;
 			final double s = 1.0 / ( fmax - fmin );
 			final double o = -fmin * s;
 
@@ -327,7 +348,10 @@ public class MultiVolumeShaderMip
 		}
 	}
 
-	static class VolumeSegment
+	interface VolumeSegment
+	{}
+
+	static class MultiResVolumeSegment implements VolumeSegment
 	{
 		private final Uniform3fv uniformBlockScales;
 		private final UniformSampler uniformLutSampler;
@@ -337,7 +361,7 @@ public class MultiVolumeShaderMip
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
 
-		public VolumeSegment( final SegmentedShader prog, final Segment volume )
+		public MultiResVolumeSegment( final SegmentedShader prog, final Segment volume )
 		{
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
@@ -361,7 +385,7 @@ public class MultiVolumeShaderMip
 		}
 	}
 
-	static class SimpleVolumeSegment
+	static class SimpleVolumeSegment implements VolumeSegment
 	{
 		private final UniformSampler uniformVolumeSampler;
 		private final UniformMatrix4f uniformIm;
