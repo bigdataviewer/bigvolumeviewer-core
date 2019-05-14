@@ -9,7 +9,8 @@ public final class VolumeShaderSignature
 	public enum PixelType
 	{
 		USHORT,
-		UBYTE
+		UBYTE,
+		ARGB
 	}
 
 	public static final class VolumeSignature

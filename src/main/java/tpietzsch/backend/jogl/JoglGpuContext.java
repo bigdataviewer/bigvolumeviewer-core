@@ -21,6 +21,8 @@ import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
 import static com.jogamp.opengl.GL.GL_R8;
 import static com.jogamp.opengl.GL.GL_REPEAT;
+import static com.jogamp.opengl.GL.GL_RGBA;
+import static com.jogamp.opengl.GL.GL_RGBA8;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TEXTURE_BINDING_2D;
@@ -412,6 +414,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_R8;
 		case R16:
 			return GL_R16;
+		case RGBA8:
+			return GL_RGBA8;
 		case RGBA8UI:
 			return GL_RGBA8UI;
 		default:
@@ -427,6 +431,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_RED;
 		case R16:
 			return GL_RED;
+		case RGBA8:
+			return GL_RGBA;
 		case RGBA8UI:
 			return GL_RGBA_INTEGER;
 		default:
@@ -442,6 +448,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_UNSIGNED_BYTE;
 		case R16:
 			return GL_UNSIGNED_SHORT;
+		case RGBA8:
+			return GL_UNSIGNED_BYTE;
 		case RGBA8UI:
 			return GL_UNSIGNED_BYTE;
 		default:

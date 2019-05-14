@@ -11,6 +11,7 @@ import static tpietzsch.example2.VolumeRenderer.RepaintType.DITHER;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeShaderSignature.PixelType.ARGB;
 import static tpietzsch.example2.VolumeShaderSignature.PixelType.UBYTE;
 import static tpietzsch.example2.VolumeShaderSignature.PixelType.USHORT;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.joml.Matrix4f;
@@ -248,6 +250,8 @@ public class VolumeRenderer
 						volumeSignatures.add( new VolumeSignature( SIMPLE, USHORT ) );
 					else if ( pixelType instanceof UnsignedByteType )
 						volumeSignatures.add( new VolumeSignature( SIMPLE, UBYTE ) );
+					else if ( pixelType instanceof ARGBType )
+						volumeSignatures.add( new VolumeSignature( SIMPLE, ARGB ) );
 					else
 						throw new IllegalArgumentException();
 				}
