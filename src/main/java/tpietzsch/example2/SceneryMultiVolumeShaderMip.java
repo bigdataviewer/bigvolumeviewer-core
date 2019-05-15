@@ -17,45 +17,39 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
+import java.util.*;
+
 public class SceneryMultiVolumeShaderMip
 {
 	private static final int NUM_BLOCK_SCALES = 10;
-
-	private final int numVolumes;
-
+	private final int numBigVolumes;
+	private final int numSmallVolumes;
 	private final boolean useDepthTexture;
 
 	// step size on near plane = pixel_width
 	// step size on far plane = degrade * pixel_width
 	private final double degrade;
-
 	private final SegmentedShader prog;
-
 	private final VolumeSegment[] volumeSegments;
-
+	private final SimpleVolumeSegment[] simpleVolumeSegments;
 	private final ConverterSegment[] converterSegments;
 
 	private final UniformMatrix4f uniformIpv;
-
 	private final Uniform2f uniformViewportSize;
-
 	private final Uniform1f uniformNw;
-
 	private final Uniform1f uniformFwnw;
-
 	private final Uniform1f uniformXf;
-
 	private final UniformMatrix4f uniformTransform;
-
 	private final Uniform2f uniformDsp;
 
 	private int viewportWidth;
 
 	private String sceneDepthTextureName = "sceneDepth";
 
-	public SceneryMultiVolumeShaderMip( final int numVolumes, final boolean useDepthTexture, final double degrade )
+	public SceneryMultiVolumeShaderMip( final int numBigVolumes, final int numSmallVolumes, final boolean useDepthTexture, final double degrade )
 	{
-		this.numVolumes = numVolumes;
+		this.numBigVolumes = numBigVolumes;
+		this.numSmallVolumes = numSmallVolumes;
 		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
 
@@ -70,6 +64,10 @@ public class SceneryMultiVolumeShaderMip
 				"blkvol.fp",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
 				"lutSampler", "blockScales", "lutSize", "lutOffset", "blockTexture" );
+		final SegmentTemplate templateSmlVol = new SegmentTemplate(
+				"smlvol.fp",
+				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
+				"volume", "volTexture" );
 		final SegmentTemplate templateColConv = new SegmentTemplate(
 				"colconv.fp",
 				"convert", "offset", "scale" );
@@ -78,24 +76,63 @@ public class SceneryMultiVolumeShaderMip
 		builder.fragment( templateMaxDepth.instantiate() );
 		final SegmentTemplate templateFp = new SegmentTemplate(
 				"SceneryMultiVolume.frag",
-				"intersectBoundingBox", "blockTexture", "convert", "vis" );
+				"intersectBoundingBox", "blockTexture", "vis", "SampleTextures" );
 		final Segment fp = templateFp.instantiate();
-		fp.repeat( "vis", numVolumes );
-		final Segment blkVols[] = new Segment[ numVolumes ];
-		final Segment colConvs[] = new Segment[ numVolumes ];
-		for ( int i = 0; i < numVolumes; ++i )
-		{
-			final Segment blkVol = templateBlkVol.instantiate();
-			builder.fragment( blkVol );
-			fp.bind( "intersectBoundingBox", i, blkVol, "intersectBoundingBox" );
-			fp.bind( "blockTexture", i, blkVol, "blockTexture" );
-			blkVols[ i ] = blkVol;
+		fp.repeat( "vis", this.numBigVolumes);
 
+		final SegmentTemplate templateCallTexSampleBlocked = new SegmentTemplate(
+				"ex11vol_tex_blk.fp",
+				"vis", "blockTexture", "convert" );
+		final SegmentTemplate templateCallTexSampleSimple = new SegmentTemplate(
+				"ex11vol_tex_sml.fp",
+				"vis", "volTexture", "convert" );
+
+		final List< Segment > callTexSampleSegments = new ArrayList<>();
+
+		final Segment blkVols[] = new Segment[this.numBigVolumes];
+		final Segment colConvs[] = new Segment[this.numBigVolumes + this.numSmallVolumes];
+		for (int i = 0; i < this.numBigVolumes; ++i )
+		{
+			final Segment texSample = templateCallTexSampleBlocked.instantiate();
+			final Segment blkVol = templateBlkVol.instantiate();
 			final Segment colConv = templateColConv.instantiate();
+
+			fp.bind( "intersectBoundingBox", i, blkVol, "intersectBoundingBox" );
+			fp.bind( "vis", i, texSample );
+			texSample.bind( "blockTexture", blkVol );
+			texSample.bind( "convert", colConv );
+
+			builder.fragment( blkVol );
+			blkVols[ i ] = blkVol;
 			builder.fragment( colConv );
-			fp.bind( "convert", i, colConv, "convert" );
 			colConvs[ i ] = colConv;
+
+			callTexSampleSegments.add( texSample );
 		}
+
+		final Segment smlVols[] = new Segment[ numSmallVolumes ];
+		for ( int j = 0; j < numSmallVolumes; ++j )
+		{
+			final int i = j + numBigVolumes;
+
+			final Segment texSample = templateCallTexSampleSimple.instantiate();
+			final Segment smlVol = templateSmlVol.instantiate();
+			final Segment colConv = templateColConv.instantiate();
+
+			fp.bind( "intersectBoundingBox", i, smlVol );
+			fp.bind( "vis", i, texSample );
+			texSample.bind( "volTexture", smlVol );
+			texSample.bind( "convert", colConv );
+
+			builder.fragment( smlVol );
+			smlVols[ j ] = smlVol;
+			builder.fragment( colConv );
+			colConvs[ i ] = colConv;
+
+			callTexSampleSegments.add( texSample );
+		}
+
+		fp.insert( "SampleTextures", callTexSampleSegments );
 		builder.fragment( fp );
 		prog = builder.build();
 
@@ -105,11 +142,20 @@ public class SceneryMultiVolumeShaderMip
 		uniformFwnw = prog.getUniform1f( "fwnw" );
 		uniformXf = prog.getUniform1f( "xf" );
 
-		volumeSegments = new VolumeSegment[ numVolumes ];
-		converterSegments = new ConverterSegment[ numVolumes ];
-		for ( int i = 0; i < numVolumes; ++i )
-		{
+		volumeSegments = new VolumeSegment[this.numBigVolumes];
+		for ( int i = 0; i < numBigVolumes; ++i ) {
 			volumeSegments[ i ] = new VolumeSegment( prog, blkVols[ i ] );
+		}
+
+		simpleVolumeSegments = new SimpleVolumeSegment[ numSmallVolumes ];
+		for ( int i = 0; i < numSmallVolumes; ++i ) {
+			simpleVolumeSegments[i] = new SimpleVolumeSegment(prog, smlVols[i]);
+		}
+
+		final int numVolumes = numBigVolumes + numSmallVolumes;
+		converterSegments = new ConverterSegment[ numVolumes ];
+		for (int i = 0; i < numVolumes; ++i )
+		{
 			converterSegments[ i ] = new ConverterSegment( prog, colConvs[ i ] );
 		}
 
@@ -127,9 +173,9 @@ public class SceneryMultiVolumeShaderMip
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
-	public int getNumVolumes()
+	public int getNumBigVolumes()
 	{
-		return numVolumes;
+		return numBigVolumes;
 	}
 
 	public void setTextureCache( TextureCache textureCache )
@@ -167,6 +213,15 @@ public class SceneryMultiVolumeShaderMip
 	public void setVolume( int index, VolumeBlocks volume )
 	{
 		volumeSegments[ index ].setData( volume );
+	}
+
+	public void setVolume( int index, SimpleVolume volume )
+	{
+		final int numVolumes = numBigVolumes + numSmallVolumes;
+		if ( index < numBigVolumes || index >= numVolumes )
+			throw new IllegalArgumentException();
+
+		simpleVolumeSegments[ index - numBigVolumes ].setData( volume );
 	}
 
 	public void setDither( DitherBuffer dither, int step )
@@ -320,6 +375,30 @@ public class SceneryMultiVolumeShaderMip
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
+		}
+	}
+
+	static class SimpleVolumeSegment
+	{
+		private final UniformSampler uniformVolumeSampler;
+		private final UniformMatrix4f uniformIm;
+		private final Uniform3f uniformSourcemin;
+		private final Uniform3f uniformSourcemax;
+
+		public SimpleVolumeSegment( final SegmentedShader prog, final Segment volume )
+		{
+			uniformVolumeSampler = prog.getUniformSampler( volume, "volume" );
+			uniformIm = prog.getUniformMatrix4f( volume, "im" );
+			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
+			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
+		}
+
+		public void setData( SimpleVolume volume )
+		{
+			uniformVolumeSampler.set( volume.getVolumeTexture() );
+			uniformIm.set( volume.getIms() );
+			uniformSourcemin.set( volume.getSourceMin() );
+			uniformSourcemax.set( volume.getSourceMax() );
 		}
 	}
 }
