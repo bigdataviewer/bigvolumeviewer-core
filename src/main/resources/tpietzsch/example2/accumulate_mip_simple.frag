@@ -1,5 +1,5 @@
 if (vis)
 {
-	float x = volTexture(wpos);
+	float x = sampleVolume(wpos);
 	v = max(v, convert(x));
 }

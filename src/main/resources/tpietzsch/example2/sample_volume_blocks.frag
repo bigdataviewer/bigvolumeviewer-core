@@ -18,7 +18,7 @@ uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 uniform vec3 lutSize;
 uniform vec3 lutOffset;
 
-float blockTexture( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
+float sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
 	vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
