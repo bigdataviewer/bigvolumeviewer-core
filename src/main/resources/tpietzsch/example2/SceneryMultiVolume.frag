@@ -99,13 +99,17 @@ void main()
 		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
 		{
 			vec4 wpos = mix( wfront, wback, step );
-			// $repeat:{vis,blockTexture,convert|
-			if ( vis )
+
+			// $insert{SampleTextures}
+			/*
+			inserts something like the following (keys: vis,blockTexture,convert)
+
+			if (vis)
 			{
-				float x = blockTexture( wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset );
-				v = max( v, convert( x ) );
+				float x = blockTexture(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+				v = max(v, convert(x));
 			}
-			// }$
+			*/
 		}
 		FragColor = v;
 	}
