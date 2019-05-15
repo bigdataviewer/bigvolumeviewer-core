@@ -42,18 +42,16 @@ public class SmallVolumeExample
 		t2.translate( 100, 0, 0 );
 		final BvvSource source2 = BvvFunctions.show( img2, "t1-head-8bit", Bvv.options().addTo( source ).sourceTransform( t2 ) );
 
+		final ImagePlus imp3 = IJ.openImage( "/Users/pietzsch/workspace/data/first-instar-brain.tif" );
+		final Img< ARGBType > img3 = ImageJFunctions.wrapRGBA( imp3 );
+		final BvvSource source3 = BvvFunctions.show( img3,"first-instar-brain", Bvv.options().addTo( source ).sourceTransform( 0.5350003, 0.5350003, 2 ) );
+
 		source.setColor( new ARGBType( 0xff00ff00 ) );
 		source.setDisplayRange( 0, 555 );
 
 		source2.setColor( new ARGBType( 0xff00ff00 ) );
 		source2.setDisplayRange( 0, 255 );
 
-
-
-//		final ImagePlus imp = IJ.openImage( "/Users/pietzsch/workspace/data/first-instar-brain.tif" );
-//		final Img< ARGBType > img = ImageJFunctions.wrapRGBA( imp );
-//		BvvFunctions.show( img,"first-instar-brain", Bvv.options().sourceTransform( 0.5350003, 0.5350003, 2 ) );
-
-
+		source3.setDisplayRange( 0, 255 );
 	}
 }

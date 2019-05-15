@@ -25,6 +25,7 @@ import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentedShader;
 import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
+import static tpietzsch.example2.VolumeShaderSignature.PixelType.ARGB;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static tpietzsch.multires.SourceStacks.SourceStackType.SIMPLE;
 
@@ -68,9 +69,6 @@ public class MultiVolumeShaderMip
 		final Segment vp = new SegmentTemplate("multi_volume.vert" ).instantiate();
 		builder.vertex( vp );
 
-		final SegmentTemplate templateIntersectBox = new SegmentTemplate(
-				"intersectbox.frag" );
-		builder.fragment( templateIntersectBox.instantiate() );
 		final SegmentTemplate templateVolBlocks = new SegmentTemplate(
 				"sample_volume_blocks.frag",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
@@ -79,15 +77,22 @@ public class MultiVolumeShaderMip
 				"sample_volume_simple.frag",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
 				"volume", "sampleVolume" );
+		final SegmentTemplate templateVolSimpleRGBA = new SegmentTemplate(
+				"sample_volume_simple_rgba.frag",
+				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
+				"volume", "sampleVolume" );
 		final SegmentTemplate templateConvert = new SegmentTemplate(
 				"convert.frag",
+				"convert", "offset", "scale" );
+		final SegmentTemplate templateConvertRGBA = new SegmentTemplate(
+				"convert_rgba.frag",
 				"convert", "offset", "scale" );
 		final SegmentTemplate templateMaxDepth = new SegmentTemplate(
 				useDepthTexture ? "maxdepthtexture.frag" : "maxdepthone.frag" );
 		builder.fragment( templateMaxDepth.instantiate() );
 		final SegmentTemplate templateMainFp = new SegmentTemplate(
 				"multi_volume.frag",
-				"intersectBoundingBox", "vis", "SampleTextures" );
+				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" );
 		final Segment fp = templateMainFp.instantiate();
 		fp.repeat( "vis", numVolumes );
 
@@ -115,27 +120,40 @@ public class MultiVolumeShaderMip
 				break;
 			case SIMPLE:
 				accumulate = templateAccumulateMipSimple.instantiate();
-				sampleVolume = templateVolSimple.instantiate();
+				sampleVolume = volumeSignature.getPixelType() == ARGB
+						? templateVolSimpleRGBA.instantiate()
+						: templateVolSimple.instantiate();
 				break;
 			default:
 				throw new IllegalArgumentException();
 			}
 
-			final Segment convert = templateConvert.instantiate();
+			final Segment convert;
+			switch ( volumeSignature.getPixelType() )
+			{
+			default:
+			case USHORT:
+			case UBYTE:
+			 	convert = templateConvert.instantiate();
+				break;
+			case ARGB:
+				convert = templateConvertRGBA.instantiate();
+				break;
+			}
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
 			accumulate.bind( "sampleVolume", sampleVolume );
 			accumulate.bind( "convert", convert );
 
-			builder.fragment( sampleVolume );
-			builder.fragment( convert );
-
 			sampleVolumeSegs[ i ] = sampleVolume;
 			convertSegs[ i ] = convert;
 			accumulateSegs[ i ] = accumulate;
 		}
-		fp.insert( "SampleTextures", accumulateSegs );
+		fp.insert( "SampleVolume", sampleVolumeSegs );
+		fp.insert( "Convert", convertSegs );
+		fp.insert( "Accumulate", accumulateSegs );
+
 		builder.fragment( fp );
 		prog = builder.build();
 
@@ -292,12 +310,17 @@ public class MultiVolumeShaderMip
 	{
 		private final Uniform4f uniformOffset;
 		private final Uniform4f uniformScale;
+
+		private final PixelType pixelType;
 		private final double rangeScale;
 
 		public ConverterSegment( final SegmentedShader prog, final Segment segment, final PixelType pixelType )
 		{
 			uniformOffset = prog.getUniform4f( segment,"offset" );
 			uniformScale = prog.getUniform4f( segment,"scale" );
+
+			this.pixelType = pixelType;
+
 			switch ( pixelType )
 			{
 			default:
@@ -305,6 +328,7 @@ public class MultiVolumeShaderMip
 				rangeScale = 0xffff;
 				break;
 			case UBYTE:
+			case ARGB:
 				rangeScale = 0xff;
 				break;
 			}
@@ -317,24 +341,32 @@ public class MultiVolumeShaderMip
 			final double s = 1.0 / ( fmax - fmin );
 			final double o = -fmin * s;
 
-			final int color = converter.getColor().get();
-			final double r = ( double ) ARGBType.red( color ) / 255.0;
-			final double g = ( double ) ARGBType.green( color ) / 255.0;
-			final double b = ( double ) ARGBType.blue( color ) / 255.0;
+			if ( pixelType == ARGB )
+			{
+				uniformOffset.set( ( float ) o, ( float ) o, ( float ) o, ( float ) o );
+				uniformScale.set( ( float ) s, ( float ) s, ( float ) s, ( float ) s );
+			}
+			else
+			{
+				final int color = converter.getColor().get();
+				final double r = ( double ) ARGBType.red( color ) / 255.0;
+				final double g = ( double ) ARGBType.green( color ) / 255.0;
+				final double b = ( double ) ARGBType.blue( color ) / 255.0;
 
-//			final double l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-//			final double l = 0.299 * r + 0.587 * g + 0.114 * b;
+//				final double l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+//				final double l = 0.299 * r + 0.587 * g + 0.114 * b;
 
-			uniformOffset.set(
-					( float ) ( o * r ),
-					( float ) ( o * g ),
-					( float ) ( o * b ),
-					( float ) ( o ) );
-			uniformScale.set(
-					( float ) ( s * r ),
-					( float ) ( s * g ),
-					( float ) ( s * b ),
-					( float ) ( s ) );
+				uniformOffset.set(
+						( float ) ( o * r ),
+						( float ) ( o * g ),
+						( float ) ( o * b ),
+						( float ) ( o ) );
+				uniformScale.set(
+						( float ) ( s * r ),
+						( float ) ( s * g ),
+						( float ) ( s * b ),
+						( float ) ( s ) );
+			}
 		}
 	}
 
