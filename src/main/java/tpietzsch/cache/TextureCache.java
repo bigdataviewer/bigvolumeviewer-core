@@ -196,18 +196,37 @@ public class TextureCache implements Texture3D
 		return timestampGen.incrementAndGet();
 	}
 
-	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask > tasks )
+	static class StagedTasks
+	{
+		// tasks with possibly a tile already assigned
+		final List< TileFillTask > tasks;
+
+		// tiles that can be used for the tasks that have no tile assigned yet
+		final List< Tile > reusableTiles;
+
+		public StagedTasks( final List< TileFillTask > tasks, final List< Tile > reusableTiles )
+		{
+			this.tasks = tasks;
+			this.reusableTiles = reusableTiles;
+		}
+	}
+
+	StagedTasks stage( final Collection< ? extends FillTask > tasks )
 	{
 		final int mark = timestampGen.incrementAndGet();
 
+		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
 		final ArrayList< TileFillTask > update = new ArrayList<>();
-		final ArrayList< FillTask > create = new ArrayList<>();
 
+		int newsize = 0;
 		for ( final FillTask task : tasks )
 		{
 			final Tile tile = tilemap.get( task.getKey() );
 			if ( tile == null )
-				create.add( task );
+			{
+				tileFillTasks.add( new TileFillTask( task ) );
+				++newsize;
+			}
 			else
 			{
 				if ( tile.state == INCOMPLETE )
@@ -222,25 +241,15 @@ public class TextureCache implements Texture3D
 		}
 
 		/*
-		 *
-		 * TODO: sort 'create' list by desired loading order
+		 * TODO: sort 'tileFillTasks' list by desired loading order
 		 * TODO: similar to BlockingFetchQueues priority levels?
-		 *
 		 */
 
-		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
-		final int newsize = create.size();
-		final List< Tile > fillTiles = assignFillTiles( newsize, mark );
-		for ( int i = 0; i < newsize; ++i )
-		{
-			final Tile tile = fillTiles.get( i );
-			tileFillTasks.add( new TileFillTask( create.get( i ), tile ) );
-		}
 		tileFillTasks.addAll( update );
-
 		initializeBlockedTiles( tileFillTasks );
 
-		return tileFillTasks;
+		final List< Tile > fillTiles = assignFillTiles( newsize, mark );
+		return new StagedTasks( tileFillTasks, fillTiles );
 	}
 
 	private boolean blockedTileInitialized = false;

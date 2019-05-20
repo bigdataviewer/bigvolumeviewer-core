@@ -11,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.imglib2.util.Intervals;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.StagingBuffer;
+import tpietzsch.cache.TextureCache.StagedTasks;
 import tpietzsch.cache.TextureCache.Tile;
 import tpietzsch.cache.TextureCache.TileFillTask;
 
@@ -44,11 +45,17 @@ public class PboChain
 	private final Condition allClean;
 
 
-	/** texture tiles to fill in current batch */
+	/** tile fill tasks in current batch */
 	private List< TileFillTask > tileFillTasks;
+
+	/** texture tiles that can be reused in current batch */
+	private List< Tile > reusableTiles;
 
 	/** index of next task in {@code fillTileTasks} */
 	private int ti;
+
+	/** index of next tile in {@code reusableTiles} */
+	private int rti;
 
 	/**
 	 *
@@ -135,7 +142,11 @@ public class PboChain
 			while ( !activePbo.hasRemainingBuffers() )
 				notEmpty.await();
 
-			final PboUploadBuffer buffer = activePbo.takeBuffer( tileFillTasks.get( ti++ ) );
+			final TileFillTask task = tileFillTasks.get( ti++ );
+			if ( task.getTile() == null )
+				task.setTile( reusableTiles.get( rti++ ) );
+
+			final PboUploadBuffer buffer = activePbo.takeBuffer( task );
 			if ( !activePbo.hasRemainingBuffers() )
 			{
 //				System.out.println( "take() last buffer --> gpu.signal() to trigger activate" );
@@ -253,7 +264,7 @@ public class PboChain
 	/**
 	 * Initialize a new batch of cache tile uploads.
 	 */
-	public void init( final List< TileFillTask > tileFillTasks ) throws InterruptedException
+	public void init( final StagedTasks stagedTasks ) throws InterruptedException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
@@ -262,8 +273,10 @@ public class PboChain
 			while ( !ready() )
 				allClean.await();
 
-			this.tileFillTasks = tileFillTasks;
+			this.tileFillTasks = stagedTasks.tasks;
+			this.reusableTiles = stagedTasks.reusableTiles;
 			this.ti = 0;
+			this.rti = 0;
 			chainState = FILL;
 		}
 		finally
