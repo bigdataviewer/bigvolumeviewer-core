@@ -409,10 +409,11 @@ public class VolumeRenderer
 		}
 
 		boolean needsRepaint = false;
+		final int timestamp = textureCache.nextTimestamp();
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
-			final boolean complete = volume.makeLut();
+			final boolean complete = volume.makeLut( timestamp );
 			if ( !complete )
 				needsRepaint = true;
 			volume.getLookupTexture().upload( context );

@@ -72,6 +72,12 @@ public class TextureCache implements Texture3D
 		{
 			return state;
 		}
+
+		public void useAtTimestamp( final int timestamp )
+		{
+//			lru = Math.max( lru, timestamp );
+			lru = timestamp;
+		}
 	}
 
 	static class TileFillTask implements FillTask
@@ -185,9 +191,14 @@ public class TextureCache implements Texture3D
 		return tilemap.get( key );
 	}
 
+	public int nextTimestamp()
+	{
+		return timestampGen.incrementAndGet();
+	}
+
 	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask > tasks )
 	{
-		final int timestamp = timestampGen.incrementAndGet();
+		final int mark = timestampGen.incrementAndGet();
 
 		final ArrayList< TileFillTask > update = new ArrayList<>();
 		final ArrayList< FillTask > create = new ArrayList<>();
@@ -199,9 +210,14 @@ public class TextureCache implements Texture3D
 				create.add( task );
 			else
 			{
-				tile.lru = timestamp;
 				if ( tile.state == INCOMPLETE )
+				{
 					update.add( new TileFillTask( task, tile ) );
+					/*
+					 * Set the tile lru to mark, so that we can detect if it would be overridden in assignFillTiles
+					 */
+					tile.lru = mark;
+				}
 			}
 		}
 
@@ -214,11 +230,10 @@ public class TextureCache implements Texture3D
 
 		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
 		final int newsize = create.size();
-		final List< Tile > fillTiles = assignFillTiles( newsize, timestamp );
+		final List< Tile > fillTiles = assignFillTiles( newsize, mark );
 		for ( int i = 0; i < newsize; ++i )
 		{
 			final Tile tile = fillTiles.get( i );
-			tile.lru = timestamp;
 			tileFillTasks.add( new TileFillTask( create.get( i ), tile ) );
 		}
 		tileFillTasks.addAll( update );

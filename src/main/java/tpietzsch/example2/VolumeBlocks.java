@@ -32,7 +32,7 @@ import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
  * <ol>
  *     <li>{@link #init(MultiResolutionStack3D, int, Matrix4fc)}</li>
  *     <li>{@link #getFillTasks()}</li>
- *     <li>{@link #makeLut()}</li>
+ *     <li>{@link #makeLut(int)}</li>
  * </ol>
  * {@link #getLutBlockScales(int)} can be called at any point after {@code init()}.
  * <p>
@@ -156,7 +156,7 @@ public class VolumeBlocks
 	 * @return whether every required block was completely available at the desired resolution level.
 	 * I.e., if {@code false} is returned, the frame should be repainted until the remaining incomplete blocks are loaded.
 	 */
-	public boolean makeLut()
+	public boolean makeLut( final int timestamp )
 	{
 		final int[] rmin = requiredBlocks.getMin();
 		final int[] rmax = requiredBlocks.getMax();
@@ -178,6 +178,7 @@ public class VolumeBlocks
 				final Tile tile = textureCache.get( new ImageBlockKey<>( resolution, gj ) );
 				if ( tile != null )
 				{
+					tile.useAtTimestamp( timestamp );
 					lut.putTile( g0, tile, level );
 					if ( level != block.getBestLevel() || tile.state() == INCOMPLETE )
 						complete = false;
