@@ -315,7 +315,7 @@ public class VolumeBlocks
 				{
 					existingKeys.add( key );
 					final Tile tile = textureCache.get( key );
-					if ( tile != null || level == maxLevel || canLoadCompletely( key ) )
+					if ( tile != null || canLoadCompletely( key ) || level == maxLevel )
 					{
 						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ) ) );
 						break;
