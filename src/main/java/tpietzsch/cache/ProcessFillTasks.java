@@ -7,6 +7,7 @@ import java.util.concurrent.RecursiveAction;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.PboChain.PboUploadBuffer;
 import tpietzsch.cache.TextureCache.StagedTasks;
+import tpietzsch.cache.TextureCache.TileFillTask;
 
 public class ProcessFillTasks
 {
@@ -22,9 +23,13 @@ public class ProcessFillTasks
 		for ( int i = 0; i < numTasks; i++ )
 		{
 			pboChain.tryActivate( context );
-			final PboUploadBuffer buf = pboChain.take();
-			buf.task.fill( buf );
-			pboChain.commit( buf );
+			final TileFillTask task = pboChain.nextTask();
+			if ( task.containsData() )
+			{
+				final PboUploadBuffer buf = pboChain.take( task );
+				task.fill( buf );
+				pboChain.commit( buf );
+			}
 			pboChain.tryUpload( context );
 		}
 		pboChain.flush();
@@ -60,9 +65,13 @@ public class ProcessFillTasks
 						{
 							try
 							{
-								final PboUploadBuffer buf = pboChain.take();
-								buf.task.fill( buf );
-								pboChain.commit( buf );
+								final TileFillTask task = pboChain.nextTask();
+								if ( task.containsData() )
+								{
+									final PboUploadBuffer buf = pboChain.take( task );
+									task.fill( buf );
+									pboChain.commit( buf );
+								}
 							}
 							catch ( final InterruptedException e )
 							{

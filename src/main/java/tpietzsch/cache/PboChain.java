@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import net.imglib2.util.Intervals;
@@ -52,7 +53,7 @@ public class PboChain
 	private List< Tile > reusableTiles;
 
 	/** index of next task in {@code fillTileTasks} */
-	private int ti;
+	private AtomicInteger ti = new AtomicInteger();
 
 	/** index of next tile in {@code reusableTiles} */
 	private int rti;
@@ -113,6 +114,16 @@ public class PboChain
 	 * ====================================================
 	 */
 
+	TileFillTask nextTask()
+	{
+		final int i = ti.getAndIncrement();
+
+		if ( i >= tileFillTasks.size() )
+			throw new NoSuchElementException();
+
+		return tileFillTasks.get( i );
+	}
+
 	/**
 	 * Take next available UploadBuffer. (Blocks if necessary until one is
 	 * available). When taking the last UploadBuffer of the active Pbo,
@@ -127,7 +138,7 @@ public class PboChain
 	 * @throws IllegalStateException
 	 *             if there is no current batch of tasks.
 	 */
-	PboUploadBuffer take() throws InterruptedException, NoSuchElementException, IllegalStateException
+	PboUploadBuffer take( final TileFillTask task ) throws InterruptedException, NoSuchElementException, IllegalStateException
 	{
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
@@ -136,17 +147,19 @@ public class PboChain
 			if ( chainState != FILL )
 				throw new IllegalStateException();
 
-			if ( ti >= tileFillTasks.size() )
-				throw new NoSuchElementException();
-
 			while ( !activePbo.hasRemainingBuffers() )
 				notEmpty.await();
 
-			final TileFillTask task = tileFillTasks.get( ti++ );
 			if ( task.getTile() == null )
-				task.setTile( reusableTiles.get( rti++ ) );
+			{
+				if ( rti >= reusableTiles.size() )
+					throw new NoSuchElementException();
 
-			final PboUploadBuffer buffer = activePbo.takeBuffer( task );
+				task.setTile( reusableTiles.get( rti++ ) );
+			}
+
+			final PboUploadBuffer buffer = activePbo.takeBuffer();
+			buffer.setTask( task );
 			if ( !activePbo.hasRemainingBuffers() )
 			{
 //				System.out.println( "take() last buffer --> gpu.signal() to trigger activate" );
@@ -275,7 +288,7 @@ public class PboChain
 
 			this.tileFillTasks = stagedTasks.tasks;
 			this.reusableTiles = stagedTasks.reusableTiles;
-			this.ti = 0;
+			this.ti.set( 0 );
 			this.rti = 0;
 			chainState = FILL;
 		}
@@ -441,15 +454,19 @@ public class PboChain
 
 	static class PboUploadBuffer extends UploadBuffer
 	{
-		final TileFillTask task;
+		TileFillTask task;
 
 		final Pbo pbo;
 
-		public PboUploadBuffer( final Buffer buffer, final int offset, final TileFillTask task, final Pbo pbo )
+		public PboUploadBuffer( final Buffer buffer, final int offset, final Pbo pbo )
 		{
 			super( buffer, offset );
-			this.task = task;
 			this.pbo = pbo;
+		}
+
+		public void setTask( final TileFillTask task )
+		{
+			this.task = task;
 		}
 	}
 
@@ -491,7 +508,7 @@ public class PboChain
 			return bufSize * blockSize;
 		}
 
-		PboUploadBuffer takeBuffer( final TileFillTask task )
+		PboUploadBuffer takeBuffer()
 		{
 			if ( state != MAPPED )
 				throw new IllegalStateException();
@@ -499,7 +516,7 @@ public class PboChain
 			if ( nextIndex >= bufSize )
 				throw new NoSuchElementException();
 
-			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, task, this );
+			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, this );
 			buffers.add( b );
 			++uncommitted;
 			++nextIndex;

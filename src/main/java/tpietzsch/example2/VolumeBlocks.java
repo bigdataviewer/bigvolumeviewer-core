@@ -184,6 +184,8 @@ public class VolumeBlocks
 						complete = false;
 					break;
 				}
+				else if ( level == maxLevel )
+					complete = false;
 			}
 		}
 		return complete;
@@ -317,7 +319,7 @@ public class VolumeBlocks
 					final Tile tile = textureCache.get( key );
 					if ( tile != null || canLoadCompletely( key ) || level == maxLevel )
 					{
-						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ) ) );
+						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ), () -> containsData( key ) ) );
 						break;
 					}
 				}
@@ -332,6 +334,11 @@ public class VolumeBlocks
 	private boolean canLoadCompletely( final ImageBlockKey< ResolutionLevel3D< ? > > key )
 	{
 		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
+	}
+
+	private boolean containsData( final ImageBlockKey< ResolutionLevel3D< ? > > key )
+	{
+		return tileAccess.get( key.image(), cacheSpec ).canLoadPartially( key.pos() );
 	}
 
 	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )

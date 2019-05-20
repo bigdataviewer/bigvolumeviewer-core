@@ -103,6 +103,12 @@ public class TextureCache implements Texture3D
 		}
 
 		@Override
+		public boolean containsData()
+		{
+			return task.containsData();
+		}
+
+		@Override
 		public void fill( final UploadBuffer buffer )
 		{
 			task.fill( buffer );
@@ -271,7 +277,7 @@ public class TextureCache implements Texture3D
 		tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
 			ByteUtils.setShorts( ( short ) 0, buf.getAddress(), elementsPerTile );
 			return true;
-		} ), oobTile ) );
+		} , () -> true ), oobTile ) );
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )

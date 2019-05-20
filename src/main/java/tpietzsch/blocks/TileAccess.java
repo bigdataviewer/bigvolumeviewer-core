@@ -57,6 +57,13 @@ public class TileAccess< S >
 		return gcopy.canLoadCompletely( min, cacheSpec.paddedBlockSize(), dataAccess, failfast );
 	}
 
+	public boolean canLoadPartially( final int[] gridPos )
+	{
+		for ( int d = 0; d < 3; ++d )
+			min[ d ] = gridPos[ d ] * cacheSpec.blockSize()[ d ] - cacheSpec.padOffset()[ d ];
+		return gcopy.canLoadPartially( min, cacheSpec.paddedBlockSize(), dataAccess );
+	}
+
 	/**
 	 * Load data for the tile at {@code gridPos} into {@code buffer}.
 	 * The tile is a padded block according to the {@code CacheSpec}.
