@@ -1,6 +1,7 @@
 package tpietzsch.blocks;
 
-import net.imglib2.RandomAccessibleInterval;
+import bdv.util.volatiles.VolatileView;
+import net.imglib2.RandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.ref.WeakRefLoaderCache;
@@ -73,7 +74,9 @@ public class TileAccess< S >
 		final Object type = resolutionLevel3D.getType();
 		if ( isSupportedType( type ) )
 		{
-			final RandomAccessibleInterval< ? > img = resolutionLevel3D.getImage();
+			RandomAccessible< ? > img = resolutionLevel3D.getImage();
+			if ( img instanceof VolatileView )
+				img = ( ( VolatileView ) img ).getVolatileViewData().getImg();
 			final boolean cellimg = img instanceof AbstractCellImg;
 
 			if ( cacheSpec.format() == R16 && cellimg )

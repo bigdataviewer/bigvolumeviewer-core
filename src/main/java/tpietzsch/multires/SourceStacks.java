@@ -1,10 +1,12 @@
 package tpietzsch.multires;
 
+import bdv.util.volatiles.VolatileView;
 import bdv.viewer.Source;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -65,7 +67,11 @@ public class SourceStacks
 
 		if ( TileAccess.isSupportedType( type ) )
 		{
-			if ( source.getSource( timepoint, 0 ) instanceof AbstractCellImg )
+			RandomAccessible< ? > rai = source.getSource( timepoint, 0 );
+			if ( rai instanceof VolatileView )
+				rai = ( ( VolatileView ) rai ).getVolatileViewData().getImg();
+
+			if ( rai instanceof AbstractCellImg )
 				return MULTIRESOLUTION;
 		}
 
