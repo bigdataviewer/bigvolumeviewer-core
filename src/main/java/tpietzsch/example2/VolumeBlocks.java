@@ -338,7 +338,20 @@ public class VolumeBlocks
 
 	private boolean containsData( final ImageBlockKey< ResolutionLevel3D< ? > > key )
 	{
-		return tileAccess.get( key.image(), cacheSpec ).canLoadPartially( key.pos() );
+		/*
+		 * TODO.
+		 *
+		 * ContainsData is called to determine whether it makes sense to upload a partially completed block.
+		 *
+		 * Using TileAccess.canLoadCompletely will not upload any partial block, saving on texture upload bandwidth.
+		 *
+		 * Using TileAccess.canLoadPartially will upload any partial blocks, consuming (typically much) more texture upload bandwidth,
+		 * but potentially presenting a more complete volume to the user.
+		 *
+		 * Decisions, decisions...
+		 */
+		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), true );
+//		return tileAccess.get( key.image(), cacheSpec ).canLoadPartially( key.pos() );
 	}
 
 	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )
