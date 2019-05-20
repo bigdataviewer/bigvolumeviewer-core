@@ -77,12 +77,17 @@ public class TextureCache implements Texture3D
 	static class TileFillTask implements FillTask
 	{
 		private final FillTask task; // wrapped task
-		private final Tile tile;
+		private Tile tile;
 
 		public TileFillTask( final FillTask task, final Tile tile )
 		{
 			this.task = task;
 			this.tile = tile;
+		}
+
+		public TileFillTask( final FillTask task )
+		{
+			this( task, null );
 		}
 
 		@Override
@@ -100,6 +105,11 @@ public class TextureCache implements Texture3D
 		Tile getTile()
 		{
 			return tile;
+		}
+
+		void setTile( final Tile tile )
+		{
+			this.tile = tile;
 		}
 	}
 
