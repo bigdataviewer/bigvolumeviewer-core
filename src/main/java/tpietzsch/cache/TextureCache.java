@@ -306,7 +306,7 @@ public class TextureCache implements Texture3D
 	 * @param cacheSpec
 	 *            provides voxel type and size of an individual block.
 	 * @param maxMemoryInMB
-	 * @return size of 3D texture in multiples of {@code acheSpec.paddedBlockSize()}.
+	 * @return size of 3D texture in multiples of {@code CacheSpec.paddedBlockSize()}.
 	 */
 	public static int[] findSuitableGridSize( final CacheSpec cacheSpec, final int maxMemoryInMB )
 	{
