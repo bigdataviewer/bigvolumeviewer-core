@@ -199,7 +199,7 @@ public class VolumeRenderer
 
 	public void init( final GL3 gl )
 	{
-		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
+		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 	}
 
 	// TODO rename paint() like in MultiResolutionRenderer?
