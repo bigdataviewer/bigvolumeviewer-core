@@ -287,6 +287,8 @@ public class VolumeRenderer
 				progvol.setViewportWidth( renderWidth );
 				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
 			}
+
+			simpleStackManager.freeUnusedSimpleVolumes( context );
 		}
 
 		if ( progvol != null )
