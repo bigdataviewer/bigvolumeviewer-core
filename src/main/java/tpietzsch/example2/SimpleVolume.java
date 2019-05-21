@@ -1,5 +1,6 @@
 package tpietzsch.example2;
 
+import edu.mines.jtk.sgl.Vector3;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
@@ -18,8 +19,6 @@ public class SimpleVolume
 
 	private final AffineTransform3D sourceToWorld;
 
-	private final Vector3f sourceMin;
-
 	private final Vector3f sourceMax;
 
 	private final Matrix4f ims;
@@ -34,9 +33,12 @@ public class SimpleVolume
 	{
 		this.texture = texture;
 		this.sourceToWorld = sourceTransform;
-		this.sourceMin = sourceMin;
-		this.sourceMax = sourceMax;
-		this.ims = MatrixMath.affine( sourceTransform, new Matrix4f() ).invert();
+		this.sourceMax = sourceMax.sub( sourceMin, new Vector3f() );
+
+		AffineTransform3D t = new AffineTransform3D();
+		t.translate( sourceMin.x(), sourceMin.y(), sourceMin.z() );
+		t.preConcatenate( sourceTransform );
+		this.ims = MatrixMath.affine( t, new Matrix4f() ).invert();
 	}
 
 	public Texture3D getVolumeTexture()
@@ -71,11 +73,6 @@ public class SimpleVolume
 			voxelSize = Math.min( voxelSize, LinAlgHelpers.length( tone ) );
 		}
 		return voxelSize;
-	}
-
-	public Vector3f getSourceMin()
-	{
-		return sourceMin;
 	}
 
 	public Vector3f getSourceMax()
