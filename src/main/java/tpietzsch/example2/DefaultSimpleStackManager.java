@@ -25,18 +25,18 @@ import tpietzsch.multires.SimpleStack3D;
 
 public class DefaultSimpleStackManager implements SimpleStackManager
 {
-	private final WeakHashMap< RandomAccessibleInterval< ? >, VolumeTextureU16 > texturesU16;
-	private final WeakHashMap< RandomAccessibleInterval< ? >, VolumeTextureU8 > texturesU8;
-	private final WeakHashMap< RandomAccessibleInterval< ? >, VolumeTextureRGBA8 > texturesRGBA8;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureRGBA8 > texturesRGBA8;
 
 	private final HashMap< Texture3D, Integer > timestamps;
 	private int currentTimestamp;
 
 	public DefaultSimpleStackManager()
 	{
-		texturesU16 = new WeakHashMap<>();
-		texturesU8 = new WeakHashMap<>();
-		texturesRGBA8 = new WeakHashMap<>();
+		texturesU16 = new HashMap<>();
+		texturesU8 = new HashMap<>();
+		texturesRGBA8 = new HashMap<>();
 		timestamps = new HashMap<>();
 		currentTimestamp = 0;
 	}
@@ -53,19 +53,19 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 		if ( type instanceof UnsignedShortType )
 		{
-			texture = texturesU16.computeIfAbsent( image, rai -> uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) rai ) );
+			texture = texturesU16.computeIfAbsent( stack, s -> uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) image ) );
 			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 		}
 		else if ( type instanceof UnsignedByteType )
 		{
-			texture = texturesU8.computeIfAbsent( image, rai -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) rai ) );
+			texture = texturesU8.computeIfAbsent( stack, s -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) image ) );
 			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 		}
 		else if ( type instanceof ARGBType )
 		{
-			texture = texturesRGBA8.computeIfAbsent( image, rai -> uploadToTextureRGBA8( context, ( RandomAccessibleInterval< ARGBType > ) rai ) );
+			texture = texturesRGBA8.computeIfAbsent( stack, s -> uploadToTextureRGBA8( context, ( RandomAccessibleInterval< ARGBType > ) image ) );
 			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 		}

@@ -12,6 +12,7 @@ import bdv.viewer.state.ViewerState;
 import java.util.HashSet;
 import java.util.List;
 import net.imglib2.type.numeric.ARGBType;
+import tpietzsch.multires.SourceStacks;
 
 public class BvvStackSource< T > extends BvvSource
 {
@@ -122,5 +123,15 @@ public class BvvStackSource< T > extends BvvSource
 	public List< SourceAndConverter< T > > getSources()
 	{
 		return sources;
+	}
+
+	public void invalidate()
+	{
+		for ( final SourceAndConverter< T > source : sources )
+			SourceStacks.invalidate( source.getSpimSource() );
+
+		final BvvHandle bvv = getBvvHandle();
+		if ( bvv != null )
+			bvv.getViewerPanel().requestRepaint();
 	}
 }
