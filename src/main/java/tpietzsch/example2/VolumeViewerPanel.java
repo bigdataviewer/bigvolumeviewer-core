@@ -365,6 +365,8 @@ public class VolumeViewerPanel
 		screenWidth = options.getWidth();
 		screenHeight = options.getHeight();
 
+		maxAllowedStepInVoxels = options.getMaxAllowedStepInVoxels();
+
 		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
 		canvas = new GLCanvas( capsReqUser );
 		canvas.setPreferredSize( new Dimension( options.getWidth(), options.getHeight() ) );
@@ -1002,6 +1004,7 @@ public class VolumeViewerPanel
 	private double dClipFar;
 	private double screenWidth;
 	private double screenHeight;
+	private double maxAllowedStepInVoxels;
 
 	public void setCamParams( final double dCam, final double dClip )
 	{
@@ -1013,6 +1016,11 @@ public class VolumeViewerPanel
 		this.dCam = dCam;
 		this.dClipNear = dClipNear;
 		this.dClipFar = dClipFar;
+	}
+
+	public void setMaxAllowedStepInVoxels( final double maxAllowedStepInVoxels )
+	{
+		this.maxAllowedStepInVoxels = maxAllowedStepInVoxels;
 	}
 
 	private void setScreenSize(final double screenWidth, final double screenHeight)
@@ -1092,7 +1100,7 @@ public class VolumeViewerPanel
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );
-			final RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis );
+			final RepaintType rerender = renderer.draw( gl, type, sceneBuf, renderStacks, renderConverters, pv, maxRenderMillis, maxAllowedStepInVoxels );
 			repaint.request( rerender );
 			offscreen.unbind( gl, false );
 			offscreen.drawQuad( gl );

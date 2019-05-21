@@ -202,6 +202,10 @@ public class VolumeRenderer
 		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 	}
 
+	/**
+	 * @param maxAllowedStepInVoxels
+	 * 		Set to {@code 0} to base step size purely on pixel width of render target
+	 */
 	// TODO rename paint() like in MultiResolutionRenderer?
 	public RepaintType draw(
 			final GL3 gl,
@@ -210,7 +214,8 @@ public class VolumeRenderer
 			final List< Stack3D< ? > > renderStacks,
 			final List< ConverterSetup > renderConverters,
 			final Matrix4f pv,
-			final int maxRenderMillis )
+			final int maxRenderMillis,
+			final double maxAllowedStepInVoxels )
 	{
 		final long maxRenderNanoTime = System.nanoTime() + 1_000_000L * maxRenderMillis;
 		final JoglGpuContext context = JoglGpuContext.get( gl );
@@ -285,7 +290,7 @@ public class VolumeRenderer
 				}
 				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 				progvol.setViewportWidth( renderWidth );
-				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
+				progvol.setProjectionViewMatrix( pv, maxAllowedStepInVoxels * minWorldVoxelSize );
 			}
 
 			simpleStackManager.freeUnusedSimpleVolumes( context );
