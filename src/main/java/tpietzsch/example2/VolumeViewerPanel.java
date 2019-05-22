@@ -185,7 +185,12 @@ public class VolumeViewerPanel
 		void render( final GL3 gl, RenderData data );
 	}
 
-	private final RenderScene renderScene;
+	public void setRenderScene( final RenderScene renderScene )
+	{
+		this.renderScene = renderScene;
+	}
+
+	private RenderScene renderScene;
 
 	private class Repaint
 	{
@@ -1087,7 +1092,8 @@ public class VolumeViewerPanel
 				sceneBuf.bind( gl );
 				gl.glEnable( GL_DEPTH_TEST );
 				gl.glDepthFunc( GL_LESS );
-				renderScene.render( gl, renderData );
+				if ( renderScene != null )
+					renderScene.render( gl, renderData );
 				sceneBuf.unbind( gl, false );
 			}
 
