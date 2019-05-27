@@ -78,7 +78,7 @@ public class SceneryMultiVolumeShaderMip
 				"SceneryMultiVolume.frag",
 				"intersectBoundingBox", "blockTexture", "vis", "SampleTextures" );
 		final Segment fp = templateFp.instantiate();
-		fp.repeat( "vis", this.numBigVolumes);
+		fp.repeat( "vis", this.numBigVolumes + numSmallVolumes);
 
 		final SegmentTemplate templateCallTexSampleBlocked = new SegmentTemplate(
 				"ex11vol_tex_blk.fp",
@@ -270,7 +270,7 @@ public class SceneryMultiVolumeShaderMip
 		viewportWidth = width;
 	}
 
-	public void setEffectiveViewportSize( int width, int height )
+	public void setEffectiveViewportSize( float width, float height )
 	{
 		uniformViewportSize.set( width, height );
 	}
