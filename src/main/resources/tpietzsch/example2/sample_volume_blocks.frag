@@ -4,8 +4,6 @@ uniform mat4 im;
 uniform vec3 sourcemin;
 uniform vec3 sourcemax;
 
-void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar );
-
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
 	vec4 mfront = im * wfront;
@@ -18,7 +16,7 @@ uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 uniform vec3 lutSize;
 uniform vec3 lutOffset;
 
-float blockTexture( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
+float sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
 	vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;

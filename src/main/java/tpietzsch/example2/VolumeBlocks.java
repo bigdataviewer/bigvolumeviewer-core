@@ -32,7 +32,7 @@ import static tpietzsch.cache.TextureCache.ContentState.INCOMPLETE;
  * <ol>
  *     <li>{@link #init(MultiResolutionStack3D, int, Matrix4fc)}</li>
  *     <li>{@link #getFillTasks()}</li>
- *     <li>{@link #makeLut()}</li>
+ *     <li>{@link #makeLut(int)}</li>
  * </ol>
  * {@link #getLutBlockScales(int)} can be called at any point after {@code init()}.
  * <p>
@@ -156,7 +156,7 @@ public class VolumeBlocks
 	 * @return whether every required block was completely available at the desired resolution level.
 	 * I.e., if {@code false} is returned, the frame should be repainted until the remaining incomplete blocks are loaded.
 	 */
-	public boolean makeLut()
+	public boolean makeLut( final int timestamp )
 	{
 		final int[] rmin = requiredBlocks.getMin();
 		final int[] rmax = requiredBlocks.getMax();
@@ -178,11 +178,14 @@ public class VolumeBlocks
 				final Tile tile = textureCache.get( new ImageBlockKey<>( resolution, gj ) );
 				if ( tile != null )
 				{
+					tile.useAtTimestamp( timestamp );
 					lut.putTile( g0, tile, level );
 					if ( level != block.getBestLevel() || tile.state() == INCOMPLETE )
 						complete = false;
 					break;
 				}
+				else if ( level == maxLevel )
+					complete = false;
 			}
 		}
 		return complete;
@@ -314,9 +317,9 @@ public class VolumeBlocks
 				{
 					existingKeys.add( key );
 					final Tile tile = textureCache.get( key );
-					if ( tile != null || level == maxLevel || canLoadCompletely( key ) )
+					if ( tile != null || canLoadCompletely( key ) || level == maxLevel )
 					{
-						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ) ) );
+						fillTasks.add( new DefaultFillTask( key, buf -> loadTile( key, buf ), () -> containsData( key ) ) );
 						break;
 					}
 				}
@@ -331,6 +334,24 @@ public class VolumeBlocks
 	private boolean canLoadCompletely( final ImageBlockKey< ResolutionLevel3D< ? > > key )
 	{
 		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
+	}
+
+	private boolean containsData( final ImageBlockKey< ResolutionLevel3D< ? > > key )
+	{
+		/*
+		 * TODO.
+		 *
+		 * ContainsData is called to determine whether it makes sense to upload a partially completed block.
+		 *
+		 * Using TileAccess.canLoadCompletely will not upload any partial block, saving on texture upload bandwidth.
+		 *
+		 * Using TileAccess.canLoadPartially will upload any partial blocks, consuming (typically much) more texture upload bandwidth,
+		 * but potentially presenting a more complete volume to the user.
+		 *
+		 * Decisions, decisions...
+		 */
+		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), true );
+//		return tileAccess.get( key.image(), cacheSpec ).canLoadPartially( key.pos() );
 	}
 
 	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )

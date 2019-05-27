@@ -6,6 +6,7 @@ public interface Texture
 	{
 		R8( 1 ),
 		R16( 2 ),
+		RGBA8( 4 ),
 		RGBA8UI( 4 ),
 		UNKNOWN( -1 );
 

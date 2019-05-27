@@ -72,12 +72,18 @@ public class TextureCache implements Texture3D
 		{
 			return state;
 		}
+
+		public void useAtTimestamp( final int timestamp )
+		{
+//			lru = Math.max( lru, timestamp );
+			lru = timestamp;
+		}
 	}
 
 	static class TileFillTask implements FillTask
 	{
 		private final FillTask task; // wrapped task
-		private final Tile tile;
+		private Tile tile;
 
 		public TileFillTask( final FillTask task, final Tile tile )
 		{
@@ -85,10 +91,21 @@ public class TextureCache implements Texture3D
 			this.tile = tile;
 		}
 
+		public TileFillTask( final FillTask task )
+		{
+			this( task, null );
+		}
+
 		@Override
 		public ImageBlockKey< ? > getKey()
 		{
 			return task.getKey();
+		}
+
+		@Override
+		public boolean containsData()
+		{
+			return task.containsData();
 		}
 
 		@Override
@@ -100,6 +117,11 @@ public class TextureCache implements Texture3D
 		Tile getTile()
 		{
 			return tile;
+		}
+
+		void setTile( final Tile tile )
+		{
+			this.tile = tile;
 		}
 	}
 
@@ -175,47 +197,65 @@ public class TextureCache implements Texture3D
 		return tilemap.get( key );
 	}
 
-	ArrayList< TileFillTask > stage( final Collection< ? extends FillTask > tasks )
+	public int nextTimestamp()
 	{
-		final int timestamp = timestampGen.incrementAndGet();
+		return timestampGen.incrementAndGet();
+	}
 
+	static class StagedTasks
+	{
+		// tasks with possibly a tile already assigned
+		final List< TileFillTask > tasks;
+
+		// tiles that can be used for the tasks that have no tile assigned yet
+		final List< Tile > reusableTiles;
+
+		public StagedTasks( final List< TileFillTask > tasks, final List< Tile > reusableTiles )
+		{
+			this.tasks = tasks;
+			this.reusableTiles = reusableTiles;
+		}
+	}
+
+	StagedTasks stage( final Collection< ? extends FillTask > tasks )
+	{
+		final int mark = timestampGen.incrementAndGet();
+
+		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
 		final ArrayList< TileFillTask > update = new ArrayList<>();
-		final ArrayList< FillTask > create = new ArrayList<>();
 
+		int newsize = 0;
 		for ( final FillTask task : tasks )
 		{
 			final Tile tile = tilemap.get( task.getKey() );
 			if ( tile == null )
-				create.add( task );
+			{
+				tileFillTasks.add( new TileFillTask( task ) );
+				++newsize;
+			}
 			else
 			{
-				tile.lru = timestamp;
 				if ( tile.state == INCOMPLETE )
+				{
 					update.add( new TileFillTask( task, tile ) );
+					/*
+					 * Set the tile lru to mark, so that we can detect if it would be overridden in assignFillTiles
+					 */
+					tile.lru = mark;
+				}
 			}
 		}
 
 		/*
-		 *
-		 * TODO: sort 'create' list by desired loading order
+		 * TODO: sort 'tileFillTasks' list by desired loading order
 		 * TODO: similar to BlockingFetchQueues priority levels?
-		 *
 		 */
 
-		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
-		final int newsize = create.size();
-		final List< Tile > fillTiles = assignFillTiles( newsize, timestamp );
-		for ( int i = 0; i < newsize; ++i )
-		{
-			final Tile tile = fillTiles.get( i );
-			tile.lru = timestamp;
-			tileFillTasks.add( new TileFillTask( create.get( i ), tile ) );
-		}
 		tileFillTasks.addAll( update );
-
 		initializeBlockedTiles( tileFillTasks );
 
-		return tileFillTasks;
+		final List< Tile > fillTiles = assignFillTiles( newsize, mark );
+		return new StagedTasks( tileFillTasks, fillTiles );
 	}
 
 	private boolean blockedTileInitialized = false;
@@ -237,7 +277,7 @@ public class TextureCache implements Texture3D
 		tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
 			ByteUtils.setShorts( ( short ) 0, buf.getAddress(), elementsPerTile );
 			return true;
-		} ), oobTile ) );
+		} , () -> true ), oobTile ) );
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
@@ -306,7 +346,7 @@ public class TextureCache implements Texture3D
 	 * @param cacheSpec
 	 *            provides voxel type and size of an individual block.
 	 * @param maxMemoryInMB
-	 * @return size of 3D texture in multiples of {@code acheSpec.paddedBlockSize()}.
+	 * @return size of 3D texture in multiples of {@code CacheSpec.paddedBlockSize()}.
 	 */
 	public static int[] findSuitableGridSize( final CacheSpec cacheSpec, final int maxMemoryInMB )
 	{

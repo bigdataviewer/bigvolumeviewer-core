@@ -1,10 +1,14 @@
 package tpietzsch.multires;
 
+import bdv.util.volatiles.VolatileView;
 import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -25,6 +29,8 @@ public class SourceStacks
 
 	private static final Map< Source< ? >, SourceStackType > sourceStackTypes = new WeakHashMap<>();
 
+	private static final Map< Source< ? >, AtomicInteger > sourceGenerations = new WeakHashMap<>();
+
 	public static void setSourceStackType( Source< ? > source, SourceStackType stack )
 	{
 		sourceStackTypes.put( source, stack );
@@ -33,6 +39,14 @@ public class SourceStacks
 	public static SourceStackType getSourceStackType( Source< ? > source )
 	{
 		return sourceStackTypes.getOrDefault( source, UNDEFINED );
+	}
+
+	public static void invalidate( final Source< ? > source )
+	{
+		synchronized ( source )
+		{
+			sourceGenerations.computeIfAbsent( source, s -> new AtomicInteger() ).getAndIncrement();
+		}
 	}
 
 	public static < T > Stack3D< T > getStack3D( final Source< T > source, final int timepoint )
@@ -48,7 +62,14 @@ public class SourceStacks
 		}
 
 		if ( stackType == SIMPLE )
-			return new SimpleStack3DImp<>( source, timepoint );
+		{
+			final int generation;
+			synchronized ( source )
+			{
+				generation = sourceGenerations.computeIfAbsent( source, s -> new AtomicInteger() ).get();
+			}
+			return new SimpleStack3DImp<>( source, timepoint, generation );
+		}
 		else if ( stackType == MULTIRESOLUTION )
 			return new MultiResolutionStack3DImp<>( source, timepoint );
 		else
@@ -65,7 +86,11 @@ public class SourceStacks
 
 		if ( TileAccess.isSupportedType( type ) )
 		{
-			if ( source.getSource( timepoint, 0 ) instanceof AbstractCellImg )
+			RandomAccessible< ? > rai = source.getSource( timepoint, 0 );
+			if ( rai instanceof VolatileView )
+				rai = ( ( VolatileView ) rai ).getVolatileViewData().getImg();
+
+			if ( rai instanceof AbstractCellImg )
 				return MULTIRESOLUTION;
 		}
 
@@ -76,16 +101,19 @@ public class SourceStacks
 	{
 		final int timepoint;
 
-		protected final Source< T > source;
+		final Source< T > source;
 
 		private final AffineTransform3D sourceTransform;
 
-		Stack3DImp( final Source< T > source, final int timepoint )
+		private final int generation;
+
+		Stack3DImp( final Source< T > source, final int timepoint, final int generation )
 		{
 			this.timepoint = timepoint;
 			this.source = source;
 			this.sourceTransform = new AffineTransform3D();
 			source.getSourceTransform( timepoint, 0, sourceTransform );
+			this.generation = generation;
 		}
 
 		@Override
@@ -112,6 +140,8 @@ public class SourceStacks
 
 			if ( timepoint != that.timepoint )
 				return false;
+			if ( generation != that.generation )
+				return false;
 			return source.equals( that.source );
 		}
 
@@ -119,6 +149,7 @@ public class SourceStacks
 		public int hashCode()
 		{
 			int result = timepoint;
+			result = 31 * result + generation;
 			result = 31 * result + source.hashCode();
 			return result;
 		}
@@ -126,9 +157,9 @@ public class SourceStacks
 
 	static class SimpleStack3DImp< T > extends Stack3DImp< T > implements SimpleStack3D< T >
 	{
-		SimpleStack3DImp( final Source< T > source, final int timepoint )
+		SimpleStack3DImp( final Source< T > source, final int timepoint, final int generation )
 		{
-			super( source, timepoint );
+			super( source, timepoint, generation );
 		}
 
 		@Override
@@ -144,7 +175,7 @@ public class SourceStacks
 
 		MultiResolutionStack3DImp( final Source< T > source, final int timepoint )
 		{
-			super( source, timepoint );
+			super( source, timepoint, 0 /*TODO*/ );
 
 			final SourceStackResolutions ssr = SourceStacks.sourceStackResolutions.computeIfAbsent( source, s -> new SourceStackResolutions( source, timepoint ) );
 
