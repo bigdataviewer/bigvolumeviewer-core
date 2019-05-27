@@ -264,13 +264,76 @@ public class CopyGridBlock
 		return complete;
 	}
 
-	// TODO: remove
-	@Deprecated
-	public boolean canLoadCompletely(
+
+	public boolean canLoadPartially(
 			final int[] min,
 			final int[] dim,
 			final GridDataAccess< ? > srca )
 	{
-		return canLoadCompletely( min, dim, srca, false );
+		// check whether dst is completely outside of src
+		for ( int d = 2; d >= 0; --d )
+			if ( min[ d ] >= srca.imgSize( d ) || min[ d ] + dim[ d ] <= 0 )
+				return false;
+
+		// check whether dst is partially outside of src
+		for ( int d = 0; d < 3; ++d )
+		{
+			final int srcsize = srca.imgSize( d );
+			nmin[ d ] = min[ d ];
+			ndim[ d ] = dim[ d ];
+			if ( min[ d ] < 0 )
+			{
+				nmin[ d ] = 0;
+				ndim[ d ] += min[ d ];
+			}
+			final int b = min[ d ] + dim[ d ] - srcsize;
+			if ( b > 0 )
+				ndim[ d ] -= b;
+		}
+
+		return canLoadPartiallyNoOob( nmin, ndim, srca );
+	}
+
+	private boolean canLoadPartiallyNoOob(
+			final int[] min,
+			final int[] dim,
+			final GridDataAccess< ? > srca )
+	{
+		for ( int d = 0; d < 3; ++d )
+		{
+			final int cellsize = srca.cellSize( d );
+			final int g0 = min[ d ] / cellsize;
+			final int g1 = ( min[ d ] + dim[ d ] - 1 ) / cellsize;
+			gmin[ d ] = g0;
+			ls[ d ] = g1 - g0 + 1;
+		}
+
+		srca.setPosition( gmin );
+		final int gsx = ls[ 0 ];
+		final int gsy = ls[ 1 ];
+		final int gsz = ls[ 2 ];
+		for ( int gz = 0; gz < gsz; ++gz )
+		{
+			for ( int gy = 0; gy < gsy; ++gy )
+			{
+				for ( int gx = 0; gx < gsx; ++gx )
+				{
+					if ( srca.get() != null )
+						return true;
+					if ( gx < gsx - 1 )
+						srca.fwd( 0 );
+				}
+				if ( gsx > 1 )
+					srca.setPosition( gmin[ 0 ], 0 );
+				if ( gy < gsy - 1 )
+					srca.fwd( 1 );
+			}
+			if ( gsy > 1 )
+				srca.setPosition( gmin[ 1 ], 1 );
+			if ( gz < gsz - 1 )
+				srca.fwd( 2 );
+		}
+
+		return false;
 	}
 }

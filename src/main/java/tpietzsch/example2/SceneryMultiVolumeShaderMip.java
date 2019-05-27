@@ -58,10 +58,10 @@ public class SceneryMultiVolumeShaderMip
 		builder.vertex( vp );
 
 		final SegmentTemplate templateIntersectBox = new SegmentTemplate(
-				"intersectbox.fp" );
+				"intersectbox.frag" );
 		builder.fragment( templateIntersectBox.instantiate() );
 		final SegmentTemplate templateBlkVol = new SegmentTemplate(
-				"blkvol.fp",
+				"sample_volume_blocks.frag",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
 				"lutSampler", "blockScales", "lutSize", "lutOffset", "blockTexture" );
 		final SegmentTemplate templateSmlVol = new SegmentTemplate(
@@ -69,10 +69,10 @@ public class SceneryMultiVolumeShaderMip
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
 				"volume", "volTexture" );
 		final SegmentTemplate templateColConv = new SegmentTemplate(
-				"colconv.fp",
+				"convert.frag",
 				"convert", "offset", "scale" );
 		final SegmentTemplate templateMaxDepth = new SegmentTemplate(
-				useDepthTexture ? "maxdepthtexture_scenery.fp" : "maxdepthone.fp" );
+				useDepthTexture ? "maxdepthtexture_scenery.frag" : "maxdepthone.frag" );
 		builder.fragment( templateMaxDepth.instantiate() );
 		final SegmentTemplate templateFp = new SegmentTemplate(
 				"SceneryMultiVolume.frag",

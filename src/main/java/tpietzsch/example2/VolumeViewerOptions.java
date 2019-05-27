@@ -229,6 +229,12 @@ public class VolumeViewerOptions
 		return this;
 	}
 
+	public VolumeViewerOptions maxAllowedStepInVoxels( final double s )
+	{
+		values.maxAllowedStepInVoxels = s;
+		return this;
+	}
+
 	/**
 	 * Set how many source groups there are initially.
 	 *
@@ -291,6 +297,7 @@ public class VolumeViewerOptions
 		private double dCam = 2000;
 		private double dClipNear = 1000;
 		private double dClipFar = 1000;
+		private double maxAllowedStepInVoxels = 1.0;
 
 		private int numSourceGroups = 10;
 		private InputTriggerConfig inputTriggerConfig = null;
@@ -311,6 +318,7 @@ public class VolumeViewerOptions
 					dCam( dCam ).
 					dClipNear( dClipNear ).
 					dClipFar( dClipFar ).
+					maxAllowedStepInVoxels( maxAllowedStepInVoxels ).
 					numSourceGroups( numSourceGroups ).
 					inputTriggerConfig( inputTriggerConfig ).
 					shareKeyPressedEvents( keyPressedManager );
@@ -374,6 +382,11 @@ public class VolumeViewerOptions
 		public double getDClipFar()
 		{
 			return dClipFar;
+		}
+
+		public double getMaxAllowedStepInVoxels()
+		{
+			return maxAllowedStepInVoxels;
 		}
 
 		public int getNumSourceGroups()

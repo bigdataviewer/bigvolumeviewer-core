@@ -227,6 +227,12 @@ public class BvvOptions
 		return this;
 	}
 
+	public BvvOptions maxAllowedStepInVoxels( final double s )
+	{
+		values.maxAllowedStepInVoxels = s;
+		return this;
+	}
+
 	/**
 	 * Set how many source groups there are initially.
 	 *
@@ -341,6 +347,7 @@ public class BvvOptions
 		private double dCam = 2000;
 		private double dClipNear = 1000;
 		private double dClipFar = 1000;
+		private double maxAllowedStepInVoxels = 1.0;
 
 		private int numSourceGroups = 10;
 		private InputTriggerConfig inputTriggerConfig = null;
@@ -367,6 +374,7 @@ public class BvvOptions
 					.dCam( dCam )
 					.dClipFar( dClipFar )
 					.dClipNear( dClipNear )
+					.maxAllowedStepInVoxels( maxAllowedStepInVoxels )
 					.numSourceGroups( numSourceGroups )
 					.inputTriggerConfig( inputTriggerConfig )
 					.sourceTransform( sourceTransform )
@@ -388,6 +396,7 @@ public class BvvOptions
 					.dCam( dCam )
 					.dClipFar( dClipFar )
 					.dClipNear( dClipNear )
+					.maxAllowedStepInVoxels( maxAllowedStepInVoxels )
 					.numSourceGroups( numSourceGroups )
 					.inputTriggerConfig( inputTriggerConfig );
 			if ( hasPreferredSize() )

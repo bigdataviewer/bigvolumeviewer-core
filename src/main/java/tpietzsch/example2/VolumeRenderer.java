@@ -11,15 +11,24 @@ import static tpietzsch.example2.VolumeRenderer.RepaintType.DITHER;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.NONE;
+import static tpietzsch.example2.VolumeShaderSignature.PixelType.ARGB;
+import static tpietzsch.example2.VolumeShaderSignature.PixelType.UBYTE;
+import static tpietzsch.example2.VolumeShaderSignature.PixelType.USHORT;
+import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
+import static tpietzsch.multires.SourceStacks.SourceStackType.SIMPLE;
 
 import com.jogamp.opengl.GL3;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.joml.Matrix4f;
 
 import bdv.tools.brightness.ConverterSetup;
@@ -31,6 +40,7 @@ import tpietzsch.cache.PboChain;
 import tpietzsch.cache.ProcessFillTasks;
 import tpietzsch.cache.TextureCache;
 import tpietzsch.dither.DitherBuffer;
+import tpietzsch.example2.VolumeShaderSignature.VolumeSignature;
 import tpietzsch.multires.MultiResolutionStack3D;
 import tpietzsch.multires.SimpleStack3D;
 import tpietzsch.multires.Stack3D;
@@ -40,18 +50,13 @@ import tpietzsch.util.DefaultQuad;
 public class VolumeRenderer
 {
 	private final int renderWidth;
+
 	private final int renderHeight;
-
-
-
 
 	// ... RenderState ...
 //	final List< MultiResolutionStack3D< VolatileUnsignedShortType > > renderStacks;
 //	final List< ConverterSetup > renderConverters;
 //	final Matrix4f pv,
-
-
-
 
 	// ... repainting ...
 
@@ -83,6 +88,7 @@ public class VolumeRenderer
 	private final Repaint nextRequestedRepaint = new Repaint();
 
 	private int ditherStep = 0;
+
 	private int targetDitherSteps = 0;
 
 	/**
@@ -91,59 +97,26 @@ public class VolumeRenderer
 	 */
 	private MultiVolumeShaderMip progvol;
 
-
-
-
 	// ... dithering ...
 
 	private final DitherBuffer dither;
+
 	private final int numDitherSteps;
-
-
-
 
 	// ... gpu cache ...
 	// TODO This could be packaged into one class and potentially shared between renderers?
 	private final CacheSpec cacheSpec; // TODO remove
+
 	private final TextureCache textureCache;
+
 	private final PboChain pboChain;
+
 	private final ForkJoinPool forkJoinPool;
-
-
-
-	private static class NumVolumes
-	{
-		final int cached;
-		final int simple;
-
-		NumVolumes( final int cached, final int simple )
-		{
-			this.cached = cached;
-			this.simple = simple;
-		}
-
-		@Override
-		public boolean equals( final Object o )
-		{
-			if ( o instanceof NumVolumes )
-			{
-				final NumVolumes that = ( NumVolumes ) o;
-				return cached == that.cached && simple == that.simple;
-			}
-			return false;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			return 31 * cached + simple;
-		}
-	}
 
 	/**
 	 * Shader programs for rendering multiple cached and/or simple volumes.
 	 */
-	private final HashMap< NumVolumes, MultiVolumeShaderMip > progvols;
+	private final HashMap< VolumeShaderSignature, MultiVolumeShaderMip > progvols;
 
 	/**
 	 * VolumeBlocks for one volume each.
@@ -200,7 +173,7 @@ public class VolumeRenderer
 
 		volumes = new ArrayList<>();
 		progvols = new HashMap<>();
-		progvols.put( new NumVolumes( 0, 0 ), null );
+		progvols.put( new VolumeShaderSignature( Collections.emptyList() ), null );
 		quad = new DefaultQuad();
 	}
 
@@ -217,18 +190,22 @@ public class VolumeRenderer
 			volumes.add( new VolumeBlocks( textureCache ) );
 	}
 
-	private MultiVolumeShaderMip createMultiVolumeShader( final NumVolumes numVolumes )
+	private MultiVolumeShaderMip createMultiVolumeShader( final VolumeShaderSignature signature )
 	{
-		final MultiVolumeShaderMip progvol = new MultiVolumeShaderMip( numVolumes.cached, numVolumes.simple, true, 1.0 );
+		final MultiVolumeShaderMip progvol = new MultiVolumeShaderMip( signature, true, 1.0 );
 		progvol.setTextureCache( textureCache );
 		return progvol;
 	}
 
 	public void init( final GL3 gl )
 	{
-		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 2 );
+		gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 	}
 
+	/**
+	 * @param maxAllowedStepInVoxels
+	 * 		Set to {@code 0} to base step size purely on pixel width of render target
+	 */
 	// TODO rename paint() like in MultiResolutionRenderer?
 	public RepaintType draw(
 			final GL3 gl,
@@ -237,7 +214,8 @@ public class VolumeRenderer
 			final List< Stack3D< ? > > renderStacks,
 			final List< ConverterSetup > renderConverters,
 			final Matrix4f pv,
-			final int maxRenderMillis )
+			final int maxRenderMillis,
+			final double maxAllowedStepInVoxels )
 	{
 		final long maxRenderNanoTime = System.nanoTime() + 1_000_000L * maxRenderMillis;
 		final JoglGpuContext context = JoglGpuContext.get( gl );
@@ -258,25 +236,29 @@ public class VolumeRenderer
 
 		if ( type == FULL || type == LOAD )
 		{
+			final List< VolumeSignature > volumeSignatures = new ArrayList<>();
 			final List< MultiResolutionStack3D< ? > > multiResStacks = new ArrayList<>();
-			final List< ConverterSetup > multiResConverters = new ArrayList<>();
-			final List< SimpleStack3D< ? > > simpleStacks = new ArrayList<>();
-			final List< ConverterSetup > simpleConverters = new ArrayList<>();
 			for ( int i = 0; i < renderStacks.size(); i++ )
 			{
 				final Stack3D< ? > stack = renderStacks.get( i );
 				if ( stack instanceof MultiResolutionStack3D )
 				{
-					final MultiResolutionStack3D< ? > mrstack = ( MultiResolutionStack3D< ? > ) stack;
-					if ( !TileAccess.isSupportedType( mrstack.getType() ) )
+					if ( !TileAccess.isSupportedType( stack.getType() ) )
 						throw new IllegalArgumentException();
-					multiResStacks.add( mrstack );
-					multiResConverters.add( renderConverters.get( i ) );
+					multiResStacks.add( ( MultiResolutionStack3D< ? > ) stack );
+					volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT ) );
 				}
 				else if ( stack instanceof SimpleStack3D )
 				{
-					simpleStacks.add( ( SimpleStack3D< ? > ) stack );
-					simpleConverters.add( renderConverters.get( i ) );
+					final Object pixelType = stack.getType();
+					if ( pixelType instanceof UnsignedShortType )
+						volumeSignatures.add( new VolumeSignature( SIMPLE, USHORT ) );
+					else if ( pixelType instanceof UnsignedByteType )
+						volumeSignatures.add( new VolumeSignature( SIMPLE, UBYTE ) );
+					else if ( pixelType instanceof ARGBType )
+						volumeSignatures.add( new VolumeSignature( SIMPLE, ARGB ) );
+					else
+						throw new IllegalArgumentException();
 				}
 				else
 					throw new IllegalArgumentException();
@@ -285,28 +267,33 @@ public class VolumeRenderer
 			updateBlocks( context, multiResStacks, pv );
 
 			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
-			progvol = progvols.computeIfAbsent( new NumVolumes( multiResStacks.size(), simpleStacks.size() ), this::createMultiVolumeShader );
+			progvol = progvols.computeIfAbsent( new VolumeShaderSignature( volumeSignatures ), this::createMultiVolumeShader );
 			if ( progvol != null )
 			{
-				for ( int i = 0; i < multiResStacks.size(); i++ )
+				int mri = 0;
+				for ( int i = 0; i < renderStacks.size(); i++ )
 				{
-					progvol.setConverter( i, multiResConverters.get( i ) );
-					final VolumeBlocks volume = volumes.get( i );
-					progvol.setVolume( i, volume );
-					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
-				}
-				for ( int i = 0; i < simpleStacks.size(); i++ )
-				{
-					final int j = i + multiResStacks.size();
-					progvol.setConverter( j, simpleConverters.get( i ) );
-					final SimpleVolume volume = simpleStackManager.getSimpleVolume( context, simpleStacks.get( i ) );
-					progvol.setVolume( j, volume );
-					minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
+					progvol.setConverter( i, renderConverters.get( i ) );
+					if ( volumeSignatures.get( i ).getSourceStackType() == MULTIRESOLUTION )
+					{
+						final VolumeBlocks volume = volumes.get( mri++ );
+						progvol.setVolume( i, volume );
+						minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
+					}
+					else
+					{
+						final SimpleStack3D< ? > simpleStack3D = ( SimpleStack3D< ? > ) renderStacks.get( i );
+						final SimpleVolume volume = simpleStackManager.getSimpleVolume( context, simpleStack3D );
+						progvol.setVolume( i, volume );
+						minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getVoxelSizeInWorldCoordinates() );
+					}
 				}
 				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
 				progvol.setViewportWidth( renderWidth );
-				progvol.setProjectionViewMatrix( pv, minWorldVoxelSize );
+				progvol.setProjectionViewMatrix( pv, maxAllowedStepInVoxels * minWorldVoxelSize );
 			}
+
+			simpleStackManager.freeUnusedSimpleVolumes( context );
 		}
 
 		if ( progvol != null )
@@ -429,10 +416,11 @@ public class VolumeRenderer
 		}
 
 		boolean needsRepaint = false;
+		final int timestamp = textureCache.nextTimestamp();
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
-			final boolean complete = volume.makeLut();
+			final boolean complete = volume.makeLut( timestamp );
 			if ( !complete )
 				needsRepaint = true;
 			volume.getLookupTexture().upload( context );

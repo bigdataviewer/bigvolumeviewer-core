@@ -2,11 +2,11 @@ package tpietzsch.cache;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.cache.PboChain.PboUploadBuffer;
+import tpietzsch.cache.TextureCache.StagedTasks;
 import tpietzsch.cache.TextureCache.TileFillTask;
 
 public class ProcessFillTasks
@@ -17,15 +17,19 @@ public class ProcessFillTasks
 			final GpuContext context,
 			final Collection< ? extends FillTask > tasks ) throws InterruptedException
 	{
-		final List< TileFillTask > tileFillTasks = textureCache.stage( tasks );
-		pboChain.init( tileFillTasks );
-		final int numTasks = tileFillTasks.size();
+		final StagedTasks stagedTasks = textureCache.stage( tasks );
+		pboChain.init( stagedTasks );
+		final int numTasks = stagedTasks.tasks.size();
 		for ( int i = 0; i < numTasks; i++ )
 		{
 			pboChain.tryActivate( context );
-			final PboUploadBuffer buf = pboChain.take();
-			buf.task.fill( buf );
-			pboChain.commit( buf );
+			final TileFillTask task = pboChain.nextTask();
+			if ( task.containsData() )
+			{
+				final PboUploadBuffer buf = pboChain.take( task );
+				task.fill( buf );
+				pboChain.commit( buf );
+			}
 			pboChain.tryUpload( context );
 		}
 		pboChain.flush();
@@ -39,12 +43,12 @@ public class ProcessFillTasks
 			final ForkJoinPool forkJoinPool,
 			final Collection< ? extends FillTask > tasks ) throws InterruptedException
 	{
-		final List< TileFillTask > tileFillTasks = textureCache.stage( tasks );
-		final int numTasks = tileFillTasks.size();
+		final StagedTasks stagedTasks = textureCache.stage( tasks );
+		final int numTasks = stagedTasks.tasks.size();
 		if ( numTasks == 0 )
 			return;
 
-		pboChain.init( tileFillTasks );
+		pboChain.init( stagedTasks );
 		final int restoreId = context.bindTexture( textureCache );
 		forkJoinPool.execute( new RecursiveAction()
 		{
@@ -61,9 +65,13 @@ public class ProcessFillTasks
 						{
 							try
 							{
-								final PboUploadBuffer buf = pboChain.take();
-								buf.task.fill( buf );
-								pboChain.commit( buf );
+								final TileFillTask task = pboChain.nextTask();
+								if ( task.containsData() )
+								{
+									final PboUploadBuffer buf = pboChain.take( task );
+									task.fill( buf );
+									pboChain.commit( buf );
+								}
 							}
 							catch ( final InterruptedException e )
 							{
