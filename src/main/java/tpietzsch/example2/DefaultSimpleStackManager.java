@@ -33,30 +33,31 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 	public SimpleVolume getSimpleVolume( final GpuContext context, final SimpleStack3D< ? > stack )
 	{
 		if ( stack instanceof BufferedSimpleStack3D ) {
-			final Vector3f sourceMin = new Vector3f();
-			final Vector3f sourceMax = new Vector3f();
+		    final int dim[] = ((BufferedSimpleStack3D) stack).getDimensions();
+			final Vector3f sourceMin = new Vector3f(0.0f, 0.0f, 0.0f);
+			final Vector3f sourceMax = new Vector3f(dim[0], dim[1], dim[2]);
 
 			final Texture3D texture;
 			if(stack.getType() instanceof UnsignedByteType) {
-			    final Texture3D existing = texturesU8.get( ((BufferedSimpleStack3D) stack).getBuffer() );
+			    final Texture3D existing = texturesU8.get( stack );
 				if(existing == null) {
 					texture = new VolumeTextureU8();
 					((VolumeTextureU8) texture).init(((BufferedSimpleStack3D) stack).getDimensions());
 					((VolumeTextureU8) texture).upload(context, ((BufferedSimpleStack3D) stack).getBuffer());
 
-					texturesU8.put(((BufferedSimpleStack3D) stack).getBuffer(), (VolumeTextureU8) texture);
+					texturesU8.put(stack, (VolumeTextureU8) texture);
 				} else {
 					texture = existing;
 				}
 			}
 			else if ( stack.getType() instanceof UnsignedShortType ) {
-				final Texture3D existing = texturesU16.get( ((BufferedSimpleStack3D) stack).getBuffer() );
+				final Texture3D existing = texturesU16.get( stack );
 				if(existing == null) {
 					texture = new VolumeTextureU16();
 					((VolumeTextureU16) texture).init(((BufferedSimpleStack3D) stack).getDimensions());
 					((VolumeTextureU16) texture).upload(context, ((BufferedSimpleStack3D) stack).getBuffer());
 
-					texturesU16.put(((BufferedSimpleStack3D) stack).getBuffer(), (VolumeTextureU16) texture);
+					texturesU16.put(stack, (VolumeTextureU16) texture);
 				} else {
 					texture = existing;
 				}
@@ -87,6 +88,28 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		}
 		else
 			throw new IllegalArgumentException();
+	}
+
+	@Override
+	public boolean upload( final GpuContext context, SimpleStack3D stack ) {
+	    if(!(stack instanceof BufferedSimpleStack3D)) {
+	    	return false;
+		}
+
+		final VolumeTextureU8 tex8 = texturesU8.get(stack);
+	    final VolumeTextureU16 tex16 = texturesU16.get(stack);
+
+		if(tex8 != null) {
+			tex8.upload( context, ((BufferedSimpleStack3D) stack).getBuffer());
+			return true;
+		}
+
+		if(tex16 != null) {
+			tex16.upload( context, ((BufferedSimpleStack3D) stack).getBuffer());
+			return true;
+		}
+
+		return false;
 	}
 
 	@Override

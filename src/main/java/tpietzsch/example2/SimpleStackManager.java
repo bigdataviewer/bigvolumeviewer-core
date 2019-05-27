@@ -18,4 +18,6 @@ public interface SimpleStackManager
 	 * Free allocated resources associated to all stacks.
 	 */
 	void freeSimpleVolumes( GpuContext context );
+
+	boolean upload( GpuContext context, SimpleStack3D stack );
 }
