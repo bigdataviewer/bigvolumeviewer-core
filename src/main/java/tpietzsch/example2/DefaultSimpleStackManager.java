@@ -19,9 +19,9 @@ import tpietzsch.multires.*;
 
 public class DefaultSimpleStackManager implements SimpleStackManager
 {
-	private final HashMap< Object, VolumeTextureU16 > texturesU16;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
 
-	private final HashMap< Object, VolumeTextureU8 > texturesU8;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
 
 	public DefaultSimpleStackManager()
 	{
@@ -71,7 +71,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		else if ( stack.getType() instanceof UnsignedShortType )
 		{
 			final RandomAccessibleInterval< ? > image = stack.getImage();
-			final VolumeTextureU16 texture = texturesU16.computeIfAbsent( image, rai -> uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) rai ) );
+			final VolumeTextureU16 texture = texturesU16.computeIfAbsent( stack, rai -> uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) rai ) );
 			final Vector3f sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 			final Vector3f sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 
@@ -80,7 +80,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		else if ( stack.getType() instanceof UnsignedByteType )
 		{
 			final RandomAccessibleInterval< ? > image = stack.getImage();
-			final VolumeTextureU8 texture = texturesU8.computeIfAbsent( image, rai -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) rai ) );
+			final VolumeTextureU8 texture = texturesU8.computeIfAbsent( stack, rai -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) rai ) );
 			final Vector3f sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 			final Vector3f sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 
