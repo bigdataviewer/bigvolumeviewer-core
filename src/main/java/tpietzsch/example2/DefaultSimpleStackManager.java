@@ -5,7 +5,6 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.HashMap;
-
 import java.util.Iterator;
 import java.util.Map;
 import net.imglib2.Cursor;
@@ -15,21 +14,20 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-
 import org.joml.Vector3f;
-
-import tpietzsch.multires.*;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
+import tpietzsch.multires.BufferedSimpleStack3D;
 import tpietzsch.multires.SimpleStack3D;
 
 public class DefaultSimpleStackManager implements SimpleStackManager
 {
-	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
 	private final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
 	private final HashMap< SimpleStack3D< ? >, VolumeTextureRGBA8 > texturesRGBA8;
 
 	private final HashMap< Texture3D, Integer > timestamps;
+
 	private int currentTimestamp;
 
 	public DefaultSimpleStackManager()
@@ -51,37 +49,47 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		final Vector3f sourceMax;
 		final Vector3f sourceMin;
 
-		if ( stack instanceof BufferedSimpleStack3D ) {
-		    final int dim[] = ((BufferedSimpleStack3D) stack).getDimensions();
-			sourceMin = new Vector3f(0.0f, 0.0f, 0.0f);
-			sourceMax = new Vector3f(dim[0], dim[1], dim[2]);
+		if ( stack instanceof BufferedSimpleStack3D )
+		{
+			final int dim[] = ( ( BufferedSimpleStack3D ) stack ).getDimensions();
+			sourceMin = new Vector3f( 0.0f, 0.0f, 0.0f );
+			sourceMax = new Vector3f( dim[ 0 ], dim[ 1 ], dim[ 2 ] );
 
-			if(stack.getType() instanceof UnsignedByteType) {
-			    final Texture3D existing = texturesU8.get( stack );
-				if(existing == null) {
+			if ( stack.getType() instanceof UnsignedByteType )
+			{
+				final Texture3D existing = texturesU8.get( stack );
+				if ( existing == null )
+				{
 					texture = new VolumeTextureU8();
-					((VolumeTextureU8) texture).init(((BufferedSimpleStack3D) stack).getDimensions());
-					((VolumeTextureU8) texture).upload(context, ((BufferedSimpleStack3D) stack).getBuffer());
+					( ( VolumeTextureU8 ) texture ).init( ( ( BufferedSimpleStack3D ) stack ).getDimensions() );
+					( ( VolumeTextureU8 ) texture ).upload( context, ( ( BufferedSimpleStack3D ) stack ).getBuffer() );
 
-					texturesU8.put(stack, (VolumeTextureU8) texture);
-				} else {
+					texturesU8.put( stack, ( VolumeTextureU8 ) texture );
+				}
+				else
+				{
 					texture = existing;
 				}
 			}
-			else if ( stack.getType() instanceof UnsignedShortType ) {
+			else if ( stack.getType() instanceof UnsignedShortType )
+			{
 				final Texture3D existing = texturesU16.get( stack );
-				if(existing == null) {
+				if ( existing == null )
+				{
 					texture = new VolumeTextureU16();
-					((VolumeTextureU16) texture).init(((BufferedSimpleStack3D) stack).getDimensions());
-					((VolumeTextureU16) texture).upload(context, ((BufferedSimpleStack3D) stack).getBuffer());
+					( ( VolumeTextureU16 ) texture ).init( ( ( BufferedSimpleStack3D ) stack ).getDimensions() );
+					( ( VolumeTextureU16 ) texture ).upload( context, ( ( BufferedSimpleStack3D ) stack ).getBuffer() );
 
-					texturesU16.put(stack, (VolumeTextureU16) texture);
-				} else {
+					texturesU16.put( stack, ( VolumeTextureU16 ) texture );
+				}
+				else
+				{
 					texture = existing;
 				}
 			}
-			else {
-				throw new IllegalArgumentException("Textures of type " + stack.getType() + " are not supported.");
+			else
+			{
+				throw new IllegalArgumentException( "Textures of type " + stack.getType() + " are not supported." );
 			}
 
 			return new SimpleVolume( texture, stack.getSourceTransform(), sourceMin, sourceMax );
@@ -113,23 +121,58 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		return new SimpleVolume( texture, stack.getSourceTransform(), sourceMin, sourceMax );
 	}
 
-	@Override
-	public boolean upload( final GpuContext context, SimpleStack3D stack ) {
-	    if(!(stack instanceof BufferedSimpleStack3D)) {
-	    	return false;
+	/**
+	 * Uplaods the given stack with the given GPU context.
+	 * @param context A GpuContext to use for uploading.
+	 * @param stack The stack to upload.
+	 * @return True, if data was uploaded. False, if not.
+	 */
+	public boolean upload( final GpuContext context, SimpleStack3D stack )
+	{
+		final VolumeTextureU8 tex8 = texturesU8.get( stack );
+		final VolumeTextureU16 tex16 = texturesU16.get( stack );
+		final VolumeTextureRGBA8 texARGB = texturesRGBA8.get( stack );
+
+		if ( tex8 != null )
+		{
+			if ( stack instanceof BufferedSimpleStack3D )
+			{
+				tex8.upload( context, ( ( BufferedSimpleStack3D ) stack ).getBuffer() );
+				return true;
+			}
+			else
+			{
+				uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) stack.getImage() );
+				return true;
+			}
 		}
 
-		final VolumeTextureU8 tex8 = texturesU8.get(stack);
-	    final VolumeTextureU16 tex16 = texturesU16.get(stack);
-
-		if(tex8 != null) {
-			tex8.upload( context, ((BufferedSimpleStack3D) stack).getBuffer());
-			return true;
+		if ( tex16 != null )
+		{
+			if ( stack instanceof BufferedSimpleStack3D )
+			{
+				tex16.upload( context, ( ( BufferedSimpleStack3D ) stack ).getBuffer() );
+				return true;
+			}
+			else
+			{
+				uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) stack.getImage() );
+				return true;
+			}
 		}
 
-		if(tex16 != null) {
-			tex16.upload( context, ((BufferedSimpleStack3D) stack).getBuffer());
-			return true;
+		if ( texARGB != null )
+		{
+			if ( stack instanceof BufferedSimpleStack3D )
+			{
+				tex8.upload( context, ( ( BufferedSimpleStack3D ) stack ).getBuffer() );
+				return true;
+			}
+			else
+			{
+				uploadToTextureRGBA8( context, ( RandomAccessibleInterval< ARGBType > ) stack.getImage() );
+				return true;
+			}
 		}
 
 		return false;
@@ -137,7 +180,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 	/**
 	 * Free allocated resources associated to all stacks that have not been
-	 * {@link #getSimpleVolume(GpuContext,SimpleStack3D) requested} since the
+	 * {@link #getSimpleVolume(GpuContext, SimpleStack3D) requested} since the
 	 * last call to {@link #freeUnusedSimpleVolumes(GpuContext)}.
 	 */
 	public synchronized void freeUnusedSimpleVolumes( final GpuContext context )
@@ -182,7 +225,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		return texture;
 	}
 
-	private static void copyToBufferU16( final RandomAccessibleInterval< UnsignedShortType  > rai, final ByteBuffer buffer )
+	private static void copyToBufferU16( final RandomAccessibleInterval< UnsignedShortType > rai, final ByteBuffer buffer )
 	{
 		// TODO handle specific RAI types more efficiently
 		// TODO multithreading
@@ -206,7 +249,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		return texture;
 	}
 
-	private static void copyToBufferU8( final RandomAccessibleInterval< UnsignedByteType  > rai, final ByteBuffer buffer )
+	private static void copyToBufferU8( final RandomAccessibleInterval< UnsignedByteType > rai, final ByteBuffer buffer )
 	{
 		// TODO handle specific RAI types more efficiently
 		// TODO multithreading

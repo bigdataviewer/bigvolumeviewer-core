@@ -1,56 +1,66 @@
 package tpietzsch.multires;
 
-import net.imglib2.*;
-import net.imglib2.realtransform.*;
+import java.nio.ByteBuffer;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.realtransform.AffineTransform3D;
+import tpietzsch.backend.GpuContext;
 
-import java.nio.*;
+public class BufferedSimpleStack3D implements SimpleStack3D
+{
+	final ByteBuffer backingBuffer;
 
-public class BufferedSimpleStack3D implements SimpleStack3D {
-    final ByteBuffer backingBuffer;
-    final Object type;
-    final int[] dimensions;
+	final Object type;
 
-    public BufferedSimpleStack3D(ByteBuffer buffer, Object type, int[] dimensions) {
-        this.backingBuffer = buffer;
-        this.type = type;
-        this.dimensions = dimensions;
-    }
+	final int[] dimensions;
 
-    /**
-     * Get the image data.
-     *
-     * @return the image.
-     */
-    @Override
-    public RandomAccessibleInterval getImage() {
-        return null;
-    }
+	public BufferedSimpleStack3D( ByteBuffer buffer, Object type, int[] dimensions )
+	{
+		this.backingBuffer = buffer;
+		this.type = type;
+		this.dimensions = dimensions;
+	}
 
-    public ByteBuffer getBuffer() {
-        return backingBuffer.duplicate();
-    }
+	/**
+	 * Get the image data.
+	 *
+	 * @return the image.
+	 */
+	@Override
+	public RandomAccessibleInterval getImage()
+	{
+		return null;
+	}
 
-    /**
-     * Get the transformation from image coordinates to world coordinates.
-     *
-     * @return transformation from image coordinates to world coordinates.
-     */
-    @Override
-    public AffineTransform3D getSourceTransform() {
-        return null;
-    }
+	public ByteBuffer getBuffer()
+	{
+		return backingBuffer.duplicate();
+	}
 
-    @Override
-    public int numDimensions() {
-        return 3;
-    }
+	/**
+	 * Get the transformation from image coordinates to world coordinates.
+	 *
+	 * @return transformation from image coordinates to world coordinates.
+	 */
+	@Override
+	public AffineTransform3D getSourceTransform()
+	{
+		return null;
+	}
 
-    @Override
-    public Object getType() {
-        return type;
-    }
+	@Override
+	public int numDimensions()
+	{
+		return 3;
+	}
 
-    public int[] getDimensions() {
-        return dimensions;
-    }
+	@Override
+	public Object getType()
+	{
+		return type;
+	}
+
+	public int[] getDimensions()
+	{
+		return dimensions;
+	}
 }
