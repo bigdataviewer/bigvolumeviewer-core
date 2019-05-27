@@ -222,6 +222,7 @@ public class TextureCache implements Texture3D
 		final int mark = timestampGen.incrementAndGet();
 
 		final ArrayList< TileFillTask > tileFillTasks = new ArrayList<>( tasks.size() );
+		initializeBlockedTiles( tileFillTasks );
 		final ArrayList< TileFillTask > update = new ArrayList<>();
 
 		int newsize = 0;
@@ -252,7 +253,6 @@ public class TextureCache implements Texture3D
 		 */
 
 		tileFillTasks.addAll( update );
-		initializeBlockedTiles( tileFillTasks );
 
 		final List< Tile > fillTiles = assignFillTiles( newsize, mark );
 		return new StagedTasks( tileFillTasks, fillTiles );
