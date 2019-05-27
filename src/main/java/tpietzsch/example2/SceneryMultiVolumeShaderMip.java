@@ -397,7 +397,7 @@ public class SceneryMultiVolumeShaderMip
 		{
 			uniformVolumeSampler.set( volume.getVolumeTexture() );
 			uniformIm.set( volume.getIms() );
-			uniformSourcemin.set( volume.getSourceMin() );
+//			uniformSourcemin.set( volume.getSourceMin() );
 			uniformSourcemax.set( volume.getSourceMax() );
 		}
 	}
