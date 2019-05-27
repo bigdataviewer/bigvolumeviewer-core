@@ -253,7 +253,7 @@ public class PboChain
 	}
 
 	/**
-	 * @return ready for {@link #init(List)}?
+	 * @return ready for {@link #init(StagedTasks)}?
 	 */
 	public boolean ready()
 	{
