@@ -5,10 +5,8 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.HashMap;
-
 import java.util.Iterator;
 import java.util.Map;
-import java.util.WeakHashMap;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
@@ -16,9 +14,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-
 import org.joml.Vector3f;
-
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture3D;
 import tpietzsch.multires.SimpleStack3D;
@@ -125,7 +121,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		return texture;
 	}
 
-	private static void copyToBufferU16( final RandomAccessibleInterval< UnsignedShortType  > rai, final ByteBuffer buffer )
+	private static void copyToBufferU16( final RandomAccessibleInterval< UnsignedShortType > rai, final ByteBuffer buffer )
 	{
 		// TODO handle specific RAI types more efficiently
 		// TODO multithreading
@@ -149,7 +145,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		return texture;
 	}
 
-	private static void copyToBufferU8( final RandomAccessibleInterval< UnsignedByteType  > rai, final ByteBuffer buffer )
+	private static void copyToBufferU8( final RandomAccessibleInterval< UnsignedByteType > rai, final ByteBuffer buffer )
 	{
 		// TODO handle specific RAI types more efficiently
 		// TODO multithreading
