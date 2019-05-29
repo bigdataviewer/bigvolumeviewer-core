@@ -44,32 +44,19 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		final Object type = stack.getType();
 
 		final Texture3D texture;
-		final Vector3f sourceMax;
-		final Vector3f sourceMin;
+		final Vector3f sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
+		final Vector3f sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 
 		if ( type instanceof UnsignedShortType )
-		{
 			texture = texturesU16.computeIfAbsent( stack, s -> uploadToTextureU16( context, ( RandomAccessibleInterval< UnsignedShortType > ) image ) );
-			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
-			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
-		}
 		else if ( type instanceof UnsignedByteType )
-		{
 			texture = texturesU8.computeIfAbsent( stack, s -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) image ) );
-			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
-			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
-		}
 		else if ( type instanceof ARGBType )
-		{
 			texture = texturesRGBA8.computeIfAbsent( stack, s -> uploadToTextureRGBA8( context, ( RandomAccessibleInterval< ARGBType > ) image ) );
-			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
-			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
-		}
 		else
 			throw new IllegalArgumentException();
 
 		timestamps.put( texture, currentTimestamp );
-
 		return new SimpleVolume( texture, stack.getSourceTransform(), sourceMin, sourceMax );
 	}
 
