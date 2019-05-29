@@ -21,12 +21,12 @@ import tpietzsch.multires.SimpleStack3D;
 
 public class DefaultSimpleStackManager implements SimpleStackManager
 {
-	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
-	private final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
-	private final HashMap< SimpleStack3D< ? >, VolumeTextureRGBA8 > texturesRGBA8;
+	protected final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
+	protected final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
+	protected final HashMap< SimpleStack3D< ? >, VolumeTextureRGBA8 > texturesRGBA8;
 
-	private final HashMap< Texture3D, Integer > timestamps;
-	private int currentTimestamp;
+	protected final HashMap< Texture3D, Integer > timestamps;
+	protected int currentTimestamp;
 
 	public DefaultSimpleStackManager()
 	{
