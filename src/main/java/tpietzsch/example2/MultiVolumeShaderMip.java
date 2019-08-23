@@ -59,9 +59,14 @@ public class MultiVolumeShaderMip
 	private String sceneDepthTextureName;
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
+								 Class<?> shaderBaseClass,
 								 final String vertexShaderFileName, final String fragmentShaderFileName,
 								 final String depthFragmentShaderFileName, final String depthTextureName )
 	{
+		if(shaderBaseClass == null) {
+			shaderBaseClass = MultiVolumeShaderMip.class;
+		}
+
 		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
@@ -70,7 +75,7 @@ public class MultiVolumeShaderMip
 		final int numVolumes = signature.getVolumeSignatures().size();
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-		final Segment vp = new SegmentTemplate( vertexShaderFileName ).instantiate();
+		final Segment vp = new SegmentTemplate( shaderBaseClass, vertexShaderFileName ).instantiate();
 		builder.vertex( vp );
 
 		final SegmentTemplate templateVolBlocks = new SegmentTemplate(
@@ -91,10 +96,10 @@ public class MultiVolumeShaderMip
 		final SegmentTemplate templateConvertRGBA = new SegmentTemplate(
 				"convert_rgba.frag",
 				"convert", "offset", "scale" );
-		final SegmentTemplate templateMaxDepth = new SegmentTemplate(
+		final SegmentTemplate templateMaxDepth = new SegmentTemplate( shaderBaseClass,
 				useDepthTexture ? depthFragmentShaderFileName : "maxdepthone.frag" );
 		builder.fragment( templateMaxDepth.instantiate() );
-		final SegmentTemplate templateMainFp = new SegmentTemplate(
+		final SegmentTemplate templateMainFp = new SegmentTemplate( shaderBaseClass,
 				fragmentShaderFileName,
 				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" );
 		final Segment fp = templateMainFp.instantiate();
@@ -199,7 +204,7 @@ public class MultiVolumeShaderMip
 	}
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade ) {
-		this(signature, useDepthTexture, degrade, "multi_volume.vert", "multi_volume.frag", "maxdepthtexture.frag", "sceneDepth");
+		this(signature, useDepthTexture, degrade, null, "multi_volume.vert", "multi_volume.frag", "maxdepthtexture.frag", "sceneDepth");
 	}
 
 	public void setTextureCache( TextureCache textureCache )
