@@ -253,7 +253,7 @@ public class PboChain
 	}
 
 	/**
-	 * @return ready for {@link #init(List)}?
+	 * @return ready for {@link #init(StagedTasks)}?
 	 */
 	public boolean ready()
 	{
@@ -598,13 +598,21 @@ public class PboChain
 
 				final int remainingBlocks = buffers.size() - bi;
 				int nb = 1;
-				for ( ; nb < remainingBlocks; ++nb )
+				if ( x != 0 || y != 0 || z != 0 )
+				/*
+				 * Workaround for weird bug, where texSubImage3D starting at 0,0,0 is mangled.
+				 * The above if() makes sure, that this block (the oob block) is uploaded in an individual call.
+				 * That still doesn't workcorrectly, but at least no "real" block is mangled in the process...
+				 */
 				{
-					final Tile tile = buffers.get( bi + nb ).task.getTile();
-					if ( tile.z == prevTile.z + 1 && tile.y == prevTile.y && tile.x == prevTile.x )
-						prevTile = tile;
-					else
-						break;
+					for ( ; nb < remainingBlocks; ++nb )
+					{
+						final Tile tile = buffers.get( bi + nb ).task.getTile();
+						if ( tile.z == prevTile.z + 1 && tile.y == prevTile.y && tile.x == prevTile.x )
+							prevTile = tile;
+						else
+							break;
+					}
 				}
 
 				// upload nb blocks
