@@ -59,14 +59,10 @@ public class MultiVolumeShaderMip
 	private String sceneDepthTextureName;
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
-								 Class<?> shaderBaseClass,
-								 final String vertexShaderFileName, final String fragmentShaderFileName,
-								 final String depthFragmentShaderFileName, final String depthTextureName )
+			final Class< ? > shaderBaseClass,
+			final String vertexShaderFileName, final String fragmentShaderFileName,
+			final String depthFragmentShaderFileName, final String depthTextureName )
 	{
-		if(shaderBaseClass == null) {
-			shaderBaseClass = MultiVolumeShaderMip.class;
-		}
-
 		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
@@ -203,8 +199,9 @@ public class MultiVolumeShaderMip
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
-	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade ) {
-		this(signature, useDepthTexture, degrade, null, "multi_volume.vert", "multi_volume.frag", "maxdepthtexture.frag", "sceneDepth");
+	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
+	{
+		this( signature, useDepthTexture, degrade, MultiVolumeShaderMip.class, "multi_volume.vert", "multi_volume.frag", "maxdepthtexture.frag", "sceneDepth" );
 	}
 
 	public void setTextureCache( TextureCache textureCache )
