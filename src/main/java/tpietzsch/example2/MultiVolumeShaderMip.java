@@ -56,17 +56,22 @@ public class MultiVolumeShaderMip
 	private final Uniform2f uniformDsp;
 
 	private int viewportWidth;
+	private String sceneDepthTextureName;
 
-	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
+	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
+			final Class< ? > shaderBaseClass,
+			final String vertexShaderFileName, final String fragmentShaderFileName,
+			final String depthFragmentShaderFileName, final String depthTextureName )
 	{
 		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
 		this.degrade = degrade;
+		this.sceneDepthTextureName = depthTextureName;
 
 		final int numVolumes = signature.getVolumeSignatures().size();
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-		final Segment vp = new SegmentTemplate("multi_volume.vert" ).instantiate();
+		final Segment vp = new SegmentTemplate( shaderBaseClass, vertexShaderFileName ).instantiate();
 		builder.vertex( vp );
 
 		final SegmentTemplate templateVolBlocks = new SegmentTemplate(
@@ -87,11 +92,11 @@ public class MultiVolumeShaderMip
 		final SegmentTemplate templateConvertRGBA = new SegmentTemplate(
 				"convert_rgba.frag",
 				"convert", "offset", "scale" );
-		final SegmentTemplate templateMaxDepth = new SegmentTemplate(
-				useDepthTexture ? "maxdepthtexture.frag" : "maxdepthone.frag" );
+		final SegmentTemplate templateMaxDepth = new SegmentTemplate( shaderBaseClass,
+				useDepthTexture ? depthFragmentShaderFileName : "maxdepthone.frag" );
 		builder.fragment( templateMaxDepth.instantiate() );
-		final SegmentTemplate templateMainFp = new SegmentTemplate(
-				"multi_volume.frag",
+		final SegmentTemplate templateMainFp = new SegmentTemplate( shaderBaseClass,
+				fragmentShaderFileName,
 				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" );
 		final Segment fp = templateMainFp.instantiate();
 		fp.repeat( "vis", numVolumes );
@@ -194,6 +199,11 @@ public class MultiVolumeShaderMip
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
+	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
+	{
+		this( signature, useDepthTexture, degrade, MultiVolumeShaderMip.class, "multi_volume.vert", "multi_volume.frag", "maxdepthtexture.frag", "sceneDepth" );
+	}
+
 	public void setTextureCache( TextureCache textureCache )
 	{
 		CacheSpec spec = textureCache.spec();
@@ -213,7 +223,12 @@ public class MultiVolumeShaderMip
 		if ( !useDepthTexture )
 			throw new UnsupportedOperationException();
 
-		prog.getUniformSampler( "sceneDepth" ).set( depth );
+		prog.getUniformSampler( sceneDepthTextureName ).set( depth );
+	}
+
+	public void setDepthTextureName( String name )
+	{
+		sceneDepthTextureName = name;
 	}
 
 	public void setConverter( int index, ConverterSetup converter )
