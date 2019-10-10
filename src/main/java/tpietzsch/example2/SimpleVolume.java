@@ -1,6 +1,5 @@
 package tpietzsch.example2;
 
-import edu.mines.jtk.sgl.Vector3;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
