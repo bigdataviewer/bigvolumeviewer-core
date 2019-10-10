@@ -72,6 +72,7 @@
 
 		<bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-15</bigdataviewer-vistools.version>
+		<ST4.version>4.0.8</ST4.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
@@ -157,7 +158,7 @@
 		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>ST4</artifactId>
-			<version>4.0.8</version>
+			<version>${ST4.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
