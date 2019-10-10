@@ -153,12 +153,6 @@
 			<artifactId>imglib2-cache</artifactId>
 		</dependency>
 
-		<!-- ImageJ2 dependencies (for making Commands) -->
-		<dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>imagej</artifactId>
-		</dependency>
-
 		<!-- https://mvnrepository.com/artifact/org.antlr/ST4 -->
 		<dependency>
 			<groupId>org.antlr</groupId>
@@ -170,6 +164,11 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
