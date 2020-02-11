@@ -40,7 +40,7 @@ public class MultiVolumeShaderMip
 
 	// step size on near plane = pixel_width
 	// step size on far plane = degrade * pixel_width
-	private final double degrade;
+	private double degrade;
 
 	private final SegmentedShader prog;
 	private final VolumeSegment[] volumeSegments;
@@ -282,6 +282,10 @@ public class MultiVolumeShaderMip
 		uniformViewportSize.set( dither.effectiveViewportWidth(), dither.effectiveViewportHeight() );
 		uniformTransform.set( dither.ndcTransform( step ) );
 		uniformDsp.set( dither.fragShift( step ) );
+	}
+
+	public void setDegrade( Double farPlaneStepSizeDegradation) {
+		degrade = farPlaneStepSizeDegradation;
 	}
 
 	/**
