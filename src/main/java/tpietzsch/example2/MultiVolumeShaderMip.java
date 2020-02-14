@@ -27,6 +27,7 @@ import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import static tpietzsch.example2.VolumeShaderSignature.PixelType.ARGB;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
@@ -62,7 +63,7 @@ public class MultiVolumeShaderMip
 	private String sceneDepthTextureName;
 
 	public MultiVolumeShaderMip(VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
-								final Map<SegmentType, SegmentTemplate> segments, final String depthTextureName )
+								final Map<SegmentType, SegmentTemplate> segments, final BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>> additionalBindings, final String depthTextureName )
 	{
 		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
@@ -100,6 +101,7 @@ public class MultiVolumeShaderMip
 		final Segment[] accumulateSegs = new Segment[ numVolumes ];
 		for ( int i = 0; i < numVolumes; ++i )
 		{
+			final HashMap<SegmentType, Segment> instancedSegments = new HashMap<>();
 			final VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
 
 			final Segment accumulate;
@@ -108,13 +110,17 @@ public class MultiVolumeShaderMip
 			{
 			case MULTIRESOLUTION:
 				accumulate = templateAccumulateMipBlocks.instantiate();
+				instancedSegments.put(SegmentType.AccumulatorMultiresolution, accumulate);
 				sampleVolume = templateVolBlocks.instantiate();
+				instancedSegments.put(SegmentType.SampleMultiresolutionVolume, sampleVolume);
 				break;
 			case SIMPLE:
 				accumulate = templateAccumulateMipSimple.instantiate();
+				instancedSegments.put(SegmentType.Accumulator, accumulate);
 				sampleVolume = volumeSignature.getPixelType() == ARGB
 						? templateVolSimpleRGBA.instantiate()
 						: templateVolSimple.instantiate();
+				instancedSegments.put(SegmentType.SampleVolume, sampleVolume);
 				break;
 			default:
 				throw new IllegalArgumentException();
@@ -127,10 +133,16 @@ public class MultiVolumeShaderMip
 			case USHORT:
 			case UBYTE:
 			 	convert = templateConvert.instantiate();
+			 	instancedSegments.put(SegmentType.Convert, convert);
 				break;
 			case ARGB:
 				convert = templateConvertRGBA.instantiate();
+				instancedSegments.put(SegmentType.ConvertRGBA, convert);
 				break;
+			}
+
+			if(additionalBindings != null) {
+				additionalBindings.accept(segments, instancedSegments);
 			}
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
@@ -225,7 +237,7 @@ public class MultiVolumeShaderMip
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
 	{
-		this( signature, useDepthTexture, degrade, getDefaultSegments(useDepthTexture), "sceneDepth" );
+		this( signature, useDepthTexture, degrade, getDefaultSegments(useDepthTexture), null, "sceneDepth" );
 	}
 
 	public void setTextureCache( TextureCache textureCache )
