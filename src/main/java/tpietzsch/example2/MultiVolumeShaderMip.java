@@ -1,6 +1,11 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
+import java.util.AbstractMap;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -21,13 +26,11 @@ import tpietzsch.shadergen.Uniform3fv;
 import tpietzsch.shadergen.Uniform4f;
 import tpietzsch.shadergen.UniformMatrix4f;
 import tpietzsch.shadergen.UniformSampler;
-import tpietzsch.shadergen.generate.*;
-
-import java.util.AbstractMap;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.BiConsumer;
+import tpietzsch.shadergen.generate.Segment;
+import tpietzsch.shadergen.generate.SegmentTemplate;
+import tpietzsch.shadergen.generate.SegmentType;
+import tpietzsch.shadergen.generate.SegmentedShader;
+import tpietzsch.shadergen.generate.SegmentedShaderBuilder;
 
 import static tpietzsch.example2.VolumeShaderSignature.PixelType.ARGB;
 import static tpietzsch.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
@@ -62,8 +65,10 @@ public class MultiVolumeShaderMip
 	private int viewportWidth;
 	private String sceneDepthTextureName;
 
-	public MultiVolumeShaderMip(VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
-								final Map<SegmentType, SegmentTemplate> segments, final BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>> additionalBindings, final String depthTextureName )
+	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
+			final Map< SegmentType, SegmentTemplate > segments,
+			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > additionalBindings,
+			final String depthTextureName )
 	{
 		this.signature = signature;
 		this.useDepthTexture = useDepthTexture;
@@ -73,35 +78,34 @@ public class MultiVolumeShaderMip
 		final int numVolumes = signature.getVolumeSignatures().size();
 
 		// ensure we have all segments we need
-		if(!Arrays.stream(SegmentType.values()).allMatch(segments::containsKey)) {
-			throw new IllegalStateException("Segments array does not contain all required SegmentTypes.");
-		}
+		if ( !Arrays.stream( SegmentType.values() ).allMatch( segments::containsKey ) )
+			throw new IllegalStateException( "Segments array does not contain all required SegmentTypes." );
 
 		final SegmentedShaderBuilder builder = new SegmentedShaderBuilder();
-		final Segment vp = segments.get(SegmentType.VertexShader).instantiate();
+		final Segment vp = segments.get( SegmentType.VertexShader ).instantiate();
 		builder.vertex( vp );
 
-		final SegmentTemplate templateVolBlocks = segments.get(SegmentType.SampleMultiresolutionVolume);
-		final SegmentTemplate templateVolSimple = segments.get(SegmentType.SampleVolume);
-		final SegmentTemplate templateVolSimpleRGBA = segments.get(SegmentType.SampleRGBAVolume);
-		final SegmentTemplate templateConvert = segments.get(SegmentType.Convert);
-		final SegmentTemplate templateConvertRGBA = segments.get(SegmentType.ConvertRGBA);
-		final SegmentTemplate templateMaxDepth = segments.get(SegmentType.MaxDepth);
+		final SegmentTemplate templateVolBlocks = segments.get( SegmentType.SampleMultiresolutionVolume );
+		final SegmentTemplate templateVolSimple = segments.get( SegmentType.SampleVolume );
+		final SegmentTemplate templateVolSimpleRGBA = segments.get( SegmentType.SampleRGBAVolume );
+		final SegmentTemplate templateConvert = segments.get( SegmentType.Convert );
+		final SegmentTemplate templateConvertRGBA = segments.get( SegmentType.ConvertRGBA );
+		final SegmentTemplate templateMaxDepth = segments.get( SegmentType.MaxDepth );
 		builder.fragment( templateMaxDepth.instantiate() );
 
-		final SegmentTemplate templateMainFp = segments.get(SegmentType.FragmentShader);
+		final SegmentTemplate templateMainFp = segments.get( SegmentType.FragmentShader );
 		final Segment fp = templateMainFp.instantiate();
 		fp.repeat( "vis", numVolumes );
 
-		final SegmentTemplate templateAccumulateMipBlocks = segments.get(SegmentType.AccumulatorMultiresolution);
-		final SegmentTemplate templateAccumulateMipSimple = segments.get(SegmentType.Accumulator);
+		final SegmentTemplate templateAccumulateMipBlocks = segments.get( SegmentType.AccumulatorMultiresolution );
+		final SegmentTemplate templateAccumulateMipSimple = segments.get( SegmentType.Accumulator );
 
 		final Segment[] sampleVolumeSegs = new Segment[ numVolumes ];
 		final Segment[] convertSegs = new Segment[ numVolumes ];
 		final Segment[] accumulateSegs = new Segment[ numVolumes ];
 		for ( int i = 0; i < numVolumes; ++i )
 		{
-			final HashMap<SegmentType, Segment> instancedSegments = new HashMap<>();
+			final HashMap< SegmentType, Segment > instancedSegments = new HashMap<>();
 			final VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
 
 			final Segment accumulate;
@@ -110,17 +114,17 @@ public class MultiVolumeShaderMip
 			{
 			case MULTIRESOLUTION:
 				accumulate = templateAccumulateMipBlocks.instantiate();
-				instancedSegments.put(SegmentType.AccumulatorMultiresolution, accumulate);
+				instancedSegments.put( SegmentType.AccumulatorMultiresolution, accumulate );
 				sampleVolume = templateVolBlocks.instantiate();
-				instancedSegments.put(SegmentType.SampleMultiresolutionVolume, sampleVolume);
+				instancedSegments.put( SegmentType.SampleMultiresolutionVolume, sampleVolume );
 				break;
 			case SIMPLE:
 				accumulate = templateAccumulateMipSimple.instantiate();
-				instancedSegments.put(SegmentType.Accumulator, accumulate);
+				instancedSegments.put( SegmentType.Accumulator, accumulate );
 				sampleVolume = volumeSignature.getPixelType() == ARGB
 						? templateVolSimpleRGBA.instantiate()
 						: templateVolSimple.instantiate();
-				instancedSegments.put(SegmentType.SampleVolume, sampleVolume);
+				instancedSegments.put( SegmentType.SampleVolume, sampleVolume );
 				break;
 			default:
 				throw new IllegalArgumentException();
@@ -132,18 +136,17 @@ public class MultiVolumeShaderMip
 			default:
 			case USHORT:
 			case UBYTE:
-			 	convert = templateConvert.instantiate();
-			 	instancedSegments.put(SegmentType.Convert, convert);
+				convert = templateConvert.instantiate();
+				instancedSegments.put( SegmentType.Convert, convert );
 				break;
 			case ARGB:
 				convert = templateConvertRGBA.instantiate();
-				instancedSegments.put(SegmentType.ConvertRGBA, convert);
+				instancedSegments.put( SegmentType.ConvertRGBA, convert );
 				break;
 			}
 
-			if(additionalBindings != null) {
-				additionalBindings.accept(segments, instancedSegments);
-			}
+			if ( additionalBindings != null )
+				additionalBindings.accept( segments, instancedSegments );
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
@@ -198,46 +201,47 @@ public class MultiVolumeShaderMip
 //		System.out.println( "\n\n--------------------------------\n\n" );
 	}
 
-	public static Map<SegmentType, SegmentTemplate> getDefaultSegments(boolean useDepthTexture) {
-		final HashMap<SegmentType, SegmentTemplate> segments = new HashMap<>();
+	public static Map< SegmentType, SegmentTemplate > getDefaultSegments( boolean useDepthTexture )
+	{
+		final HashMap< SegmentType, SegmentTemplate > segments = new HashMap<>();
 
-		segments.put(SegmentType.SampleMultiresolutionVolume, new SegmentTemplate(
+		segments.put( SegmentType.SampleMultiresolutionVolume, new SegmentTemplate(
 				"sample_volume_blocks.frag",
 				"im", "sourcemin", "sourcemax", "intersectBoundingBox",
-				"lutSampler", "blockScales", "lutSize", "lutOffset", "sampleVolume" ));
-		segments.put(SegmentType.SampleVolume, new SegmentTemplate(
+				"lutSampler", "blockScales", "lutSize", "lutOffset", "sampleVolume" ) );
+		segments.put( SegmentType.SampleVolume, new SegmentTemplate(
 				"sample_volume_simple.frag",
 				"im", "sourcemax", "intersectBoundingBox",
-				"volume", "sampleVolume" ));
-		segments.put(SegmentType.SampleRGBAVolume, new SegmentTemplate(
+				"volume", "sampleVolume" ) );
+		segments.put( SegmentType.SampleRGBAVolume, new SegmentTemplate(
 				"sample_volume_simple_rgba.frag",
 				"im", "sourcemax", "intersectBoundingBox",
-				"volume", "sampleVolume" ));
-		segments.put(SegmentType.Convert, new SegmentTemplate(
+				"volume", "sampleVolume" ) );
+		segments.put( SegmentType.Convert, new SegmentTemplate(
 				"convert.frag",
-				"convert", "offset", "scale" ));
-		segments.put(SegmentType.ConvertRGBA, new SegmentTemplate(
+				"convert", "offset", "scale" ) );
+		segments.put( SegmentType.ConvertRGBA, new SegmentTemplate(
 				"convert_rgba.frag",
-				"convert", "offset", "scale" ));
-		segments.put(SegmentType.MaxDepth, new SegmentTemplate(
-				useDepthTexture ? "maxdepthtexture.frag" : "maxdepthone.frag" ));
-		segments.put(SegmentType.VertexShader, new SegmentTemplate("multi_volume.frag"));
-		segments.put(SegmentType.FragmentShader, new SegmentTemplate(
+				"convert", "offset", "scale" ) );
+		segments.put( SegmentType.MaxDepth, new SegmentTemplate(
+				useDepthTexture ? "maxdepthtexture.frag" : "maxdepthone.frag" ) );
+		segments.put( SegmentType.VertexShader, new SegmentTemplate( "multi_volume.frag" ) );
+		segments.put( SegmentType.FragmentShader, new SegmentTemplate(
 				"multi_volume.frag",
-				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" ));
-		segments.put(SegmentType.AccumulatorMultiresolution, new SegmentTemplate(
+				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" ) );
+		segments.put( SegmentType.AccumulatorMultiresolution, new SegmentTemplate(
 				"accumulate_mip_blocks.frag",
-				"vis", "sampleVolume", "convert" ));
-		segments.put(SegmentType.Accumulator, new SegmentTemplate(
+				"vis", "sampleVolume", "convert" ) );
+		segments.put( SegmentType.Accumulator, new SegmentTemplate(
 				"accumulate_mip_simple.frag",
-				"vis", "sampleVolume", "convert" ));
+				"vis", "sampleVolume", "convert" ) );
 
 		return segments;
 	}
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade )
 	{
-		this( signature, useDepthTexture, degrade, getDefaultSegments(useDepthTexture), null, "sceneDepth" );
+		this( signature, useDepthTexture, degrade, getDefaultSegments( useDepthTexture ), null, "sceneDepth" );
 	}
 
 	public void setTextureCache( TextureCache textureCache )
@@ -272,14 +276,14 @@ public class MultiVolumeShaderMip
 		converterSegments[ index ].setData( converter );
 	}
 
-	public void setCustomSampler( int index, String name, Texture texture ) {
+	public void setCustomSampler( int index, String name, Texture texture )
+	{
 		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
 
-		if ( vs.getSourceStackType() == MULTIRESOLUTION ) {
-			((VolumeBlocksSegment) volumeSegments[index]).addSampler(prog, name, texture);
-		} else {
-			((VolumeSimpleSegment) volumeSegments[index]).addSampler(prog, name, texture);
-		}
+		if ( vs.getSourceStackType() == MULTIRESOLUTION )
+			( ( VolumeBlocksSegment ) volumeSegments[ index ] ).addSampler( prog, name, texture );
+		else
+			( ( VolumeSimpleSegment ) volumeSegments[ index ] ).addSampler( prog, name, texture );
 	}
 
 	public void setVolume( int index, VolumeBlocks volume )
@@ -308,7 +312,13 @@ public class MultiVolumeShaderMip
 		uniformDsp.set( dither.fragShift( step ) );
 	}
 
-	public void setDegrade( Double farPlaneStepSizeDegradation) {
+	/**
+	 * Note that this will only take effect after {@link #setProjectionViewMatrix(Matrix4fc, double)}
+	 * <p>
+	 * <em>(added for use by scenery)</em>
+	 */
+	public void setDegrade( Double farPlaneStepSizeDegradation )
+	{
 		degrade = farPlaneStepSizeDegradation;
 	}
 
@@ -450,18 +460,18 @@ public class MultiVolumeShaderMip
 
 		private final Segment volume;
 
-		private final HashMap<String, AbstractMap.SimpleEntry<UniformSampler, Texture>> additionalSamplers = new HashMap<>();
+		private final HashMap< String, AbstractMap.SimpleEntry< UniformSampler, Texture > > additionalSamplers = new HashMap<>();
 
 		public VolumeBlocksSegment( final SegmentedShader prog, final Segment volume )
 		{
 			this.volume = volume;
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
-			uniformLutSampler = prog.getUniformSampler( volume,"lutSampler" );
+			uniformLutSampler = prog.getUniformSampler( volume, "lutSampler" );
 			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
 			uniformLutOffset = prog.getUniform3f( volume, "lutOffset" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
-			uniformSourcemin = prog.getUniform3f( volume,"sourcemin" );
-			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
+			uniformSourcemin = prog.getUniform3f( volume, "sourcemin" );
+			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
 		}
 
 		public void setData( VolumeBlocks blocks )
@@ -475,37 +485,41 @@ public class MultiVolumeShaderMip
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
 
-			additionalSamplers.forEach((name, entry) -> entry.getKey().set( entry.getValue() ));
+			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
 		}
 
-		public void addSampler(final SegmentedShader prog, final String name, Texture texture) {
+		public void addSampler( final SegmentedShader prog, final String name, Texture texture )
+		{
 			final UniformSampler sampler = prog.getUniformSampler( volume, name );
-			final AbstractMap.SimpleEntry<UniformSampler, Texture> entry = new AbstractMap.SimpleEntry<>(sampler, texture);
+			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
 
-			additionalSamplers.put(name, entry);
+			additionalSamplers.put( name, entry );
 		}
 
-		public void removeSampler(final String name) {
-			additionalSamplers.remove(name);
+		public void removeSampler( final String name )
+		{
+			additionalSamplers.remove( name );
 		}
 	}
 
 	static class VolumeSimpleSegment implements VolumeSegment
 	{
 		private final UniformSampler uniformVolumeSampler;
+
 		private final UniformMatrix4f uniformIm;
+
 		private final Uniform3f uniformSourcemax;
 
 		private final Segment volume;
 
-		private final HashMap<String, AbstractMap.SimpleEntry<UniformSampler, Texture>> additionalSamplers = new HashMap<>();
+		private final HashMap< String, AbstractMap.SimpleEntry< UniformSampler, Texture > > additionalSamplers = new HashMap<>();
 
 		public VolumeSimpleSegment( final SegmentedShader prog, final Segment volume )
 		{
 			this.volume = volume;
-			uniformVolumeSampler = prog.getUniformSampler( volume,"volume" );
+			uniformVolumeSampler = prog.getUniformSampler( volume, "volume" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
-			uniformSourcemax = prog.getUniform3f( volume,"sourcemax" );
+			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
 		}
 
 		public void setData( SimpleVolume volume )
@@ -514,18 +528,20 @@ public class MultiVolumeShaderMip
 			uniformIm.set( volume.getIms() );
 			uniformSourcemax.set( volume.getSourceMax() );
 
-			additionalSamplers.forEach((name, entry) -> entry.getKey().set( entry.getValue() ));
+			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
 		}
 
-		public void addSampler(final SegmentedShader prog, final String name, Texture texture) {
+		public void addSampler( final SegmentedShader prog, final String name, Texture texture )
+		{
 			final UniformSampler sampler = prog.getUniformSampler( volume, name );
-			final AbstractMap.SimpleEntry<UniformSampler, Texture> entry = new AbstractMap.SimpleEntry<>(sampler, texture);
+			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
 
-			additionalSamplers.put(name, entry);
+			additionalSamplers.put( name, entry );
 		}
 
-		public void removeSampler(final String name) {
-			additionalSamplers.remove(name);
+		public void removeSampler( final String name )
+		{
+			additionalSamplers.remove( name );
 		}
 	}
 }
