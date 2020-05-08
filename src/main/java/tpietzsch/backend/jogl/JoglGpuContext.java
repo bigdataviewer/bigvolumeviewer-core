@@ -17,8 +17,10 @@ import tpietzsch.shadergen.Shader;
 
 import static com.jogamp.opengl.GL.GL_ACTIVE_TEXTURE;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
+import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
+import static com.jogamp.opengl.GL.GL_R32F;
 import static com.jogamp.opengl.GL.GL_R8;
 import static com.jogamp.opengl.GL.GL_REPEAT;
 import static com.jogamp.opengl.GL.GL_RGBA;
@@ -418,6 +420,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_RGBA8;
 		case RGBA8UI:
 			return GL_RGBA8UI;
+		case R32F:
+			return GL_R32F;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -435,6 +439,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_RGBA;
 		case RGBA8UI:
 			return GL_RGBA_INTEGER;
+		case R32F:
+			return GL_RED;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -452,6 +458,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_UNSIGNED_BYTE;
 		case RGBA8UI:
 			return GL_UNSIGNED_BYTE;
+		case R32F:
+			return GL_FLOAT;
 		default:
 			throw new IllegalArgumentException();
 		}

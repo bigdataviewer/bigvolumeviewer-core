@@ -8,7 +8,7 @@ public interface Texture
 		R16( 2 ),
 		RGBA8( 4 ),
 		RGBA8UI( 4 ),
-		FLOAT32( 4 ),
+		R32F( 4 ),
 		UNKNOWN( -1 );
 
 		InternalFormat( final int bytesPerElement )
