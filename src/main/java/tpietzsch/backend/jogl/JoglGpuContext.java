@@ -367,7 +367,6 @@ public class JoglGpuContext implements GpuContext
 		} );
 	}
 
-
 	private static int target( Texture texture )
 	{
 		return target( texture.texDims() );
@@ -375,7 +374,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int target( final int numTexDimensions )
 	{
-		switch( numTexDimensions )
+		switch ( numTexDimensions )
 		{
 		case 1:
 			return GL_TEXTURE_1D;
@@ -395,7 +394,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int targetBinding( final int numTexDimensions )
 	{
-		switch( numTexDimensions )
+		switch ( numTexDimensions )
 		{
 		case 1:
 			return GL_TEXTURE_BINDING_1D;
@@ -410,7 +409,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int internalFormat( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_R8;
@@ -429,7 +428,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int format( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_RED;
@@ -448,7 +447,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int type( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_UNSIGNED_BYTE;
@@ -467,7 +466,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int magFilter( Texture texture )
 	{
-		switch( texture.texMagFilter() )
+		switch ( texture.texMagFilter() )
 		{
 		case NEAREST:
 			return GL_NEAREST;
@@ -480,7 +479,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int minFilter( Texture texture )
 	{
-		switch( texture.texMinFilter() )
+		switch ( texture.texMinFilter() )
 		{
 		case NEAREST:
 			return GL_NEAREST;
@@ -493,7 +492,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int wrap( Texture texture )
 	{
-		switch( texture.texWrap() )
+		switch ( texture.texWrap() )
 		{
 		case CLAMP_TO_EDGE:
 			return GL_CLAMP_TO_EDGE;
