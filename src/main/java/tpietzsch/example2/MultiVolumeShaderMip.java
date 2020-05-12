@@ -225,7 +225,7 @@ public class MultiVolumeShaderMip
 				"convert", "offset", "scale" ) );
 		segments.put( SegmentType.MaxDepth, new SegmentTemplate(
 				useDepthTexture ? "maxdepthtexture.frag" : "maxdepthone.frag" ) );
-		segments.put( SegmentType.VertexShader, new SegmentTemplate( "multi_volume.frag" ) );
+		segments.put( SegmentType.VertexShader, new SegmentTemplate( "multi_volume.vert" ) );
 		segments.put( SegmentType.FragmentShader, new SegmentTemplate(
 				"multi_volume.frag",
 				"intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate" ) );
