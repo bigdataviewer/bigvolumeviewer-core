@@ -67,7 +67,7 @@ public class MultiVolumeShaderMip
 
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > additionalBindings,
+			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
@@ -145,8 +145,8 @@ public class MultiVolumeShaderMip
 				break;
 			}
 
-			if ( additionalBindings != null )
-				additionalBindings.accept( segments, instancedSegments );
+			if ( runBeforeBinding != null )
+				runBeforeBinding.accept( segments, instancedSegments );
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
@@ -281,9 +281,9 @@ public class MultiVolumeShaderMip
 		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
 
 		if ( vs.getSourceStackType() == MULTIRESOLUTION )
-			( ( VolumeBlocksSegment ) volumeSegments[ index ] ).addSampler( prog, name, texture );
+			( ( VolumeBlocksSegment ) volumeSegments[ index ] ).putSampler( prog, name, texture );
 		else
-			( ( VolumeSimpleSegment ) volumeSegments[ index ] ).addSampler( prog, name, texture );
+			( ( VolumeSimpleSegment ) volumeSegments[ index ] ).putSampler( prog, name, texture );
 	}
 
 	public void setVolume( int index, VolumeBlocks volume )
@@ -488,7 +488,7 @@ public class MultiVolumeShaderMip
 			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
 		}
 
-		public void addSampler( final SegmentedShader prog, final String name, Texture texture )
+		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
 		{
 			final UniformSampler sampler = prog.getUniformSampler( volume, name );
 			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
@@ -531,7 +531,7 @@ public class MultiVolumeShaderMip
 			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
 		}
 
-		public void addSampler( final SegmentedShader prog, final String name, Texture texture )
+		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
 		{
 			final UniformSampler sampler = prog.getUniformSampler( volume, name );
 			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
