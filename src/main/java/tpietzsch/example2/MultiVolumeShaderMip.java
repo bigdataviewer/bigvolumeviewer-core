@@ -65,6 +65,11 @@ public class MultiVolumeShaderMip
 	private int viewportWidth;
 	private String sceneDepthTextureName;
 
+	/**
+	 * @param runBeforeBinding
+	 * 		<em>(added for use by scenery)</em>
+	 * 		This is called for each volume to be able to establish additional segment binding, for example to connect convert-segment to sample-segment for alpha blending instead of max projection.
+	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
 			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > runBeforeBinding,
@@ -276,14 +281,22 @@ public class MultiVolumeShaderMip
 		converterSegments[ index ].setData( converter );
 	}
 
-	public void setCustomSampler( int index, String name, Texture texture )
+	/**
+	 * Register {@code texture} to be set for uniform sampler {@code name}.
+	 * The actual {@link UniformSampler#set(Texture)} happens as the last step of {@code setVolume()}.
+	 * <p>
+	 * <em>(added for use by scenery)</em>
+	 *
+	 * @param index
+	 * 		index of the volume
+	 * @param name
+	 * 		uniform name
+	 * @param texture
+	 * 		texture to set for uniform {@code name}
+	 */
+	public void registerCustomSampler( int index, String name, Texture texture )
 	{
-		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
-
-		if ( vs.getSourceStackType() == MULTIRESOLUTION )
-			( ( VolumeBlocksSegment ) volumeSegments[ index ] ).putSampler( prog, name, texture );
-		else
-			( ( VolumeSimpleSegment ) volumeSegments[ index ] ).putSampler( prog, name, texture );
+		volumeSegments[ index ].putSampler( prog, name, texture );
 	}
 
 	public void setVolume( int index, VolumeBlocks volume )
@@ -445,10 +458,52 @@ public class MultiVolumeShaderMip
 		}
 	}
 
-	interface VolumeSegment
-	{}
+	private static class AdditionalSampler
+	{
+		private final UniformSampler sampler;
+		private final Texture texture;
 
-	static class VolumeBlocksSegment implements VolumeSegment
+		public AdditionalSampler( final UniformSampler sampler, final Texture texture )
+		{
+			this.sampler = sampler;
+			this.texture = texture;
+		}
+
+		public void setTexture()
+		{
+			sampler.set( texture );
+		}
+	}
+
+	static abstract class VolumeSegment
+	{
+		final Segment volume;
+
+		private final HashMap< String, AdditionalSampler > additionalSamplers = new HashMap<>();
+
+		public VolumeSegment( final Segment volume )
+		{
+			this.volume = volume;
+		}
+
+		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
+		{
+			final UniformSampler sampler = prog.getUniformSampler( volume, name );
+			additionalSamplers.put( name, new AdditionalSampler( sampler, texture ) );
+		}
+
+		public void removeSampler( final String name )
+		{
+			additionalSamplers.remove( name );
+		}
+
+		void setAdditionalSamplers()
+		{
+			additionalSamplers.values().forEach( AdditionalSampler::setTexture );
+		}
+	}
+
+	static class VolumeBlocksSegment extends VolumeSegment
 	{
 		private final Uniform3fv uniformBlockScales;
 		private final UniformSampler uniformLutSampler;
@@ -458,13 +513,9 @@ public class MultiVolumeShaderMip
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
 
-		private final Segment volume;
-
-		private final HashMap< String, AbstractMap.SimpleEntry< UniformSampler, Texture > > additionalSamplers = new HashMap<>();
-
 		public VolumeBlocksSegment( final SegmentedShader prog, final Segment volume )
 		{
-			this.volume = volume;
+			super( volume );
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume, "lutSampler" );
 			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
@@ -485,38 +536,20 @@ public class MultiVolumeShaderMip
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
 
-			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
+			setAdditionalSamplers();
 		}
 
-		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
-		{
-			final UniformSampler sampler = prog.getUniformSampler( volume, name );
-			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
-
-			additionalSamplers.put( name, entry );
-		}
-
-		public void removeSampler( final String name )
-		{
-			additionalSamplers.remove( name );
-		}
 	}
 
-	static class VolumeSimpleSegment implements VolumeSegment
+	static class VolumeSimpleSegment extends VolumeSegment
 	{
 		private final UniformSampler uniformVolumeSampler;
-
 		private final UniformMatrix4f uniformIm;
-
 		private final Uniform3f uniformSourcemax;
-
-		private final Segment volume;
-
-		private final HashMap< String, AbstractMap.SimpleEntry< UniformSampler, Texture > > additionalSamplers = new HashMap<>();
 
 		public VolumeSimpleSegment( final SegmentedShader prog, final Segment volume )
 		{
-			this.volume = volume;
+			super( volume );
 			uniformVolumeSampler = prog.getUniformSampler( volume, "volume" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
 			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
@@ -528,20 +561,7 @@ public class MultiVolumeShaderMip
 			uniformIm.set( volume.getIms() );
 			uniformSourcemax.set( volume.getSourceMax() );
 
-			additionalSamplers.forEach( ( name, entry ) -> entry.getKey().set( entry.getValue() ) );
-		}
-
-		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
-		{
-			final UniformSampler sampler = prog.getUniformSampler( volume, name );
-			final AbstractMap.SimpleEntry< UniformSampler, Texture > entry = new AbstractMap.SimpleEntry<>( sampler, texture );
-
-			additionalSamplers.put( name, entry );
-		}
-
-		public void removeSampler( final String name )
-		{
-			additionalSamplers.remove( name );
+			setAdditionalSamplers();
 		}
 	}
 }
