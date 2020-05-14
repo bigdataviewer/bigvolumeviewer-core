@@ -10,7 +10,7 @@
 
 	<groupId>sc.fiji</groupId>
 	<artifactId>bigvolumeviewer</artifactId>
-	<version>0.1.8-SNAPSHOT</version>
+	<version>0.1.8</version>
 
 	<name>BigVolumeViewer</name>
 	<description>Volume rendering of bdv datasets</description>
@@ -53,7 +53,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/tpietzsch/jogl-minimal</connection>
 		<developerConnection>scm:git:git@github.com:tpietzsch/jogl-minimal</developerConnection>
-		<tag>HEAD</tag>
+		<tag>bigvolumeviewer-0.1.8</tag>
 		<url>https://github.com/tpietzsch/jogl-minimal</url>
 	</scm>
 	<issueManagement>
