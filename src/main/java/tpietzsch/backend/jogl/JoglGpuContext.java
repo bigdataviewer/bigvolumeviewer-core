@@ -17,8 +17,10 @@ import tpietzsch.shadergen.Shader;
 
 import static com.jogamp.opengl.GL.GL_ACTIVE_TEXTURE;
 import static com.jogamp.opengl.GL.GL_CLAMP_TO_EDGE;
+import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_LINEAR;
 import static com.jogamp.opengl.GL.GL_NEAREST;
+import static com.jogamp.opengl.GL.GL_R32F;
 import static com.jogamp.opengl.GL.GL_R8;
 import static com.jogamp.opengl.GL.GL_REPEAT;
 import static com.jogamp.opengl.GL.GL_RGBA;
@@ -365,7 +367,6 @@ public class JoglGpuContext implements GpuContext
 		} );
 	}
 
-
 	private static int target( Texture texture )
 	{
 		return target( texture.texDims() );
@@ -373,7 +374,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int target( final int numTexDimensions )
 	{
-		switch( numTexDimensions )
+		switch ( numTexDimensions )
 		{
 		case 1:
 			return GL_TEXTURE_1D;
@@ -393,7 +394,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int targetBinding( final int numTexDimensions )
 	{
-		switch( numTexDimensions )
+		switch ( numTexDimensions )
 		{
 		case 1:
 			return GL_TEXTURE_BINDING_1D;
@@ -408,7 +409,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int internalFormat( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_R8;
@@ -418,6 +419,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_RGBA8;
 		case RGBA8UI:
 			return GL_RGBA8UI;
+		case R32F:
+			return GL_R32F;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -425,7 +428,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int format( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_RED;
@@ -435,6 +438,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_RGBA;
 		case RGBA8UI:
 			return GL_RGBA_INTEGER;
+		case R32F:
+			return GL_RED;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -442,7 +447,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int type( Texture texture )
 	{
-		switch( texture.texInternalFormat() )
+		switch ( texture.texInternalFormat() )
 		{
 		case R8:
 			return GL_UNSIGNED_BYTE;
@@ -452,6 +457,8 @@ public class JoglGpuContext implements GpuContext
 			return GL_UNSIGNED_BYTE;
 		case RGBA8UI:
 			return GL_UNSIGNED_BYTE;
+		case R32F:
+			return GL_FLOAT;
 		default:
 			throw new IllegalArgumentException();
 		}
@@ -459,7 +466,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int magFilter( Texture texture )
 	{
-		switch( texture.texMagFilter() )
+		switch ( texture.texMagFilter() )
 		{
 		case NEAREST:
 			return GL_NEAREST;
@@ -472,7 +479,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int minFilter( Texture texture )
 	{
-		switch( texture.texMinFilter() )
+		switch ( texture.texMinFilter() )
 		{
 		case NEAREST:
 			return GL_NEAREST;
@@ -485,7 +492,7 @@ public class JoglGpuContext implements GpuContext
 
 	private static int wrap( Texture texture )
 	{
-		switch( texture.texWrap() )
+		switch ( texture.texWrap() )
 		{
 		case CLAMP_TO_EDGE:
 			return GL_CLAMP_TO_EDGE;
