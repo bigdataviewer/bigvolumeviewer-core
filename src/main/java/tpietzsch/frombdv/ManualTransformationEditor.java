@@ -32,7 +32,7 @@ package tpietzsch.frombdv;
 import bdv.tools.transformation.ManualTransformActiveListener;
 import bdv.tools.transformation.TransformedSource;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.TransformListener;
 import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.ViewerState;
 import java.awt.event.ActionEvent;
@@ -46,7 +46,6 @@ import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import tpietzsch.example2.VolumeViewerPanel;
 

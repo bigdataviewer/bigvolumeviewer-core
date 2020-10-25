@@ -113,10 +113,6 @@
 			<artifactId>imglib2-realtransform</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-ui</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>ST4</artifactId>
 			<version>${ST4.version}</version>
