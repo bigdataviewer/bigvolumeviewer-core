@@ -41,7 +41,13 @@
 			</roles>
 		</developer>
 	</developers>
-	<contributors><contributor><name>none</name></contributor></contributors>
+	<contributors>
+		<contributor>
+			<name>Ulrik Guenther</name>
+			<url>https://ulrik.is/writing</url>
+			<properties><id>skalarproduktraum</id></properties>
+		</contributor>
+	</contributors>
 
 	<mailingLists>
 		<mailingList>
