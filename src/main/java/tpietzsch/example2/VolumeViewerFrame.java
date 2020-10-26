@@ -1,5 +1,7 @@
 package tpietzsch.example2;
 
+import bdv.TransformEventHandler;
+import bdv.viewer.ConverterSetups;
 import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -18,7 +20,6 @@ import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.cache.CacheControl;
-import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.SourceAndConverter;
 import tpietzsch.example2.VolumeViewerPanel.RenderScene;
 
@@ -34,13 +35,12 @@ public class VolumeViewerFrame extends JFrame
 
 	private final Behaviours behaviours;
 
+	private final ConverterSetups setups;
+
 	/**
 	 *
 	 * @param sources
 	 *            the {@link SourceAndConverter sources} to display.
-	 * @param converterSetups
-	 *            list of {@link ConverterSetup} that control min/max and color
-	 *            of sources.
 	 * @param numTimepoints
 	 *            number of available timepoints.
 	 * @param cacheControl
@@ -50,15 +50,17 @@ public class VolumeViewerFrame extends JFrame
 	 */
 	public VolumeViewerFrame(
 			final List< SourceAndConverter< ? > > sources,
-			final List< ConverterSetup > converterSetups,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
 		super( "BigVolumeViewer" );
+		viewer = new VolumeViewerPanel( sources, numTimepoints, cacheControl, renderScene, optional );
+		setups = new ConverterSetups( viewer.state() );
+		setups.listeners().add( s -> viewer.requestRepaint() );
+		viewer.setups = setups;
 
-		viewer = new VolumeViewerPanel( sources, converterSetups, numTimepoints, cacheControl, renderScene, optional );
 		keybindings = new InputActionBindings();
 		triggerbindings = new TriggerBehaviourBindings();
 
@@ -92,9 +94,12 @@ public class VolumeViewerFrame extends JFrame
 		mouseAndKeyHandler.setKeypressManager( options.getKeyPressedManager(), viewer.getDisplay() );
 		viewer.addHandlerToCanvas( mouseAndKeyHandler );
 
-		final Behaviours behaviours = new Behaviours( keyConfig, "bdv" );
-		behaviours.install( triggerbindings, "transform" );
-		viewer.getTransformEventHandler().install( behaviours );
+		// TODO: should be a field?
+		final Behaviours transformBehaviours = new Behaviours( optional.values.getInputTriggerConfig(), "bdv" );
+		transformBehaviours.install( triggerbindings, "transform" );
+
+		final TransformEventHandler tfHandler = viewer.getTransformEventHandler();
+		tfHandler.install( transformBehaviours );
 	}
 
 	public VolumeViewerPanel getViewerPanel()
@@ -120,5 +125,10 @@ public class VolumeViewerFrame extends JFrame
 	public TriggerBehaviourBindings getTriggerbindings()
 	{
 		return triggerbindings;
+	}
+
+	public ConverterSetups getConverterSetups()
+	{
+		return setups;
 	}
 }

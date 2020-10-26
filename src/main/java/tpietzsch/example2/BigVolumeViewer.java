@@ -2,6 +2,7 @@ package tpietzsch.example2;
 
 import static bdv.BigDataViewer.initSetups;
 
+import bdv.viewer.ConverterSetups;
 import com.jogamp.opengl.GL3;
 
 import java.io.File;
@@ -92,18 +93,27 @@ public class BigVolumeViewer
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, numTimepoints, cacheControl, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
-
-		for ( final ConverterSetup setup : converterSetups )
-			setup.setViewer( viewer );
 
 		manualTransformation = new ManualTransformation( sources );
 		manualTransformationEditor = new ManualTransformationEditor( viewer, frame.getKeybindings() );
 
 		bookmarks = new Bookmarks();
+
+		final ConverterSetups setups = frame.getConverterSetups();
+		if ( converterSetups.size() != sources.size() )
+			System.err.println( "WARNING! Constructing BigDataViewer, with converterSetups.size() that is not the same as sources.size()." );
+		final int numSetups = Math.min( converterSetups.size(), sources.size() );
+		for ( int i = 0; i < numSetups; ++i )
+		{
+			final SourceAndConverter< ? > source = sources.get( i );
+			final ConverterSetup setup = converterSetups.get( i );
+			if ( setup != null )
+				setups.put( source, setup );
+		}
 
 		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
@@ -445,9 +455,9 @@ public class BigVolumeViewer
 		final VolumeViewerPanel viewer = bvv.viewer;
 
 		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state );
-		viewer.getTransformEventHandler().setTransform( resetTransform );
+		viewer.state().setViewerTransform( resetTransform );
 		frame.getDefaultActions().runnableAction( () -> {
-			viewer.getTransformEventHandler().setTransform( resetTransform );
+			viewer.state().setViewerTransform( resetTransform );
 		}, "reset transform", "R" );
 
 		frame.getDefaultActions().runnableAction( bvv::addRandomCube, "add random cube", "B" );

@@ -3,14 +3,15 @@ package bvv.util;
 import bdv.cache.CacheControl.CacheControls;
 import bdv.tools.InitializeViewerState;
 import bdv.tools.brightness.ConverterSetup;
-import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.SetupAssignments;
+import bdv.ui.CardPanel;
+import bdv.ui.splitpanel.SplitPanel;
 import bdv.util.BdvFunctions;
+import bdv.viewer.ConverterSetups;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TimePointListener;
 import bdv.viewer.TransformListener;
 import bdv.viewer.VisibilityAndGrouping.UpdateListener;
-import bdv.viewer.state.ViewerState;
 import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,13 @@ public abstract class BvvHandle implements Bvv
 {
 	protected VolumeViewerPanel viewer;
 
+	protected CardPanel cards;
+
+	protected SplitPanel splitPanel;
+
+	protected ConverterSetups setups;
+
+	// TODO: Remove
 	protected SetupAssignments setupAssignments;
 
 	protected final ArrayList< BvvSource > bvvSources;
@@ -60,6 +68,23 @@ public abstract class BvvHandle implements Bvv
 		return viewer;
 	}
 
+	public CardPanel getCardPanel()
+	{
+		return cards;
+	}
+
+	public SplitPanel getSplitPanel()
+	{
+		return splitPanel;
+	}
+
+	public ConverterSetups getConverterSetups()
+	{
+		return setups;
+	}
+
+	// TODO: REMOVE
+	@Deprecated
 	public SetupAssignments getSetupAssignments()
 	{
 		return setupAssignments;
@@ -70,6 +95,7 @@ public abstract class BvvHandle implements Bvv
 		return cacheControls;
 	}
 
+	@Deprecated
 	int getUnusedSetupId()
 	{
 		return BdvFunctions.getUnusedSetupId( setupAssignments );
@@ -101,27 +127,32 @@ public abstract class BvvHandle implements Bvv
 		}
 		else
 		{
-			initTransform = ( viewer.getState().numSources() == 0 ) && !sources.isEmpty();
+			initTransform = viewer.state().getSources().isEmpty() && sources != null && !sources.isEmpty();
+
+			if ( converterSetups != null && sources != null && converterSetups.size() != sources.size() )
+				System.err.println( "WARNING! Adding sources to BdvHandle with converterSetups.size() != sources.size()." );
 
 			if ( converterSetups != null )
 			{
-				for ( final ConverterSetup setup : converterSetups )
+				final int numSetups = Math.min( converterSetups.size(), sources.size() );
+				for ( int i = 0; i < numSetups; ++i )
 				{
-					setupAssignments.addSetup( setup );
-					setup.setViewer( viewer );
+					final SourceAndConverter< ? > source = sources.get( i );
+					final ConverterSetup setup = converterSetups.get( i );
+					if ( setup != null )
+						setups.put( source, setup );
 				}
 
-				final int g = setupAssignments.getMinMaxGroups().size() - 1;
-				final MinMaxGroup group = setupAssignments.getMinMaxGroups().get( g );
-				for ( final ConverterSetup setup : converterSetups )
-					setupAssignments.moveSetupToGroup( setup, group );
+				// TODO: REMOVE
+				converterSetups.forEach( setupAssignments::addSetup );
 			}
 
 			if ( sources != null )
-			{
-				for ( int i = 0; i < sources.size(); i++ )
-					viewer.addSource( sources.get( i ), converterSetups.get( i ) );
-			}
+				for ( final SourceAndConverter< ? > soc : sources )
+				{
+					viewer.state().addSource( soc );
+					viewer.state().setSourceActive( soc, true );
+				}
 		}
 
 		if ( initTransform )
@@ -132,9 +163,6 @@ public abstract class BvvHandle implements Bvv
 				tryInitTransform();
 			}
 		}
-
-		updateHasPlaceHolderSources();
-		updateNumTimepoints();
 	}
 
 	private boolean initTransformPending;
@@ -149,9 +177,8 @@ public abstract class BvvHandle implements Bvv
 			initTransformPending = false;
 
 			final Dimension dim = viewer.getDisplay().getSize();
-			final ViewerState state = viewer.getState();
-			final AffineTransform3D viewerTransform = InitializeViewerState.initTransform( dim.width, dim.height, false, state );
-			viewer.setCurrentViewerTransform( viewerTransform );
+			final AffineTransform3D viewerTransform = InitializeViewerState.initTransform( dim.width, dim.height, false, viewer.state().snapshot() );
+			viewer.state().setViewerTransform( viewerTransform );
 		}
 	}
 
@@ -182,8 +209,7 @@ public abstract class BvvHandle implements Bvv
 				viewer.getVisibilityAndGrouping().removeUpdateListener( l );
 
 		if ( sources != null )
-			for ( final SourceAndConverter< ? > soc : sources )
-				viewer.removeSource( soc.getSpimSource() );
+			viewer.state().removeSources( sources );
 	}
 
 	void addBvvSource( final BvvSource bvvSource )
