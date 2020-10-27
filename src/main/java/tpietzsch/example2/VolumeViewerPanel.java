@@ -494,17 +494,6 @@ public class VolumeViewerPanel
 		}
 	}
 
-	public synchronized Element stateToXml()
-	{
-		return new XmlIoViewerState().toXml( state );
-	}
-
-	public synchronized void stateFromXml( final Element parent )
-	{
-		final XmlIoViewerState io = new XmlIoViewerState();
-		io.restoreFromXml( parent.getChild( io.getTagName() ), state );
-	}
-
 	@Override
 	public void paint()
 	{
@@ -617,7 +606,7 @@ public class VolumeViewerPanel
 	 * The planes which can be aligned with the viewer coordinate system: XY,
 	 * ZY, and XZ plane.
 	 */
-	public static enum AlignPlane
+	public enum AlignPlane
 	{
 		XY( "XY", 2, new double[] { 1, 0, 0, 0 } ),
 		ZY( "ZY", 0, new double[] { c, 0, -c, 0 } ),
@@ -839,74 +828,6 @@ public class VolumeViewerPanel
 		// TODO
 	}
 
-	protected class MouseCoordinateListener implements MouseMotionListener, MouseListener
-	{
-		private int x;
-
-		private int y;
-
-		private boolean isInside;
-
-		public synchronized void getMouseCoordinates( final Positionable p )
-		{
-			p.setPosition( x, 0 );
-			p.setPosition( y, 1 );
-		}
-
-		@Override
-		public synchronized void mouseDragged( final MouseEvent e )
-		{
-			x = e.getX();
-			y = e.getY();
-		}
-
-		@Override
-		public synchronized void mouseMoved( final MouseEvent e )
-		{
-			x = e.getX();
-			y = e.getY();
-		}
-
-		public synchronized int getX()
-		{
-			return x;
-		}
-
-		public synchronized int getY()
-		{
-			return y;
-		}
-
-		public synchronized boolean isMouseInsidePanel()
-		{
-			return isInside;
-		}
-
-		@Override
-		public synchronized void mouseEntered( final MouseEvent e )
-		{
-			isInside = true;
-		}
-
-		@Override
-		public synchronized void mouseExited( final MouseEvent e )
-		{
-			isInside = false;
-		}
-
-		@Override
-		public void mouseClicked( final MouseEvent e )
-		{}
-
-		@Override
-		public void mousePressed( final MouseEvent e )
-		{}
-
-		@Override
-		public void mouseReleased( final MouseEvent e )
-		{}
-	}
-
 	/**
 	 * Add a {@link TransformListener} to notify about viewer transformation
 	 * changes. Listeners will be notified <em>before</em> calling
@@ -999,6 +920,74 @@ public class VolumeViewerPanel
 		{
 			timePointListeners.remove( listener );
 		}
+	}
+
+	protected class MouseCoordinateListener implements MouseMotionListener, MouseListener
+	{
+		private int x;
+
+		private int y;
+
+		private boolean isInside;
+
+		public synchronized void getMouseCoordinates( final Positionable p )
+		{
+			p.setPosition( x, 0 );
+			p.setPosition( y, 1 );
+		}
+
+		@Override
+		public synchronized void mouseDragged( final MouseEvent e )
+		{
+			x = e.getX();
+			y = e.getY();
+		}
+
+		@Override
+		public synchronized void mouseMoved( final MouseEvent e )
+		{
+			x = e.getX();
+			y = e.getY();
+		}
+
+		public synchronized int getX()
+		{
+			return x;
+		}
+
+		public synchronized int getY()
+		{
+			return y;
+		}
+
+		public synchronized boolean isMouseInsidePanel()
+		{
+			return isInside;
+		}
+
+		@Override
+		public synchronized void mouseEntered( final MouseEvent e )
+		{
+			isInside = true;
+		}
+
+		@Override
+		public synchronized void mouseExited( final MouseEvent e )
+		{
+			isInside = false;
+		}
+
+		@Override
+		public void mouseClicked( final MouseEvent e )
+		{}
+
+		@Override
+		public void mousePressed( final MouseEvent e )
+		{}
+
+		@Override
+		public void mouseReleased( final MouseEvent e )
+		{}
 	}
 
 	/**
@@ -1196,6 +1185,17 @@ public class VolumeViewerPanel
 		{
 		}
 	};
+
+	public synchronized Element stateToXml()
+	{
+		return new XmlIoViewerState().toXml( state );
+	}
+
+	public synchronized void stateFromXml( final Element parent )
+	{
+		final XmlIoViewerState io = new XmlIoViewerState();
+		io.restoreFromXml( parent.getChild( io.getTagName() ), state );
+	}
 
 	/**
 	 * @deprecated Modify {@link #state()} directly
