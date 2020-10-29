@@ -1,25 +1,21 @@
 package tpietzsch.util;
 
-import bdv.viewer.RequestRepaint;
 import com.jogamp.opengl.GLAutoDrawable;
-import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
-import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLCanvas;
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+import tpietzsch.example2.InteractiveGLDisplayCanvas;
 
 public class InputFrame
 {
@@ -27,7 +23,7 @@ public class InputFrame
 
 	private final PainterThread painterThread;
 
-	private final GLCanvas canvas;
+	private final InteractiveGLDisplayCanvas display;
 
 	private long t0;
 
@@ -91,16 +87,15 @@ public class InputFrame
 			final int height )
 	{
 //		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
-		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
-		canvas = new GLCanvas( capsReqUser );
-		canvas.addGLEventListener( wrapper );
-		canvas.setPreferredSize( new Dimension( width, height ) );
+//		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
+		display = new InteractiveGLDisplayCanvas( width, height );
+		display.addGLEventListener( wrapper );
 
-		painterThread = new PainterThread( canvas::display );
+		painterThread = new PainterThread( display::display );
 
 		frame = new JFrame( title );
 		frame.getRootPane().setDoubleBuffered( true );
-		frame.getContentPane().add( canvas, BorderLayout.CENTER );
+		frame.getContentPane().add( display, BorderLayout.CENTER );
 		frame.pack();
 		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
 		frame.addWindowListener( new WindowAdapter()
@@ -128,25 +123,9 @@ public class InputFrame
 		final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 		mouseAndKeyHandler.setInputMap( getTriggerbindings().getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( getTriggerbindings().getConcatenatedBehaviourMap() );
-
-		canvas.addKeyListener( mouseAndKeyHandler );
-		canvas.addMouseListener( mouseAndKeyHandler );
-		canvas.addMouseWheelListener( mouseAndKeyHandler );
-		canvas.addMouseMotionListener( mouseAndKeyHandler );
-		canvas.addFocusListener( mouseAndKeyHandler );
+		display.addHandler( mouseAndKeyHandler );
 
 		t0 = -1;
-	}
-
-	public TransformHandler setupDefaultTransformHandler( final TransformHandler.TransformListener listener, final RequestRepaint requestRepaint )
-	{
-		TransformHandler tfHandler = new TransformHandler();
-		tfHandler.install( getDefaultBehaviours() );
-		tfHandler.setCanvasSize( canvas.getWidth(), canvas.getHeight(), false );
-		tfHandler.setTransform( new AffineTransform3D() );
-		tfHandler.listeners().add( listener );
-		tfHandler.listeners().add( t -> requestRepaint.requestRepaint() );
-		return tfHandler;
 	}
 
 	public void setGlEventListener( final GLEventListener glEventListener )
@@ -158,7 +137,7 @@ public class InputFrame
 	{
 		t0 = System.currentTimeMillis();
 		frame.setVisible( true );
-		canvas.requestFocusInWindow();
+		display.requestFocusInWindow();
 		painterThread.start();
 	}
 
@@ -194,9 +173,9 @@ public class InputFrame
 		return behaviours;
 	}
 
-	public GLCanvas getCanvas()
+	public GLCanvas getDisplay()
 	{
-		return canvas;
+		return display;
 	}
 
 	public JFrame getFrame()
