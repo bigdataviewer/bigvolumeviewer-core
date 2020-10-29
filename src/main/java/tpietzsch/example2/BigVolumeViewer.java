@@ -3,6 +3,8 @@ package tpietzsch.example2;
 import static bdv.BigDataViewer.initSetups;
 
 import bdv.viewer.ConverterSetups;
+import bdv.viewer.SynchronizedViewerState;
+import bdv.viewer.ViewerState;
 import com.jogamp.opengl.GL3;
 
 import java.io.File;
@@ -45,7 +47,6 @@ import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
 import mpicbg.spim.data.SpimDataException;
 import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
@@ -124,8 +125,7 @@ public class BigVolumeViewer
 		}
 
 		brightnessDialog = new BrightnessDialog( frame, setupAssignments );
-
-		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.getVisibilityAndGrouping() );
+		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.state() );
 
 		fileChooser = new JFileChooser();
 		fileChooser.setFileFilter( new FileFilter()
@@ -173,6 +173,15 @@ public class BigVolumeViewer
 		return frame;
 	}
 
+	public ConverterSetups getConverterSetups()
+	{
+		return frame.getConverterSetups();
+	}
+
+	/**
+	 * @deprecated Instead {@code getViewer().state()} returns the {@link ViewerState} that can be modified directly.
+	 */
+	@Deprecated
 	public SetupAssignments getSetupAssignments()
 	{
 		return setupAssignments;
@@ -369,9 +378,9 @@ public class BigVolumeViewer
 	{
 		final AffineTransform3D sourceToWorld = new AffineTransform3D();
 		final Interval interval;
-		final ViewerState state = viewer.getState();
+		final SynchronizedViewerState state = viewer.state();
 		final int t = state.getCurrentTimepoint();
-		final SourceState< ? > source = state.getSources().get( state.getCurrentSource() );
+		final SourceAndConverter< ? > source = state.getCurrentSource();
 		source.getSpimSource().getSourceTransform( t, 0, sourceToWorld );
 		interval = source.getSpimSource().getSource( t, 0 );
 
@@ -454,7 +463,7 @@ public class BigVolumeViewer
 		final VolumeViewerFrame frame = bvv.frame;
 		final VolumeViewerPanel viewer = bvv.viewer;
 
-		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state );
+		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state() );
 		viewer.state().setViewerTransform( resetTransform );
 		frame.getDefaultActions().runnableAction( () -> {
 			viewer.state().setViewerTransform( resetTransform );
@@ -464,7 +473,7 @@ public class BigVolumeViewer
 		frame.getDefaultActions().runnableAction( bvv::removeRandomCube, "remove random cube", "shift B" );
 
 		if ( ! bvv.tryLoadSettings( xmlFilename ) )
-			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state, bvv.setupAssignments );
+			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state(), viewer.getConverterSetups() );
 		bvv.activeSourcesDialog.update();
 
 		frame.setVisible( true );

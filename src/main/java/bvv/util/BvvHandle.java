@@ -11,7 +11,7 @@ import bdv.viewer.ConverterSetups;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TimePointListener;
 import bdv.viewer.TransformListener;
-import bdv.viewer.VisibilityAndGrouping.UpdateListener;
+import bdv.viewer.ViewerStateChangeListener;
 import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.List;
@@ -187,7 +187,7 @@ public abstract class BvvHandle implements Bvv
 			final List< ? extends SourceAndConverter< ? > > sources,
 			final List< TransformListener< AffineTransform3D > > transformListeners,
 			final List< TimePointListener > timepointListeners,
-			final List< UpdateListener > visibilityUpdateListeners )
+			final List< ViewerStateChangeListener > viewerStateChangeListeners )
 	{
 		if ( viewer == null )
 			return;
@@ -204,9 +204,8 @@ public abstract class BvvHandle implements Bvv
 			for ( final TimePointListener l : timepointListeners )
 				viewer.removeTimePointListener( l );
 
-		if ( visibilityUpdateListeners != null )
-			for ( final UpdateListener l : visibilityUpdateListeners )
-				viewer.getVisibilityAndGrouping().removeUpdateListener( l );
+		if ( viewerStateChangeListeners != null )
+			viewer.state().changeListeners().removeAll( viewerStateChangeListeners );
 
 		if ( sources != null )
 			viewer.state().removeSources( sources );

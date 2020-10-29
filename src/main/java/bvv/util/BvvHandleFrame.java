@@ -1,8 +1,6 @@
 package bvv.util;
 
 import bdv.cache.CacheControl.CacheControls;
-import bdv.export.ProgressWriter;
-import bdv.export.ProgressWriterConsole;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
@@ -47,6 +45,12 @@ public class BvvHandleFrame extends BvvHandle
 			setupAssignments = null;
 			bvvSources.clear();
 		}
+		// TODO
+//		super.close();
+//		should replace above lines:
+//		viewer = null;
+//		setupAssignments = null;
+//		bvvSources.clear();
 	}
 
 	@Override
@@ -83,8 +87,9 @@ public class BvvHandleFrame extends BvvHandle
 				viewerOptions );
 		viewer = bvv.getViewer();
 		setupAssignments = bvv.getSetupAssignments();
+		setups = bvv.getConverterSetups();
 
-		viewer.getVisibilityAndGrouping().setDisplayMode( DisplayMode.FUSED );
+		viewer.setDisplayMode( DisplayMode.FUSED );
 		bvv.getViewerFrame().setVisible( true );
 
 		final boolean initTransform = !sources.isEmpty();
