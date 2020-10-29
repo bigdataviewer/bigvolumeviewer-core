@@ -1,5 +1,6 @@
 package tpietzsch.util;
 
+import bdv.viewer.render.PainterThread;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.awt.GLCanvas;
