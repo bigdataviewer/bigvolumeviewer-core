@@ -41,16 +41,8 @@ public class BvvHandleFrame extends BvvHandle
 			final VolumeViewerFrame frame = bvv.getViewerFrame();
 			frame.dispatchEvent( new WindowEvent( frame, WindowEvent.WINDOW_CLOSING ) );
 			bvv = null;
-			viewer = null;
-			setupAssignments = null;
-			bvvSources.clear();
 		}
-		// TODO
-//		super.close();
-//		should replace above lines:
-//		viewer = null;
-//		setupAssignments = null;
-//		bvvSources.clear();
+		super.close();
 	}
 
 	@Override
