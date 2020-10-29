@@ -233,6 +233,8 @@ public class VolumeViewerPanel
 	 */
 	protected final ViewerState state;
 
+	private final ConverterSetups setups;
+
 	/**
 	 * Renders the current state to gl context.
 	 */
@@ -326,6 +328,9 @@ public class VolumeViewerPanel
 
 		if ( !sources.isEmpty() )
 			state.setCurrentSource( 0 );
+
+		setups = new ConverterSetups( state() );
+		setups.listeners().add( s -> requestRepaint() );
 
 		threadGroup = new ThreadGroup( this.toString() );
 		painterThread = new PainterThread( threadGroup, this );
@@ -816,6 +821,11 @@ public class VolumeViewerPanel
 		return transformEventHandler;
 	}
 
+	public ConverterSetups getConverterSetups()
+	{
+		return setups;
+	}
+
 	/**
 	 * Display the specified message in a text overlay for a short time.
 	 *
@@ -1093,12 +1103,6 @@ public class VolumeViewerPanel
 	}
 
 	private RenderData renderData;
-
-	// TODO
-	// TODO
-	// TODO
-	// TODO
-	ConverterSetups setups = null;
 
 	@SuppressWarnings( "unchecked" )
 	private void setRenderState()

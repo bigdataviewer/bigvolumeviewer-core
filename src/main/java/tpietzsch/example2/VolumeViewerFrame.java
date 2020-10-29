@@ -35,8 +35,6 @@ public class VolumeViewerFrame extends JFrame
 
 	private final Behaviours behaviours;
 
-	private final ConverterSetups setups;
-
 	/**
 	 *
 	 * @param sources
@@ -57,9 +55,6 @@ public class VolumeViewerFrame extends JFrame
 	{
 		super( "BigVolumeViewer" );
 		viewer = new VolumeViewerPanel( sources, numTimepoints, cacheControl, renderScene, optional );
-		setups = new ConverterSetups( viewer.state() );
-		setups.listeners().add( s -> viewer.requestRepaint() );
-		viewer.setups = setups;
 
 		keybindings = new InputActionBindings();
 		triggerbindings = new TriggerBehaviourBindings();
@@ -129,6 +124,6 @@ public class VolumeViewerFrame extends JFrame
 
 	public ConverterSetups getConverterSetups()
 	{
-		return setups;
+		return viewer.getConverterSetups();
 	}
 }
