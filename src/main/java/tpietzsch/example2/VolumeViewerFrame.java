@@ -87,7 +87,7 @@ public class VolumeViewerFrame extends JFrame
 		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 		mouseAndKeyHandler.setKeypressManager( options.getKeyPressedManager(), viewer.getDisplay() );
-		viewer.addHandlerToCanvas( mouseAndKeyHandler );
+		viewer.getDisplay().addHandler( mouseAndKeyHandler );
 
 		// TODO: should be a field?
 		final Behaviours transformBehaviours = new Behaviours( optional.values.getInputTriggerConfig(), "bdv" );

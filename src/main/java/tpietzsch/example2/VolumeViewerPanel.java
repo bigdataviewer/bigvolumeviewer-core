@@ -27,13 +27,9 @@ import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
-import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
-import com.jogamp.opengl.GLProfile;
-import com.jogamp.opengl.awt.GLCanvas;
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusListener;
@@ -242,7 +238,10 @@ public class VolumeViewerPanel
 
 	private final TransformEventHandler transformEventHandler;
 
-	protected final GLCanvas canvas;
+	/**
+	 * Canvas used for displaying the rendered {@code image} and overlays.
+	 */
+	protected final InteractiveGLDisplayCanvas display;
 
 	protected final JSlider sliderTime;
 
@@ -361,13 +360,12 @@ public class VolumeViewerPanel
 
 		maxAllowedStepInVoxels = options.getMaxAllowedStepInVoxels();
 
-		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
-		canvas = new GLCanvas( capsReqUser );
-		canvas.setPreferredSize( new Dimension( options.getWidth(), options.getHeight() ) );
-		canvas.addGLEventListener( glEventListener );
+		display = new InteractiveGLDisplayCanvas( options.getWidth(), options.getHeight() );
+		display.setTransformEventHandler( transformEventHandler );
+		display.addGLEventListener( glEventListener );
 
 		mouseCoordinates = new MouseCoordinateListener();
-		addHandlerToCanvas( mouseCoordinates );
+		display.addHandler( mouseCoordinates );
 
 		sliderTime = new JSlider( SwingConstants.HORIZONTAL, 0, numTimepoints - 1, 0 );
 		sliderTime.addChangeListener( e -> {
@@ -375,7 +373,7 @@ public class VolumeViewerPanel
 				setTimepoint( sliderTime.getValue() );
 		} );
 
-		add( canvas, BorderLayout.CENTER );
+		add( display, BorderLayout.CENTER );
 		if ( numTimepoints > 1 )
 			add( sliderTime, BorderLayout.SOUTH );
 		setFocusable( false );
@@ -385,28 +383,16 @@ public class VolumeViewerPanel
 		transformListeners = new CopyOnWriteArrayList<>();
 		timePointListeners = new CopyOnWriteArrayList<>();
 
-		transformEventHandler.setCanvasSize( canvas.getWidth(), canvas.getWidth(), false );
-		canvas.addComponentListener( new ComponentAdapter()
+		display.addComponentListener( new ComponentAdapter()
 		{
 			@Override
 			public void componentResized( final ComponentEvent e )
 			{
-				final int w = canvas.getWidth();
-				final int h = canvas.getHeight();
-				transformEventHandler.setCanvasSize( w, h, true );
-				setScreenSize( w, h );
 				requestRepaint();
+				display.removeComponentListener( this );
 			}
 		} );
-
-//		canvas.addMouseListener( new MouseAdapter()
-//		{
-//			@Override
-//			public void mousePressed( final MouseEvent e )
-//			{
-//				canvas.requestFocusInWindow();
-//			}
-//		} );
+		display.canvasSizeListeners().add( this::setScreenSize );
 
 		state.getState().changeListeners().add( this );
 
@@ -502,7 +488,7 @@ public class VolumeViewerPanel
 	@Override
 	public void paint()
 	{
-		canvas.display();
+		display.display();
 
 		synchronized ( this )
 		{
@@ -811,9 +797,14 @@ public class VolumeViewerPanel
 		return state.getState();
 	}
 
-	public Component getDisplay()
+	/**
+	 * Get the viewer canvas.
+	 *
+	 * @return the viewer canvas.
+	 */
+	public InteractiveGLDisplayCanvas getDisplay()
 	{
-		return canvas;
+		return display;
 	}
 
 	public TransformEventHandler getTransformEventHandler()
@@ -1000,62 +991,6 @@ public class VolumeViewerPanel
 		{}
 	}
 
-	/**
-	 * Add new event handler to the canvas. Depending on the interfaces implemented by
-	 * {@code handler} calls {@link Component#addKeyListener(KeyListener)},
-	 * {@link Component#addMouseListener(MouseListener)},
-	 * {@link Component#addMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#addMouseWheelListener(MouseWheelListener)}.
-	 *
-	 * @param h
-	 * 		handler to remove
-	 */
-	public void addHandlerToCanvas( final Object h )
-	{
-		if ( KeyListener.class.isInstance( h ) )
-			canvas.addKeyListener( ( KeyListener ) h );
-
-		if ( MouseMotionListener.class.isInstance( h ) )
-			canvas.addMouseMotionListener( ( MouseMotionListener ) h );
-
-		if ( MouseListener.class.isInstance( h ) )
-			canvas.addMouseListener( ( MouseListener ) h );
-
-		if ( MouseWheelListener.class.isInstance( h ) )
-			canvas.addMouseWheelListener( ( MouseWheelListener ) h );
-
-		if ( FocusListener.class.isInstance( h ) )
-			canvas.addFocusListener( ( FocusListener ) h );
-	}
-
-	/**
-	 * Remove an event handler form the canvas. Add new event handler. Depending on the
-	 * interfaces implemented by {@code handler} calls
-	 * {@link Component#removeKeyListener(KeyListener)},
-	 * {@link Component#removeMouseListener(MouseListener)},
-	 * {@link Component#removeMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#removeMouseWheelListener(MouseWheelListener)}.
-	 *
-	 * @param h handler to remove
-	 */
-	public void removeHandlerFromCanvas( final Object h )
-	{
-		if ( KeyListener.class.isInstance( h ) )
-			canvas.removeKeyListener( ( KeyListener ) h );
-
-		if ( MouseMotionListener.class.isInstance( h ) )
-			canvas.removeMouseMotionListener( ( MouseMotionListener ) h );
-
-		if ( MouseListener.class.isInstance( h ) )
-			canvas.removeMouseListener( ( MouseListener ) h );
-
-		if ( MouseWheelListener.class.isInstance( h ) )
-			canvas.removeMouseWheelListener( ( MouseWheelListener ) h );
-
-		if ( FocusListener.class.isInstance( h ) )
-			canvas.removeFocusListener( ( FocusListener ) h );
-	}
-
 	private static int getDitherStep( final int ditherWidth )
 	{
 		final int[] ditherSteps = new int[] {
@@ -1066,7 +1001,6 @@ public class VolumeViewerPanel
 			throw new IllegalArgumentException( "unsupported dither width" );
 		return ditherSteps[ ditherWidth ];
 	}
-
 
 	// ... RenderState ...
 	private final List< Stack3D< ? > > renderStacks = new ArrayList<>();
@@ -1276,6 +1210,6 @@ public class VolumeViewerPanel
 	@Override
 	public boolean requestFocusInWindow()
 	{
-		return canvas.requestFocusInWindow();
+		return display.requestFocusInWindow();
 	}
 }
