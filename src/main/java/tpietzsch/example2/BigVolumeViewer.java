@@ -46,9 +46,7 @@ import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.state.SourceState;
 import mpicbg.spim.data.SpimDataException;
-import tpietzsch.example2.VolumeViewerPanel.RenderData;
 import tpietzsch.frombdv.ManualTransformationEditor;
 import tpietzsch.scene.TexturedUnitCube;
 
