@@ -172,7 +172,15 @@ public class InteractiveGLDisplayCanvas extends GLCanvas
 		if ( handler != null )
 			removeHandler( handler );
 		handler = transformEventHandler;
-		handler.setCanvasSize( getWidth(), getHeight(), false );
+		int w = getWidth();
+		int h = getHeight();
+		if ( w <= 0 || h <= 0 )
+		{
+			final Dimension preferred = getPreferredSize();
+			w = preferred.width;
+			h = preferred.height;
+		}
+		handler.setCanvasSize( w, h, false );
 		addHandler( handler );
 	}
 }
