@@ -47,6 +47,7 @@ import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
 import mpicbg.spim.data.SpimDataException;
+import org.scijava.ui.behaviour.util.Actions;
 import tpietzsch.frombdv.ManualTransformationEditor;
 import tpietzsch.scene.TexturedUnitCube;
 
@@ -153,12 +154,13 @@ public class BigVolumeViewer
 			}
 		} );
 
-		NavigationActions.installActionBindings( frame.getKeybindings(), viewer, keyConfig );
-		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
-		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
-		frame.getDefaultActions().runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
-		frame.getDefaultActions().runnableAction( this::loadSettings, "load settings", "F12" );
-		frame.getDefaultActions().runnableAction( this::saveSettings, "save settings", "F11" );
+		final Actions actions = frame.getDefaultActions();
+		NavigationActions.install( actions, viewer );
+		actions.namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
+		actions.namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
+		actions.runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
+		actions.runnableAction( this::loadSettings, "load settings", "F12" );
+		actions.runnableAction( this::saveSettings, "save settings", "F11" );
 	}
 
 	public VolumeViewerPanel getViewer()

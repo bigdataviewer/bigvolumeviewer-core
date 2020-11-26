@@ -29,169 +29,41 @@
  */
 package tpietzsch.example2;
 
-import bdv.viewer.DisplayMode;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.SourceGroup;
-import bdv.viewer.ViewerState;
-import java.util.ArrayList;
-import java.util.List;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
-import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.util.Actions;
-import org.scijava.ui.behaviour.util.InputActionBindings;
-import tpietzsch.example2.VolumeViewerPanel.AlignPlane;
 
-public class NavigationActions extends Actions
+import static bdv.viewer.NavigationActions.ALIGN_XY_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_XY_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.ALIGN_XZ_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_XZ_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.ALIGN_ZY_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_ZY_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.installModeActions;
+import static bdv.viewer.NavigationActions.installSourceActions;
+import static bdv.viewer.NavigationActions.installTimeActions;
+
+public class NavigationActions
 {
-	public static final String TOGGLE_FUSED_MODE = "toggle fused mode";
-	public static final String TOGGLE_GROUPING = "toggle grouping";
-	public static final String SET_CURRENT_SOURCE = "set current source %d";
-	public static final String TOGGLE_SOURCE_VISIBILITY = "toggle source visibility %d";
-	public static final String ALIGN_PLANE = "align %s plane";
-	public static final String NEXT_TIMEPOINT = "next timepoint";
-	public static final String PREVIOUS_TIMEPOINT = "previous timepoint";
-
 	/**
 	 * Create navigation actions and install them in the specified
-	 * {@link InputActionBindings}.
+	 * {@link Actions}.
 	 *
-	 * @param inputActionBindings
-	 *            {@link InputMap} and {@link ActionMap} are installed here.
+	 * @param actions
+	 *            navigation actions are installed here.
 	 * @param viewer
 	 *            Navigation actions are targeted at this {@link VolumeViewerPanel}.
-	 * @param keyProperties
-	 *            user-defined key-bindings.
 	 */
-	public static void installActionBindings(
-			final InputActionBindings inputActionBindings,
-			final VolumeViewerPanel viewer,
-			final KeyStrokeAdder.Factory keyProperties )
+	public static void install( final Actions actions, final VolumeViewerPanel viewer )
 	{
-		final NavigationActions actions = new NavigationActions( keyProperties );
-
-		actions.modes( viewer );
-		actions.sources( viewer );
-		actions.time( viewer );
-		actions.alignPlanes( viewer );
-
-		actions.install( inputActionBindings, "navigation" );
+		installModeActions( actions, viewer.state() );
+		installSourceActions( actions, viewer.state() );
+		installTimeActions( actions, viewer.state() );
+		installAlignPlaneActions( actions, viewer );
 	}
 
-	public NavigationActions( final KeyStrokeAdder.Factory keyConfig )
+	public static void installAlignPlaneActions( final Actions actions, final VolumeViewerPanel viewer )
 	{
-		super( keyConfig, new String[] { "bdv", "navigation" } );
-	}
-
-	public void alignPlaneAction( final VolumeViewerPanel viewer, final AlignPlane plane, final String... defaultKeyStrokes )
-	{
-		runnableAction(
-				() -> viewer.align( plane ),
-				String.format( ALIGN_PLANE, plane.getName() ), defaultKeyStrokes );
-	}
-
-	public void modes( final VolumeViewerPanel viewer )
-	{
-		runnableAction(
-				() -> {
-					final ViewerState state = viewer.state();
-					final DisplayMode mode = state.getDisplayMode();
-					state.setDisplayMode( mode.withFused( !mode.hasFused() ) );
-				},
-				TOGGLE_FUSED_MODE, "F" );
-		runnableAction(
-				() -> {
-					final ViewerState state = viewer.state();
-					final DisplayMode mode = state.getDisplayMode();
-					state.setDisplayMode( mode.withGrouping( !mode.hasGrouping() ) );
-				},
-				TOGGLE_GROUPING, "G" );
-	}
-
-	public void time( final VolumeViewerPanel viewer )
-	{
-		runnableAction(
-				viewer::nextTimePoint,
-				NEXT_TIMEPOINT, "CLOSE_BRACKET", "M" );
-		runnableAction(
-				viewer::previousTimePoint,
-				PREVIOUS_TIMEPOINT, "OPEN_BRACKET", "N" );
-	}
-
-	public void sources( final VolumeViewerPanel viewer )
-	{
-		final String[] numkeys = new String[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
-		for ( int i = 0; i < numkeys.length; ++i )
-		{
-			final int sourceIndex = i;
-			runnableAction(
-					() -> setCurrentGroupOrSource( viewer, sourceIndex ),
-					String.format( SET_CURRENT_SOURCE, i ), numkeys[ i ] );
-			runnableAction(
-					() -> toggleGroupOrSourceActive( viewer, sourceIndex ),
-					String.format( TOGGLE_SOURCE_VISIBILITY, i ), "shift " + numkeys[ i ] );
-		}
-	}
-
-	public void alignPlanes( final VolumeViewerPanel viewer )
-	{
-		alignPlaneAction( viewer, AlignPlane.XY, "shift Z" );
-		alignPlaneAction( viewer, AlignPlane.ZY, "shift X" );
-		alignPlaneAction( viewer, AlignPlane.XZ, "shift Y", "shift A" );
-	}
-
-	private static void setCurrentGroupOrSource( final VolumeViewerPanel viewer, final int index )
-	{
-		final ViewerState state = viewer.state();
-		synchronized ( state )
-		{
-			if ( state.getDisplayMode().hasGrouping() )
-			{
-				final List< SourceGroup > groups = state.getGroups();
-				if ( index >= 0 && index < groups.size() )
-				{
-					final SourceGroup group = groups.get( index );
-					state.setCurrentGroup( group );
-					final List< SourceAndConverter< ? > > sources = new ArrayList<>( state.getSourcesInGroup( group ) );
-					if ( !sources.isEmpty() )
-					{
-						sources.sort( state.sourceOrder() );
-						state.setCurrentSource( sources.get( 0 ) );
-					}
-				}
-			}
-			else
-			{
-				final List< SourceAndConverter< ? > > sources = state.getSources();
-				if ( index >= 0 && index < sources.size() )
-					state.setCurrentSource( sources.get( index ) );
-			}
-		}
-	}
-
-	private static void toggleGroupOrSourceActive( final VolumeViewerPanel viewer, final int index )
-	{
-		final ViewerState state = viewer.state();
-		synchronized ( state )
-		{
-			if ( state.getDisplayMode().hasGrouping() )
-			{
-				final List< SourceGroup > groups = state.getGroups();
-				if ( index >= 0 && index < groups.size() )
-				{
-					final SourceGroup group = groups.get( index );
-					state.setGroupActive( group, !state.isGroupActive( group ) );
-				}
-			}
-			else
-			{
-				final List< SourceAndConverter< ? > > sources = state.getSources();
-				if ( index >= 0 && index < sources.size() )
-				{
-					final SourceAndConverter< ? > source = sources.get( index );
-					state.setSourceActive( source, !state.isSourceActive( source ) );
-				}
-			}
-		}
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.XY ), ALIGN_XY_PLANE, ALIGN_XY_PLANE_KEYS );
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.ZY ), ALIGN_ZY_PLANE, ALIGN_ZY_PLANE_KEYS );
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.XZ ), ALIGN_XZ_PLANE, ALIGN_XZ_PLANE_KEYS );
 	}
 }
