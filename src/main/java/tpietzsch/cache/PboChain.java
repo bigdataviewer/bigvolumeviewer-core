@@ -317,7 +317,8 @@ public class PboChain
 			lock.lockInterruptibly();
 			try
 			{
-				while ( ( chainState == FLUSH || activePbo.hasRemainingBuffers() || cleanPbos.peek() == null ) // nothing to activate
+				while ( ( chainState != FLUSH || cleanPbos.size() != numBufs ) // not done (==!ready())
+						&& ( chainState == FLUSH || activePbo.hasRemainingBuffers() || cleanPbos.peek() == null ) // nothing to activate
 						&& readyForUploadPbos.peek() == null ) // nothing to upload
 				{
 //					System.out.println("gpu.await();");
@@ -381,8 +382,8 @@ public class PboChain
 			if ( chainState == FLUSH )
 			{
 				// oops, that map() was unnecessary...
-				pbo.flush();
-				readyForUploadPbos.add( pbo );
+				if ( pbo.flush() )
+					readyForUploadPbos.add( pbo );
 				gpu.signal();
 			}
 			else
@@ -602,7 +603,7 @@ public class PboChain
 				/*
 				 * Workaround for weird bug, where texSubImage3D starting at 0,0,0 is mangled.
 				 * The above if() makes sure, that this block (the oob block) is uploaded in an individual call.
-				 * That still doesn't workcorrectly, but at least no "real" block is mangled in the process...
+				 * That still doesn't work correctly, but at least no "real" block is mangled in the process...
 				 */
 				{
 					for ( ; nb < remainingBlocks; ++nb )
