@@ -10,3 +10,5 @@ pom.xml.next
 *.ucls
 .idea/
 *.iml
+build/
+.gradle/
