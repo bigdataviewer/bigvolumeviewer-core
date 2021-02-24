@@ -169,7 +169,7 @@ public class VolumeViewerPanel
 	/**
 	 * Canvas used for displaying the rendered {@code image} and overlays.
 	 */
-	protected final InteractiveGLDisplayCanvas display;
+	protected final InteractiveGLDisplayCanvas< ? > display;
 
 	protected final JSlider sliderTime;
 
@@ -288,7 +288,7 @@ public class VolumeViewerPanel
 
 		maxAllowedStepInVoxels = options.getMaxAllowedStepInVoxels();
 
-		display = new InteractiveGLDisplayCanvas( options.getWidth(), options.getHeight() );
+		display = InteractiveGLDisplayCanvas.createGLJPanel( options.getWidth(), options.getHeight() );
 		display.setTransformEventHandler( transformEventHandler );
 		display.addGLEventListener( glEventListener );
 
@@ -301,7 +301,7 @@ public class VolumeViewerPanel
 				setTimepoint( sliderTime.getValue() );
 		} );
 
-		add( display, BorderLayout.CENTER );
+		add( display.getComponent(), BorderLayout.CENTER );
 		if ( numTimepoints > 1 )
 			add( sliderTime, BorderLayout.SOUTH );
 		setFocusable( false );
@@ -311,13 +311,13 @@ public class VolumeViewerPanel
 		transformListeners = new Listeners.SynchronizedList<>( l -> l.transformChanged( state().getViewerTransform() ) );
 		timePointListeners = new CopyOnWriteArrayList<>();
 
-		display.addComponentListener( new ComponentAdapter()
+		display.getComponent().addComponentListener( new ComponentAdapter()
 		{
 			@Override
 			public void componentResized( final ComponentEvent e )
 			{
 				requestRepaint();
-				display.removeComponentListener( this );
+				display.getComponent().removeComponentListener( this );
 			}
 		} );
 		display.canvasSizeListeners().add( this::setScreenSize );
@@ -982,6 +982,7 @@ public class VolumeViewerPanel
 				cacheControl.prepareNextFrame();
 			}
 
+//			offscreen.flipY = true;
 			offscreen.bind( gl, false );
 			gl.glDisable( GL_DEPTH_TEST );
 			sceneBuf.drawQuad( gl );

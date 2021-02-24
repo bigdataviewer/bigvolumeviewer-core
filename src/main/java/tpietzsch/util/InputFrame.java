@@ -52,7 +52,7 @@ public class InputFrame
 
 	private final PainterThread painterThread;
 
-	private final InteractiveGLDisplayCanvas display;
+	private final InteractiveGLDisplayCanvas< GLCanvas > display;
 
 	private long t0;
 
@@ -117,14 +117,14 @@ public class InputFrame
 	{
 //		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getGL2GL3() );
 //		final GLCapabilities capsReqUser = new GLCapabilities( GLProfile.getMaxProgrammableCore( true ) );
-		display = new InteractiveGLDisplayCanvas( width, height );
+		display = InteractiveGLDisplayCanvas.createGLCanvas( width, height );
 		display.addGLEventListener( wrapper );
 
 		painterThread = new PainterThread( display::display );
 
 		frame = new JFrame( title );
 		frame.getRootPane().setDoubleBuffered( true );
-		frame.getContentPane().add( display, BorderLayout.CENTER );
+		frame.getContentPane().add( display.getComponent(), BorderLayout.CENTER );
 		frame.pack();
 		frame.setDefaultCloseOperation( JFrame.DISPOSE_ON_CLOSE );
 		frame.addWindowListener( new WindowAdapter()
@@ -204,7 +204,7 @@ public class InputFrame
 
 	public GLCanvas getDisplay()
 	{
-		return display;
+		return display.getComponent();
 	}
 
 	public JFrame getFrame()
