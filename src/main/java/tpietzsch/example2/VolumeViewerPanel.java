@@ -241,6 +241,7 @@ public class VolumeViewerPanel
 		super( new BorderLayout() );
 
 		options = optional.values;
+		final boolean useGLJPanel = true; // TODO should come from VolumeViewerOptions
 
 		this.cacheControl = cacheControl;
 		this.renderScene = renderScene;
@@ -268,7 +269,7 @@ public class VolumeViewerPanel
 		final int renderWidth = options.getRenderWidth();
 		final int renderHeight = options.getRenderHeight();
 		sceneBuf = new OffScreenFrameBufferWithDepth( renderWidth, renderHeight, GL_RGB8 );
-		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8 );
+		offscreen = new OffScreenFrameBuffer( renderWidth, renderHeight, GL_RGB8, false, useGLJPanel );
 		maxRenderMillis = options.getMaxRenderMillis();
 
 		renderer = new VolumeRenderer(
@@ -288,7 +289,9 @@ public class VolumeViewerPanel
 
 		maxAllowedStepInVoxels = options.getMaxAllowedStepInVoxels();
 
-		display = InteractiveGLDisplayCanvas.createGLJPanel( options.getWidth(), options.getHeight() );
+		display = useGLJPanel
+				? InteractiveGLDisplayCanvas.createGLJPanel( options.getWidth(), options.getHeight() )
+				: InteractiveGLDisplayCanvas.createGLCanvas( options.getWidth(), options.getHeight() );
 		display.setTransformEventHandler( transformEventHandler );
 		display.addGLEventListener( glEventListener );
 
