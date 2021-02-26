@@ -32,12 +32,12 @@ import bdv.TransformEventHandler;
 import bdv.TransformState;
 import bdv.cache.CacheControl;
 import bdv.tools.brightness.ConverterSetup;
-import bdv.util.Affine3DHelpers;
+import bdv.util.Prefs;
 import bdv.viewer.AbstractViewerPanel;
 import bdv.viewer.ConverterSetups;
 import bdv.viewer.DisplayMode;
-import bdv.viewer.Interpolation;
-import bdv.viewer.RequestRepaint;
+import bdv.viewer.NavigationActions;
+import bdv.viewer.OverlayRenderer;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.SynchronizedViewerState;
@@ -48,8 +48,12 @@ import bdv.viewer.ViewerStateChange;
 import bdv.viewer.ViewerStateChangeListener;
 import bdv.viewer.VisibilityAndGrouping;
 import bdv.viewer.animate.AbstractTransformAnimator;
+import bdv.viewer.animate.MessageOverlayAnimator;
 import bdv.viewer.animate.OverlayAnimator;
-import bdv.viewer.animate.RotationAnimator;
+import bdv.viewer.animate.TextOverlayAnimator;
+import bdv.viewer.animate.TextOverlayAnimator.TextPosition;
+import bdv.viewer.overlay.MultiBoxOverlayRenderer;
+import bdv.viewer.overlay.ScaleBarOverlayRenderer;
 import bdv.viewer.overlay.SourceInfoOverlayRenderer;
 import bdv.viewer.render.PainterThread;
 import bdv.viewer.state.SourceGroup;
@@ -59,11 +63,13 @@ import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,14 +78,14 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import javax.swing.DefaultBoundedRangeModel;
-import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import net.imglib2.Positionable;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.LinAlgHelpers;
 import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.scijava.listeners.Listeners;
@@ -101,7 +107,7 @@ import static tpietzsch.example2.VolumeRenderer.RepaintType.SCENE;
 
 public class VolumeViewerPanel
 		extends AbstractViewerPanel
-		implements RequestRepaint, PainterThread.Paintable, ViewerStateChangeListener
+		implements OverlayRenderer, PainterThread.Paintable, ViewerStateChangeListener
 {
 	protected final CacheControl cacheControl;
 
@@ -167,7 +173,24 @@ public class VolumeViewerPanel
 	 */
 	protected final VolumeRenderer renderer;
 
+	/**
+	 * Overlay navigation boxes.
+	 */
+	// TODO: move to specialized class
+	private final MultiBoxOverlayRenderer multiBoxOverlayRenderer;
+
 	private final TransformEventHandler transformEventHandler;
+
+	/**
+	 * Overlay current source name and current timepoint.
+	 */
+	// TODO: move to specialized class
+	private final SourceInfoOverlayRenderer sourceInfoOverlayRenderer;
+
+	/**
+	 * TODO
+	 */
+	private final ScaleBarOverlayRenderer scaleBarOverlayRenderer;
 
 	/**
 	 * Canvas used for displaying the rendered {@code image} and overlays.
@@ -188,11 +211,6 @@ public class VolumeViewerPanel
 	 * Thread that triggers repainting of the display.
 	 */
 	protected final PainterThread painterThread;
-
-	/**
-	 * Keeps track of the current mouse coordinates.
-	 */
-	protected final MouseCoordinateListener mouseCoordinates;
 
 	/**
 	 * Manages visibility and currentness of sources and groups, as well as
@@ -221,6 +239,18 @@ public class VolumeViewerPanel
 	 * orthogonal planes}.
 	 */
 	protected AbstractTransformAnimator currentAnimator = null;
+
+	/**
+	 * A list of currently incomplete (see {@link OverlayAnimator#isComplete()})
+	 * animators. Initially, this contains a {@link TextOverlayAnimator} showing
+	 * the "press F1 for help" message.
+	 */
+	protected final ArrayList< OverlayAnimator > overlayAnimators;
+
+	/**
+	 * Fade-out overlay of recent messages. See {@link #showMessage(String)}.
+	 */
+	protected final MessageOverlayAnimator msgOverlay;
 
 	protected final VolumeViewerOptions.Values options;
 
@@ -259,6 +289,9 @@ public class VolumeViewerPanel
 
 		if ( !sources.isEmpty() )
 			state.setCurrentSource( 0 );
+		multiBoxOverlayRenderer = new MultiBoxOverlayRenderer();
+		sourceInfoOverlayRenderer = new SourceInfoOverlayRenderer();
+		scaleBarOverlayRenderer = Prefs.showScaleBar() ? new ScaleBarOverlayRenderer() : null;
 
 		setups = new ConverterSetups( state() );
 		setups.listeners().add( s -> requestRepaint() );
@@ -297,8 +330,8 @@ public class VolumeViewerPanel
 				: InteractiveGLDisplayCanvas.createGLCanvas( options.getWidth(), options.getHeight() );
 		display.setTransformEventHandler( transformEventHandler );
 		display.addGLEventListener( glEventListener );
+		display.overlays().add( this );
 
-		mouseCoordinates = new MouseCoordinateListener();
 		display.addHandler( mouseCoordinates );
 
 		sliderTime = new JSlider( SwingConstants.HORIZONTAL, 0, numTimepoints - 1, 0 );
@@ -317,6 +350,12 @@ public class VolumeViewerPanel
 		transformListeners = new Listeners.SynchronizedList<>( l -> l.transformChanged( state().getViewerTransform() ) );
 		timePointListeners = new CopyOnWriteArrayList<>();
 
+		msgOverlay = options.getMsgOverlay();
+
+		overlayAnimators = new ArrayList<>();
+		overlayAnimators.add( msgOverlay );
+		overlayAnimators.add( new TextOverlayAnimator( "Press <F1> for help.", 3000, TextPosition.CENTER ) );
+
 		display.getComponent().addComponentListener( new ComponentAdapter()
 		{
 			@Override
@@ -326,7 +365,7 @@ public class VolumeViewerPanel
 				display.getComponent().removeComponentListener( this );
 			}
 		} );
-		display.canvasSizeListeners().add( this::setScreenSize );
+		display.canvasSizeListeners().add( this::setScreenSize ); // TODO: this could be done via setCanvasSize() because we implement OVerlayRenderer
 
 		state.getState().changeListeners().add( this );
 
@@ -419,6 +458,48 @@ public class VolumeViewerPanel
 		}
 	}
 
+	/**
+	 * Set {@code gPos} to the display coordinates at gPos transformed into the
+	 * global coordinate system.
+	 *
+	 * @param gPos
+	 *            is set to the corresponding global coordinates.
+	 */
+	public void displayToGlobalCoordinates( final double[] gPos )
+	{
+		assert gPos.length >= 3;
+		state().getViewerTransform().applyInverse( gPos, gPos );
+	}
+
+	/**
+	 * Set {@code gPos} to the display coordinates at gPos transformed into the
+	 * global coordinate system.
+	 *
+	 * @param gPos
+	 *            is set to the corresponding global coordinates.
+	 */
+	public < P extends RealLocalizable & RealPositionable > void displayToGlobalCoordinates( final P gPos )
+	{
+		assert gPos.numDimensions() >= 3;
+		state().getViewerTransform().applyInverse( gPos, gPos );
+	}
+
+	/**
+	 * Set {@code gPos} to the display coordinates (x,y,0)<sup>T</sup> transformed into the
+	 * global coordinate system.
+	 *
+	 * @param gPos
+	 *            is set to the global coordinates at display (x,y,0)<sup>T</sup>.
+	 */
+	public void displayToGlobalCoordinates( final double x, final double y, final RealPositionable gPos )
+	{
+		assert gPos.numDimensions() >= 3;
+		final RealPoint lPos = new RealPoint( 3 );
+		lPos.setPosition( x, 0 );
+		lPos.setPosition( y, 1 );
+		state().getViewerTransform().applyInverse( gPos, lPos );
+	}
+
 	@Override
 	public void paint()
 	{
@@ -432,6 +513,8 @@ public class VolumeViewerPanel
 				state().setViewerTransform( transform );
 				if ( currentAnimator.isComplete() )
 					currentAnimator = null;
+				else
+					requestRepaint( NONE ); // just to keep animator going. TODO: should really switch to timer-based animations
 			}
 		}
 	}
@@ -445,13 +528,70 @@ public class VolumeViewerPanel
 		repaint.request( FULL );
 	}
 
-	/**
-	 * Repaint as soon as possible.
-	 */
 	public void requestRepaint( final RepaintType type )
 	{
 		repaint.request( type );
 	}
+
+	@Override
+	protected void onMouseMoved()
+	{
+		if ( Prefs.showTextOverlay() )
+			// trigger repaint for showing updated mouse coordinates
+			getDisplayComponent().repaint();
+	}
+
+	@Override
+	public void drawOverlays( final Graphics g )
+	{
+		boolean requiresRepaint = false;
+		if ( Prefs.showMultibox() )
+		{
+			multiBoxOverlayRenderer.setViewerState( state() );
+			multiBoxOverlayRenderer.updateVirtualScreenSize( display.getWidth(), display.getHeight() );
+			multiBoxOverlayRenderer.paint( ( Graphics2D ) g );
+			requiresRepaint = multiBoxOverlayRenderer.isHighlightInProgress();
+		}
+
+		if ( Prefs.showTextOverlay() )
+		{
+			sourceInfoOverlayRenderer.setViewerState( state() );
+			sourceInfoOverlayRenderer.setSourceNameOverlayPosition( Prefs.sourceNameOverlayPosition() );
+			sourceInfoOverlayRenderer.paint( ( Graphics2D ) g );
+
+			final RealPoint gPos = new RealPoint( 3 );
+			getGlobalMouseCoordinates( gPos );
+			final String mousePosGlobalString = String.format( "(%6.1f,%6.1f,%6.1f)", gPos.getDoublePosition( 0 ), gPos.getDoublePosition( 1 ), gPos.getDoublePosition( 2 ) );
+
+			g.setFont( new Font( "Monospaced", Font.PLAIN, 12 ) );
+			g.setColor( Color.white );
+			g.drawString( mousePosGlobalString, ( int ) g.getClipBounds().getWidth() - 170, 25 );
+		}
+
+		if ( Prefs.showScaleBar() )
+		{
+			scaleBarOverlayRenderer.setViewerState( state() );
+			scaleBarOverlayRenderer.paint( ( Graphics2D ) g );
+		}
+
+		final long currentTimeMillis = System.currentTimeMillis();
+		final ArrayList< OverlayAnimator > overlayAnimatorsToRemove = new ArrayList<>();
+		for ( final OverlayAnimator animator : overlayAnimators )
+		{
+			animator.paint( ( Graphics2D ) g, currentTimeMillis );
+			requiresRepaint |= animator.requiresRepaint();
+			if ( animator.isComplete() )
+				overlayAnimatorsToRemove.add( animator );
+		}
+		overlayAnimators.removeAll( overlayAnimatorsToRemove );
+
+		if ( requiresRepaint )
+			getDisplayComponent().repaint();
+	}
+
+	@Override
+	public void setCanvasSize( final int width, final int height )
+	{}
 
 	@Override
 	public void viewerStateChanged( final ViewerStateChange change )
@@ -459,18 +599,15 @@ public class VolumeViewerPanel
 		switch ( change )
 		{
 		case CURRENT_SOURCE_CHANGED:
-			// TODO
-//			multiBoxOverlayRenderer.highlight( state().getSources().indexOf( state().getCurrentSource() ) );
-//			display.repaint();
+			multiBoxOverlayRenderer.highlight( state().getSources().indexOf( state().getCurrentSource() ) );
+			getDisplayComponent().repaint();
 			break;
 		case DISPLAY_MODE_CHANGED:
-			// TODO
-//			showMessage( state().getDisplayMode().getName() );
-//			display.repaint();
+			showMessage( state().getDisplayMode().getName() );
+			getDisplayComponent().repaint();
 			break;
 		case GROUP_NAME_CHANGED:
-			// TODO
-//			display.repaint();
+			getDisplayComponent().repaint();
 			break;
 		case CURRENT_GROUP_CHANGED:
 			// TODO multiBoxOverlayRenderer.highlight() all sources in group that became current
@@ -524,72 +661,12 @@ public class VolumeViewerPanel
 		}
 	}
 
-	/**
-	 * Align the XY, ZY, or XZ plane of the local coordinate system of the
-	 * currently active source with the viewer coordinate system.
-	 *
-	 * @param plane
-	 *            to which plane to align.
-	 */
 	@Override
-	protected synchronized void align( final AlignPlane plane )
-	{
-		final Source< ? > source = state().getCurrentSource().getSpimSource();
-		final AffineTransform3D sourceTransform = new AffineTransform3D();
-		source.getSourceTransform( state.getCurrentTimepoint(), 0, sourceTransform );
-
-		final double[] qSource = new double[ 4 ];
-		Affine3DHelpers.extractRotationAnisotropic( sourceTransform, qSource );
-
-		final double[] qTmpSource = new double[ 4 ];
-		Affine3DHelpers.extractApproximateRotationAffine( sourceTransform, qSource, plane.coerceAffineDimension );
-		LinAlgHelpers.quaternionMultiply( qSource, plane.qAlign, qTmpSource );
-
-		final double[] qTarget = new double[ 4 ];
-		LinAlgHelpers.quaternionInvert( qTmpSource, qTarget );
-
-		final AffineTransform3D transform = state().getViewerTransform();
-		double centerX;
-		double centerY;
-		if ( mouseCoordinates.isMouseInsidePanel() )
-		{
-			centerX = mouseCoordinates.getX();
-			centerY = mouseCoordinates.getY();
-		}
-		else
-		{
-			centerY = getHeight() / 2.0;
-			centerX = getWidth() / 2.0;
-		}
-		currentAnimator = new RotationAnimator( transform, centerX, centerY, qTarget, 300 );
-		currentAnimator.setTime( System.currentTimeMillis() );
-		requestRepaint();
-	}
-
 	public synchronized void setTransformAnimator( final AbstractTransformAnimator animator )
 	{
 		currentAnimator = animator;
 		currentAnimator.setTime( System.currentTimeMillis() );
 		requestRepaint();
-	}
-
-	/**
-	 * Switch to next interpolation mode. (Currently, there are two
-	 * interpolation modes: nearest-neighbor and N-linear.)
-	 */
-	// TODO: Deprecate or leave as convenience?
-	public synchronized void toggleInterpolation()
-	{
-		state().setInterpolation( state().getInterpolation().next() );
-	}
-
-	/**
-	 * Set the {@link Interpolation} mode.
-	 */
-	// TODO: Deprecate or leave as convenience?
-	public synchronized void setInterpolation( final Interpolation mode )
-	{
-		state().setInterpolation( mode );
 	}
 
 	/**
@@ -628,7 +705,7 @@ public class VolumeViewerPanel
 	// TODO: Deprecate or leave as convenience?
 	public synchronized void nextTimePoint()
 	{
-		bdv.viewer.NavigationActions.nextTimePoint( state() );
+		NavigationActions.nextTimePoint( state() );
 	}
 
 	/**
@@ -637,7 +714,7 @@ public class VolumeViewerPanel
 	// TODO: Deprecate or leave as convenience?
 	public synchronized void previousTimePoint()
 	{
-		bdv.viewer.NavigationActions.previousTimePoint( state() );
+		NavigationActions.previousTimePoint( state() );
 	}
 
 	/**
@@ -653,7 +730,7 @@ public class VolumeViewerPanel
 	 */
 	public void setNumTimepoints( final int numTimepoints )
 	{
-		state.setNumTimepoints( numTimepoints );
+		state().setNumTimepoints( numTimepoints );
 	}
 
 	/**
@@ -674,6 +751,7 @@ public class VolumeViewerPanel
 	 * adding/removing sources etc. See {@link SynchronizedViewerState} for
 	 * thread-safety considerations.
 	 */
+	@Override
 	public SynchronizedViewerState state()
 	{
 		return state.getState();
@@ -684,9 +762,21 @@ public class VolumeViewerPanel
 	 *
 	 * @return the viewer canvas.
 	 */
-	public InteractiveGLDisplayCanvas getDisplay()
+	@Override
+	public InteractiveGLDisplayCanvas< ? > getDisplay()
 	{
 		return display;
+	}
+
+	/**
+	 * Get the AWT {@code Component} of the viewer canvas.
+	 *
+	 * @return the viewer canvas.
+	 */
+	@Override
+	public Component getDisplayComponent()
+	{
+		return display.getComponent();
 	}
 
 	public TransformEventHandler getTransformEventHandler()
@@ -705,10 +795,26 @@ public class VolumeViewerPanel
 	 * @param msg
 	 *            String to display. Should be just one line of text.
 	 */
+	@Override
 	public void showMessage( final String msg )
 	{
-		System.out.println( msg );
-		// TODO
+		msgOverlay.add( msg );
+		getDisplayComponent().repaint();
+	}
+
+	/**
+	 * Add a new {@link OverlayAnimator} to the list of animators. The animation
+	 * is immediately started. The new {@link OverlayAnimator} will remain in
+	 * the list of animators until it {@link OverlayAnimator#isComplete()}.
+	 *
+	 * @param animator
+	 *            animator to add.
+	 */
+	@Override
+	public void addOverlayAnimator( final OverlayAnimator animator )
+	{
+		overlayAnimators.add( animator );
+		getDisplayComponent().repaint();
 	}
 
 	/**
@@ -716,6 +822,7 @@ public class VolumeViewerPanel
 	 * changes. Listeners will be notified <em>before</em> calling
 	 * {@link #requestRepaint()} so they have the chance to interfere.
 	 */
+	@Override
 	public Listeners< TransformListener< AffineTransform3D > > transformListeners()
 	{
 		return transformListeners;
@@ -766,74 +873,6 @@ public class VolumeViewerPanel
 		{
 			timePointListeners.remove( listener );
 		}
-	}
-
-	protected class MouseCoordinateListener implements MouseMotionListener, MouseListener
-	{
-		private int x;
-
-		private int y;
-
-		private boolean isInside;
-
-		public synchronized void getMouseCoordinates( final Positionable p )
-		{
-			p.setPosition( x, 0 );
-			p.setPosition( y, 1 );
-		}
-
-		@Override
-		public synchronized void mouseDragged( final MouseEvent e )
-		{
-			x = e.getX();
-			y = e.getY();
-		}
-
-		@Override
-		public synchronized void mouseMoved( final MouseEvent e )
-		{
-			x = e.getX();
-			y = e.getY();
-		}
-
-		public synchronized int getX()
-		{
-			return x;
-		}
-
-		public synchronized int getY()
-		{
-			return y;
-		}
-
-		public synchronized boolean isMouseInsidePanel()
-		{
-			return isInside;
-		}
-
-		@Override
-		public synchronized void mouseEntered( final MouseEvent e )
-		{
-			isInside = true;
-		}
-
-		@Override
-		public synchronized void mouseExited( final MouseEvent e )
-		{
-			isInside = false;
-		}
-
-		@Override
-		public void mouseClicked( final MouseEvent e )
-		{}
-
-		@Override
-		public void mousePressed( final MouseEvent e )
-		{}
-
-		@Override
-		public void mouseReleased( final MouseEvent e )
-		{}
 	}
 
 	private static int getDitherStep( final int ditherWidth )
@@ -999,10 +1038,15 @@ public class VolumeViewerPanel
 		return options;
 	}
 
+	@Override
+	public InputTriggerConfig getInputTriggerConfig()
+	{
+		return options.getInputTriggerConfig();
+	}
+
 	public SourceInfoOverlayRenderer getSourceInfoOverlayRenderer()
 	{
-		throw new UnsupportedOperationException("TODO");
-//		return sourceInfoOverlayRenderer;
+		return sourceInfoOverlayRenderer;
 	}
 
 	/**
@@ -1022,30 +1066,7 @@ public class VolumeViewerPanel
 		state.kill();
 	}
 
-	@Override
-	public boolean requestFocusInWindow()
-	{
-		return display.requestFocusInWindow();
-	}
-
-
-
-
 	// ======== AbstractViewerPanel ======
-
-	@Override
-	public InputTriggerConfig getInputTriggerConfig()
-	{
-		return options.getInputTriggerConfig();
-	}
-
-	@Override
-	public void addOverlayAnimator( final OverlayAnimator animator )
-	{
-		System.out.println( "VolumeViewerPanel.addOverlayAnimator" );
-		System.out.println( "  animator = " + animator );
-		System.out.println( "  TODO" );
-	}
 
 	@Override
 	public Listeners< TransformListener< AffineTransform3D > > renderTransformListeners()
@@ -1053,13 +1074,5 @@ public class VolumeViewerPanel
 		System.out.println( "VolumeViewerPanel.renderTransformListeners" );
 		System.out.println( "  TODO" );
 		return transformListeners();
-	}
-
-	@Override
-	public void getMouseCoordinates( final Positionable p )
-	{
-		System.out.println( "VolumeViewerPanel.getMouseCoordinates" );
-		System.out.println( "  p = " + p );
-		System.out.println( "  TODO" );
 	}
 }
