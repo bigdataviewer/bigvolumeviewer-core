@@ -1,16 +1,15 @@
 package tpietzsch.example2;
 
 import bdv.tools.brightness.ConverterSetup;
+
+import java.lang.Math;
 import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import net.imglib2.type.numeric.ARGBType;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fc;
-import org.joml.Vector2f;
-import org.joml.Vector4f;
+import org.joml.*;
 import tpietzsch.backend.GpuContext;
 import tpietzsch.backend.Texture;
 import tpietzsch.backend.Texture2D;
@@ -19,13 +18,7 @@ import tpietzsch.cache.TextureCache;
 import tpietzsch.dither.DitherBuffer;
 import tpietzsch.example2.VolumeShaderSignature.PixelType;
 import tpietzsch.example2.VolumeShaderSignature.VolumeSignature;
-import tpietzsch.shadergen.Uniform1f;
-import tpietzsch.shadergen.Uniform2f;
-import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.Uniform3fv;
-import tpietzsch.shadergen.Uniform4f;
-import tpietzsch.shadergen.UniformMatrix4f;
-import tpietzsch.shadergen.UniformSampler;
+import tpietzsch.shadergen.*;
 import tpietzsch.shadergen.generate.Segment;
 import tpietzsch.shadergen.generate.SegmentTemplate;
 import tpietzsch.shadergen.generate.SegmentType;
@@ -299,6 +292,38 @@ public class MultiVolumeShaderMip
 		volumeSegments[ index ].putSampler( prog, name, texture );
 	}
 
+	public void setCustomUniformForVolume( int index, String name, Object value ) {
+		if(value instanceof Integer) {
+			volumeSegments[index].setUniform1f(prog, name, (int)value);
+		} else if(value instanceof Float) {
+			volumeSegments[index].setUniform1f(prog, name, (float) value);
+		} else if(value instanceof Vector2f) {
+			volumeSegments[index].setUniform2f(prog, name, (Vector2f)value);
+		} else if(value instanceof Vector3f) {
+			volumeSegments[index].setUniform3f(prog, name, (Vector3f)value);
+		} else if(value instanceof Vector4f) {
+			volumeSegments[index].setUniform4f(prog, name, (Vector4f)value);
+		} else if(value instanceof Matrix3f) {
+			volumeSegments[index].setUniformMatrix3f(prog, name, (Matrix3f)value);
+		} else if(value instanceof Matrix4f) {
+			volumeSegments[index].setUniformMatrix4f(prog, name, (Matrix4f)value);
+		} else if(value instanceof Vector2i) {
+			volumeSegments[index].setUniform2i(prog, name, (Vector2i)value);
+		} else if(value instanceof Vector3i) {
+			volumeSegments[index].setUniform3i(prog, name, (Vector3i)value);
+		} else if(value instanceof Vector4i) {
+			volumeSegments[index].setUniform4i(prog, name, (Vector4i)value);
+		}
+	}
+
+	public void setCustomIntArrayUniformForVolume( int index, String name, final int elementSize, final int[] value ) {
+		volumeSegments[index].setUniformIntArray(prog, name, elementSize, value);
+	}
+
+	public void setCustomFloatArrayUniformForVolume( int index, String name, final int elementSize, final float[] value ) {
+	    volumeSegments[index].setUniformFloatArray(prog, name, elementSize, value);
+	}
+
 	public void setVolume( int index, VolumeBlocks volume )
 	{
 		final VolumeSignature vs = signature.getVolumeSignatures().get( index );
@@ -490,6 +515,127 @@ public class MultiVolumeShaderMip
 		{
 			final UniformSampler sampler = prog.getUniformSampler( volume, name );
 			additionalSamplers.put( name, new AdditionalSampler( sampler, texture ) );
+		}
+
+		public void setUniform1f( final SegmentedShader prog, final String name, final float value ) 
+		{
+			final Uniform1f uniform = prog.getUniform1f( volume, name);
+			uniform.set(value);
+		}
+		
+		public void setUniform1fv( final SegmentedShader prog, final String name, final float[] value ) 
+		{
+			final Uniform1fv uniform = prog.getUniform1fv( name );
+			uniform.set(value);
+		}
+
+		public void setUniform2f( final SegmentedShader prog, final String name, final Vector2f value ) 
+		{
+			final Uniform2f uniform = prog.getUniform2f( volume, name);
+			uniform.set(value);
+		}
+
+		public void setUniform2fv( final SegmentedShader prog, final String name, final float[] value ) 
+		{
+			final Uniform2fv uniform = prog.getUniform2fv( name );
+			uniform.set(value);
+		}
+
+		public void setUniform3f( final SegmentedShader prog, final String name, final Vector3f value ) 
+		{
+			final Uniform3f uniform = prog.getUniform3f( volume, name);
+			uniform.set(value);
+		}
+
+		public void setUniformFloatArray( final SegmentedShader prog, final String name, final int elementSize, final float[] value )
+		{
+		    switch (elementSize) {
+				case 1:
+					final Uniform1fv uniform1 = prog.getUniform1fv( name );
+					uniform1.set(value);
+					break;
+				case 2:
+					final Uniform2fv uniform2 = prog.getUniform2fv( name );
+					uniform2.set(value);
+					break;
+				case 3:
+					final Uniform3fv uniform3 = prog.getUniform3fv( name );
+					uniform3.set(value);
+					break;
+				case 4:
+					final Uniform4fv uniform4 = prog.getUniform4fv( name );
+					uniform4.set(value);
+					break;
+				default:
+					throw new UnsupportedOperationException("Uniform array element size not supported: " + elementSize);
+			}
+		}
+
+		public void setUniform4f( final SegmentedShader prog, final String name, final Vector4f value ) 
+		{
+			final Uniform4f uniform = prog.getUniform4f( volume, name);
+			uniform.set(value);
+		}
+
+		public void setUniformMatrix3f( final SegmentedShader prog, final String name, final Matrix3f value )
+		{
+			final UniformMatrix3f uniform = prog.getUniformMatrix3f( name );
+			uniform.set(value);
+		}
+
+
+		public void setUniformMatrix4f( final SegmentedShader prog, final String name, final Matrix4f value )
+		{
+			final UniformMatrix4f uniform = prog.getUniformMatrix4f( volume, name);
+			uniform.set(value);
+		}
+
+		public void setUniform1i( final SegmentedShader prog, final String name, final int value ) 
+		{
+			final Uniform1i uniform = prog.getUniform1i( volume, name);
+			uniform.set(value);
+		}
+
+		public void setUniform2i( final SegmentedShader prog, final String name, final Vector2i value ) 
+		{
+			final Uniform2i uniform = prog.getUniform2i( volume, name);
+			uniform.set(value.x, value.y);
+		}
+
+		public void setUniform3i( final SegmentedShader prog, final String name, final Vector3i value ) 
+		{
+			final Uniform3i uniform = prog.getUniform3i( volume, name);
+			uniform.set(value.x, value.y, value.z);
+		}
+
+		public void setUniform4i( final SegmentedShader prog, final String name, final Vector4i value ) 
+		{
+			final Uniform4i uniform = prog.getUniform4i( volume, name);
+			uniform.set(value.x, value.y, value.z, value.w);
+		}
+
+		public void setUniformIntArray( final SegmentedShader prog, final String name, final int elementSize, final int[] value )
+		{
+			switch (elementSize) {
+				case 1:
+					final Uniform1iv uniform1 = prog.getUniform1iv( name );
+					uniform1.set(value);
+					break;
+				case 2:
+					final Uniform2iv uniform2 = prog.getUniform2iv( name );
+					uniform2.set(value);
+					break;
+				case 3:
+					final Uniform3iv uniform3 = prog.getUniform3iv( name );
+					uniform3.set(value);
+					break;
+				case 4:
+					final Uniform4iv uniform4 = prog.getUniform4iv( name );
+					uniform4.set(value);
+					break;
+				default:
+					throw new UnsupportedOperationException("Uniform array element size not supported: " + elementSize);
+			}
 		}
 
 		public void removeSampler( final String name )
