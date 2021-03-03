@@ -313,6 +313,8 @@ public class MultiVolumeShaderMip
 			volumeSegments[index].setUniform3i(prog, name, (Vector3i)value);
 		} else if(value instanceof Vector4i) {
 			volumeSegments[index].setUniform4i(prog, name, (Vector4i)value);
+		} else {
+			throw new UnsupportedOperationException("Object type " + value.getClass().getCanonicalName() + " is not usable for uniforms.");
 		}
 	}
 
