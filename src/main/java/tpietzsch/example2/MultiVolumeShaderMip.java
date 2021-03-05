@@ -541,7 +541,7 @@ public class MultiVolumeShaderMip
 				} else if(value instanceof Vector4i) {
 					prog.getUniform4i(name).set(((Vector4i) value).x, ((Vector4i) value).y, ((Vector4i) value).z, ((Vector4i) value).w);
 				} else if(value instanceof AbstractMap.SimpleEntry && ((AbstractMap.SimpleEntry<?, ?>) value).getKey().getClass().getComponentType() == Float.class) {
-					final int elementSize = ((int)((AbstractMap.SimpleEntry<?, ?>) value).getKey());
+					final int elementSize = (int)(((AbstractMap.SimpleEntry<?, ?>) value).getKey());
 					final float[] array = ((float[])((AbstractMap.SimpleEntry<?, ?>) value).getValue());
 
 					switch (elementSize) {
@@ -561,7 +561,7 @@ public class MultiVolumeShaderMip
 							throw new UnsupportedOperationException("Uniform array element size not supported: " + elementSize);
 					}
 				} else if(value instanceof AbstractMap.SimpleEntry && ((AbstractMap.SimpleEntry<?, ?>) value).getKey().getClass().getComponentType() == Integer.class) {
-					final int elementSize = ((int)((AbstractMap.SimpleEntry<?, ?>) value).getKey());
+					final int elementSize = (int)(((AbstractMap.SimpleEntry<?, ?>) value).getKey());
 					final int[] array = ((int[])((AbstractMap.SimpleEntry<?, ?>) value).getValue());
 
 					switch (elementSize) {
