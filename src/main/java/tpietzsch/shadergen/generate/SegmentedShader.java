@@ -2,19 +2,7 @@ package tpietzsch.shadergen.generate;
 
 import java.util.Map;
 
-import tpietzsch.shadergen.AbstractShader;
-import tpietzsch.shadergen.Uniform1f;
-import tpietzsch.shadergen.Uniform1i;
-import tpietzsch.shadergen.Uniform2f;
-import tpietzsch.shadergen.Uniform2i;
-import tpietzsch.shadergen.Uniform3f;
-import tpietzsch.shadergen.Uniform3fv;
-import tpietzsch.shadergen.Uniform4fv;
-import tpietzsch.shadergen.Uniform3i;
-import tpietzsch.shadergen.Uniform4f;
-import tpietzsch.shadergen.Uniform4i;
-import tpietzsch.shadergen.UniformMatrix4f;
-import tpietzsch.shadergen.UniformSampler;
+import tpietzsch.shadergen.*;
 
 public class SegmentedShader extends AbstractShader
 {
@@ -58,6 +46,26 @@ public class SegmentedShader extends AbstractShader
 		return getUniform4i( segment.getSingleIdentifier( key ) );
 	}
 
+	public Uniform1iv getUniform1iv(final Segment segment, final String key )
+	{
+		return getUniform1iv( segment.getSingleIdentifier( key ) );
+	}
+
+	public Uniform2iv getUniform2iv(final Segment segment, final String key )
+	{
+		return getUniform2iv( segment.getSingleIdentifier( key ) );
+	}
+
+	public Uniform3iv getUniform3iv(final Segment segment, final String key )
+	{
+		return getUniform3iv( segment.getSingleIdentifier( key ) );
+	}
+
+	public Uniform4iv getUniform4iv(final Segment segment, final String key )
+	{
+		return getUniform4iv( segment.getSingleIdentifier( key ) );
+	}
+
 	public Uniform1f getUniform1f( final Segment segment, final String key )
 	{
 		return getUniform1f( segment.getSingleIdentifier( key ) );
@@ -76,6 +84,16 @@ public class SegmentedShader extends AbstractShader
 	public Uniform4f getUniform4f( final Segment segment, final String key )
 	{
 		return getUniform4f( segment.getSingleIdentifier( key ) );
+	}
+
+	public Uniform1fv getUniform1fv(final Segment segment, final String key )
+	{
+		return getUniform1fv( segment.getSingleIdentifier( key ) );
+	}
+
+	public Uniform2fv getUniform2fv(final Segment segment, final String key )
+	{
+		return getUniform2fv( segment.getSingleIdentifier( key ) );
 	}
 
 	public Uniform3fv getUniform3fv( final Segment segment, final String key )
