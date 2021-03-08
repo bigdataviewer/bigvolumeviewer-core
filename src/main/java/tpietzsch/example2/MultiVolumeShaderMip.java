@@ -596,10 +596,12 @@ public class MultiVolumeShaderMip
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
+		private final SegmentedShader shader;
 
 		public VolumeBlocksSegment( final SegmentedShader prog, final Segment volume )
 		{
 			super( volume );
+			shader = prog;
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume, "lutSampler" );
 			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
@@ -608,7 +610,6 @@ public class MultiVolumeShaderMip
 			uniformSourcemin = prog.getUniform3f( volume, "sourcemin" );
 			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
 
-			setAdditionalUniforms(prog);
 		}
 
 		public void setData( VolumeBlocks blocks )
@@ -623,6 +624,7 @@ public class MultiVolumeShaderMip
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
 
 			setAdditionalSamplers();
+			setAdditionalUniforms(shader);
 		}
 
 	}
@@ -632,15 +634,16 @@ public class MultiVolumeShaderMip
 		private final UniformSampler uniformVolumeSampler;
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemax;
+		private final SegmentedShader shader;
 
 		public VolumeSimpleSegment( final SegmentedShader prog, final Segment volume )
 		{
 			super( volume );
+			shader = prog;
 			uniformVolumeSampler = prog.getUniformSampler( volume, "volume" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
 			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
 
-			setAdditionalUniforms(prog);
 		}
 
 		public void setData( SimpleVolume volume )
@@ -650,6 +653,7 @@ public class MultiVolumeShaderMip
 			uniformSourcemax.set( volume.getSourceMax() );
 
 			setAdditionalSamplers();
+			setAdditionalUniforms(shader);
 		}
 	}
 }
