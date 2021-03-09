@@ -549,41 +549,41 @@ public class MultiVolumeShaderMip
 		{
 			additionalUniforms.forEach( (name, value) -> {
 				if(value instanceof Integer) {
-					prog.getUniform1i(name).set((int)value);
+					prog.getUniform1i( volume, name).set((int)value);
 				} else if(value instanceof Float) {
-					prog.getUniform1f(name).set((float) value);
+					prog.getUniform1f( volume, name).set((float) value);
 				} else if(value instanceof Vector2f) {
-					prog.getUniform2f(name).set((Vector2f)value);
+					prog.getUniform2f( volume, name).set((Vector2f)value);
 				} else if(value instanceof Vector3f) {
-					prog.getUniform3f(name).set((Vector3f)value);
+					prog.getUniform3f( volume, name).set((Vector3f)value);
 				} else if(value instanceof Vector4f) {
-					prog.getUniform4f(name).set((Vector4f)value);
+					prog.getUniform4f( volume, name).set((Vector4f)value);
 				} else if(value instanceof Matrix3f) {
-					prog.getUniformMatrix3f(name).set((Matrix3f)value);
+					prog.getUniformMatrix3f( volume, name).set((Matrix3f)value);
 				} else if(value instanceof Matrix4f) {
-					prog.getUniformMatrix4f(name).set((Matrix4f)value);
+					prog.getUniformMatrix4f( volume, name).set((Matrix4f)value);
 				} else if(value instanceof Vector2i) {
-					prog.getUniform2i(name).set(((Vector2i) value).x, ((Vector2i) value).y);
+					prog.getUniform2i( volume, name).set(((Vector2i) value).x, ((Vector2i) value).y);
 				} else if(value instanceof Vector3i) {
-					prog.getUniform3i(name).set(((Vector3i) value).x, ((Vector3i) value).y, ((Vector3i) value).z);
+					prog.getUniform3i( volume, name).set(((Vector3i) value).x, ((Vector3i) value).y, ((Vector3i) value).z);
 				} else if(value instanceof Vector4i) {
-					prog.getUniform4i(name).set(((Vector4i) value).x, ((Vector4i) value).y, ((Vector4i) value).z, ((Vector4i) value).w);
+					prog.getUniform4i( volume, name).set(((Vector4i) value).x, ((Vector4i) value).y, ((Vector4i) value).z, ((Vector4i) value).w);
 				} else if(value instanceof AbstractMap.SimpleEntry && ((AbstractMap.SimpleEntry<?, ?>) value).getValue().getClass().getComponentType() == float.class) {
 					final Integer elementSize = (Integer) (((AbstractMap.SimpleEntry<?, ?>) value).getKey());
 					final float[] array = ((float[])((AbstractMap.SimpleEntry<?, ?>) value).getValue());
 
 					switch (elementSize) {
 						case 1:
-							prog.getUniform1fv( name ).set( array );
+							prog.getUniform1fv( volume, name ).set( array );
 							break;
 						case 2:
-							prog.getUniform2fv( name ).set( array );
+							prog.getUniform2fv( volume, name ).set( array );
 							break;
 						case 3:
-							prog.getUniform3fv( name ).set( array );
+							prog.getUniform3fv( volume, name ).set( array );
 							break;
 						case 4:
-							prog.getUniform4fv( name ).set( array );
+							prog.getUniform4fv( volume, name ).set( array );
 							break;
 						default:
 							throw new UnsupportedOperationException("Uniform array element size not supported: " + elementSize);
@@ -594,16 +594,16 @@ public class MultiVolumeShaderMip
 
 					switch (elementSize) {
 						case 1:
-							prog.getUniform1iv( name ).set( array );
+							prog.getUniform1iv( volume, name ).set( array );
 							break;
 						case 2:
-							prog.getUniform2iv( name ).set( array );
+							prog.getUniform2iv( volume, name ).set( array );
 							break;
 						case 3:
-							prog.getUniform3iv( name ).set( array );
+							prog.getUniform3iv( volume, name ).set( array );
 							break;
 						case 4:
-							prog.getUniform4iv( name ).set( array );
+							prog.getUniform4iv( volume, name ).set( array );
 							break;
 						default:
 							throw new UnsupportedOperationException("Uniform array element size not supported: " + elementSize);

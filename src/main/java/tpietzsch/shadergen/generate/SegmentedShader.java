@@ -134,6 +134,11 @@ public class SegmentedShader extends AbstractShader
 		return getUniform4fv( segment.getSingleIdentifier( key ) );
 	}
 
+	public UniformMatrix3f getUniformMatrix3f( final Segment segment, final String key )
+	{
+		return getUniformMatrix3f( segment.getSingleIdentifier( key ) );
+	}
+
 	public UniformMatrix4f getUniformMatrix4f( final Segment segment, final String key )
 	{
 		return getUniformMatrix4f( segment.getSingleIdentifier( key ) );
