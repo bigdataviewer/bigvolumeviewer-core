@@ -1,18 +1,18 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies
+ * Volume rendering of bdv datasets
  * %%
- * Copyright (C) 2012 - 2015 BigDataViewer authors
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,6 +28,8 @@
  */
 package tpietzsch.example2;
 
+import bdv.TransformEventHandler3D;
+import bdv.TransformEventHandlerFactory;
 import java.awt.event.KeyListener;
 import org.scijava.ui.behaviour.KeyPressedManager;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -247,6 +249,12 @@ public class VolumeViewerOptions
 		return this;
 	}
 
+	public VolumeViewerOptions transformEventHandlerFactory( final TransformEventHandlerFactory f )
+	{
+		values.transformEventHandlerFactory = f;
+		return this;
+	}
+
 	/**
 	 * Set the {@link InputTriggerConfig} from which keyboard and mouse action mapping is loaded.
 	 *
@@ -277,8 +285,6 @@ public class VolumeViewerOptions
 		return this;
 	}
 
-
-
 	/**
 	 * Read-only {@link VolumeViewerOptions} values.
 	 */
@@ -300,6 +306,7 @@ public class VolumeViewerOptions
 		private double maxAllowedStepInVoxels = 1.0;
 
 		private int numSourceGroups = 10;
+		private TransformEventHandlerFactory transformEventHandlerFactory = TransformEventHandler3D::new;
 		private InputTriggerConfig inputTriggerConfig = null;
 		private KeyPressedManager keyPressedManager = null;
 
@@ -320,6 +327,7 @@ public class VolumeViewerOptions
 					dClipFar( dClipFar ).
 					maxAllowedStepInVoxels( maxAllowedStepInVoxels ).
 					numSourceGroups( numSourceGroups ).
+					transformEventHandlerFactory( transformEventHandlerFactory ).
 					inputTriggerConfig( inputTriggerConfig ).
 					shareKeyPressedEvents( keyPressedManager );
 		}
@@ -392,6 +400,11 @@ public class VolumeViewerOptions
 		public int getNumSourceGroups()
 		{
 			return numSourceGroups;
+		}
+
+		public TransformEventHandlerFactory getTransformEventHandlerFactory()
+		{
+			return transformEventHandlerFactory;
 		}
 
 		public InputTriggerConfig getInputTriggerConfig()

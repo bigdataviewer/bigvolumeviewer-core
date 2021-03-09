@@ -1,19 +1,18 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies
+ * Volume rendering of bdv datasets
  * %%
- * Copyright (C) 2012 - 2016 Tobias Pietzsch, Stephan Saalfeld, Stephan Preibisch,
- * Jean-Yves Tinevez, HongKee Moon, Johannes Schindelin, Curtis Rueden, John Bogovic
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,23 +30,20 @@ package tpietzsch.frombdv;
 
 import bdv.tools.transformation.ManualTransformActiveListener;
 import bdv.tools.transformation.TransformedSource;
-import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
-import bdv.viewer.state.SourceGroup;
-import bdv.viewer.state.ViewerState;
-import java.awt.event.ActionEvent;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.TransformListener;
+import bdv.viewer.ViewerState;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
+import org.scijava.listeners.Listeners;
 import org.scijava.ui.behaviour.util.InputActionBindings;
+import org.scijava.ui.behaviour.util.RunnableAction;
 import tpietzsch.example2.VolumeViewerPanel;
 
 // TODO: what happens when the current source, display mode, etc is changed while the editor is active? deactivate?
@@ -71,7 +67,7 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 
 	private final InputMap inputMap;
 
-	protected final CopyOnWriteArrayList< ManualTransformActiveListener > manualTransformActiveListeners;
+	private final Listeners.List< ManualTransformActiveListener > manualTransformActiveListeners;
 
 	public ManualTransformationEditor( final VolumeViewerPanel viewer, final InputActionBindings inputActionBindings )
 	{
@@ -81,30 +77,12 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 		liveTransform = new AffineTransform3D();
 		sourcesToModify = new ArrayList<>();
 		sourcesToFix = new ArrayList<>();
-		manualTransformActiveListeners = new CopyOnWriteArrayList<>();
+		manualTransformActiveListeners = new Listeners.SynchronizedList<>();
 
 		final KeyStroke abortKey = KeyStroke.getKeyStroke( KeyEvent.VK_ESCAPE, 0 );
-		final Action abortAction = new AbstractAction( "abort manual transformation" )
-		{
-			@Override
-			public void actionPerformed( final ActionEvent e )
-			{
-				abort();
-			}
-
-			private static final long serialVersionUID = 1L;
-		};
+		final Action abortAction = new RunnableAction( "abort manual transformation", this::abort );
 		final KeyStroke resetKey = KeyStroke.getKeyStroke( KeyEvent.VK_R, 0 );
-		final Action resetAction = new AbstractAction( "reset manual transformation" )
-		{
-			@Override
-			public void actionPerformed( final ActionEvent e )
-			{
-				reset();
-			}
-
-			private static final long serialVersionUID = 1L;
-		};
+		final Action resetAction = new RunnableAction( "reset manual transformation", this::reset );
 		actionMap = new ActionMap();
 		inputMap = new InputMap();
 		actionMap.put( "abort manual transformation", abortAction );
@@ -121,9 +99,10 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			final AffineTransform3D identity = new AffineTransform3D();
 			for ( final TransformedSource< ? > source : sourcesToModify )
 				source.setIncrementalTransform( identity );
-			viewer.setCurrentViewerTransform( frozenTransform );
+			viewer.state().setViewerTransform( frozenTransform );
 			viewer.showMessage( "aborted manual transform" );
 			active = false;
+			manualTransformActiveListeners.list.forEach( l -> l.manualTransformActiveChanged( active ) );
 		}
 	}
 
@@ -141,28 +120,28 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			{
 				source.setIncrementalTransform( identity );
 			}
-			viewer.setCurrentViewerTransform( frozenTransform );
+			viewer.state().setViewerTransform( frozenTransform );
 			viewer.showMessage( "reset manual transform" );
 		}
 	}
 
 	public synchronized void setActive( final boolean a )
 	{
-		if ( this.active == a ) { return; }
+		if ( this.active == a )
+			return;
+
 		if ( a )
 		{
-			active = a;
 			// Enter manual edit mode
-			final ViewerState state = viewer.getState();
-			final List< Integer > indices = new ArrayList<>();
+			final ViewerState state = viewer.state().snapshot();
+			final List< SourceAndConverter< ? > > currentSources = new ArrayList<>();
 			switch ( state.getDisplayMode() )
 			{
 			case FUSED:
-				indices.add( state.getCurrentSource() );
+				currentSources.add( state.getCurrentSource() );
 				break;
 			case FUSEDGROUP:
-				final SourceGroup group = state.getSourceGroups().get( state.getCurrentGroup() );
-				indices.addAll( group.getSourceIds() );
+				currentSources.addAll( state.getSourcesInGroup( state.getCurrentGroup() ) );
 				break;
 			default:
 				viewer.showMessage( "Can only do manual transformation when in FUSED mode." );
@@ -171,16 +150,14 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			state.getViewerTransform( frozenTransform );
 			sourcesToModify.clear();
 			sourcesToFix.clear();
-			final int numSources = state.numSources();
-			for ( int i = 0; i < numSources; ++i )
+			for ( SourceAndConverter< ? > source : state.getSources() )
 			{
-				final Source< ? > source = state.getSources().get( i ).getSpimSource();
-				if ( TransformedSource.class.isInstance( source ) )
+				if ( source.getSpimSource() instanceof TransformedSource )
 				{
-					if ( indices.contains( i ) )
-						sourcesToModify.add( ( bdv.tools.transformation.TransformedSource< ? > ) source );
+					if ( currentSources.contains( source ) )
+						sourcesToModify.add( ( TransformedSource< ? > ) source.getSpimSource() );
 					else
-						sourcesToFix.add( ( bdv.tools.transformation.TransformedSource< ? > ) source );
+						sourcesToFix.add( ( TransformedSource< ? > ) source.getSpimSource() );
 				}
 			}
 			active = true;
@@ -189,7 +166,8 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			viewer.showMessage( "starting manual transform" );
 		}
 		else
-		{ // Exit manual edit mode.
+		{
+			// Exit manual edit mode.
 			active = false;
 			viewer.removeTransformListener( this );
 			bindings.removeInputMap( "manual transform" );
@@ -205,13 +183,10 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			tmp.identity();
 			for ( final TransformedSource< ? > source : sourcesToFix )
 				source.setIncrementalTransform( tmp );
-			viewer.setCurrentViewerTransform( frozenTransform );
+			viewer.state().setViewerTransform( frozenTransform );
 			viewer.showMessage( "fixed manual transform" );
 		}
-		for ( final ManualTransformActiveListener l : manualTransformActiveListeners )
-		{
-			l.manualTransformActiveChanged( active );
-		}
+		manualTransformActiveListeners.list.forEach( l -> l.manualTransformActiveChanged( active ) );
 	}
 
 	public synchronized void toggle()
@@ -231,13 +206,8 @@ public class ManualTransformationEditor implements TransformListener< AffineTran
 			source.setIncrementalTransform( liveTransform.inverse() );
 	}
 
-	public void addManualTransformActiveListener( final ManualTransformActiveListener l )
+	public Listeners< ManualTransformActiveListener > manualTransformActiveListeners()
 	{
-		manualTransformActiveListeners.add( l );
-	}
-
-	public void removeManualTransformActiveListener( final ManualTransformActiveListener l )
-	{
-		manualTransformActiveListeners.remove( l );
+		return manualTransformActiveListeners;
 	}
 }

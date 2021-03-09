@@ -1,19 +1,18 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies
+ * Volume rendering of bdv datasets
  * %%
- * Copyright (C) 2012 - 2016 Tobias Pietzsch, Stephan Saalfeld, Stephan Preibisch,
- * Jean-Yves Tinevez, HongKee Moon, Johannes Schindelin, Curtis Rueden, John Bogovic
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,83 +28,41 @@
  */
 package tpietzsch.example2;
 
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
-import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.util.Actions;
-import org.scijava.ui.behaviour.util.InputActionBindings;
 
-public class NavigationActions extends Actions
+import static bdv.viewer.NavigationActions.ALIGN_XY_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_XY_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.ALIGN_XZ_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_XZ_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.ALIGN_ZY_PLANE;
+import static bdv.viewer.NavigationActions.ALIGN_ZY_PLANE_KEYS;
+import static bdv.viewer.NavigationActions.installModeActions;
+import static bdv.viewer.NavigationActions.installSourceActions;
+import static bdv.viewer.NavigationActions.installTimeActions;
+
+public class NavigationActions
 {
-	public static final String TOGGLE_FUSED_MODE = "toggle fused mode";
-	public static final String TOGGLE_GROUPING = "toggle grouping";
-	public static final String SET_CURRENT_SOURCE = "set current source %d";
-	public static final String TOGGLE_SOURCE_VISIBILITY = "toggle source visibility %d";
-	public static final String NEXT_TIMEPOINT = "next timepoint";
-	public static final String PREVIOUS_TIMEPOINT = "previous timepoint";
-
 	/**
 	 * Create navigation actions and install them in the specified
-	 * {@link InputActionBindings}.
+	 * {@link Actions}.
 	 *
-	 * @param inputActionBindings
-	 *            {@link InputMap} and {@link ActionMap} are installed here.
+	 * @param actions
+	 *            navigation actions are installed here.
 	 * @param viewer
 	 *            Navigation actions are targeted at this {@link VolumeViewerPanel}.
-	 * @param keyProperties
-	 *            user-defined key-bindings.
 	 */
-	public static void installActionBindings(
-			final InputActionBindings inputActionBindings,
-			final VolumeViewerPanel viewer,
-			final KeyStrokeAdder.Factory keyProperties )
+	public static void install( final Actions actions, final VolumeViewerPanel viewer )
 	{
-		final NavigationActions actions = new NavigationActions( keyProperties );
-
-		actions.modes( viewer );
-		actions.sources( viewer );
-		actions.time( viewer );
-
-		actions.install( inputActionBindings, "navigation" );
+		installModeActions( actions, viewer.state() );
+		installSourceActions( actions, viewer.state() );
+		installTimeActions( actions, viewer.state() );
+		installAlignPlaneActions( actions, viewer );
 	}
 
-	public NavigationActions( final KeyStrokeAdder.Factory keyConfig )
+	public static void installAlignPlaneActions( final Actions actions, final VolumeViewerPanel viewer )
 	{
-		super( keyConfig, new String[] { "bdv", "navigation" } );
-	}
-
-	public void modes( final VolumeViewerPanel viewer )
-	{
-		runnableAction(
-				() -> viewer.getVisibilityAndGrouping().setFusedEnabled( !viewer.getVisibilityAndGrouping().isFusedEnabled() ),
-				TOGGLE_FUSED_MODE, "F" );
-		runnableAction(
-				() -> viewer.getVisibilityAndGrouping().setGroupingEnabled( !viewer.getVisibilityAndGrouping().isGroupingEnabled() ),
-				TOGGLE_GROUPING, "G" );
-	}
-
-	public void time( final VolumeViewerPanel viewer )
-	{
-		runnableAction(
-				() -> viewer.nextTimePoint(),
-				NEXT_TIMEPOINT, "CLOSE_BRACKET", "M" );
-		runnableAction(
-				() -> viewer.previousTimePoint(),
-				PREVIOUS_TIMEPOINT, "OPEN_BRACKET", "N" );
-	}
-
-	public void sources( final VolumeViewerPanel viewer )
-	{
-		final String[] numkeys = new String[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
-		for ( int i = 0; i < numkeys.length; ++i )
-		{
-			final int sourceIndex = i;
-			runnableAction(
-					() -> viewer.getVisibilityAndGrouping().setCurrentGroupOrSource( sourceIndex ),
-					String.format( SET_CURRENT_SOURCE, i ), numkeys[ i ] );
-			runnableAction(
-					() -> viewer.getVisibilityAndGrouping().toggleActiveGroupOrSource( sourceIndex ),
-					String.format( TOGGLE_SOURCE_VISIBILITY, i ), "shift " + numkeys[ i ] );
-		}
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.XY ), ALIGN_XY_PLANE, ALIGN_XY_PLANE_KEYS );
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.ZY ), ALIGN_ZY_PLANE, ALIGN_ZY_PLANE_KEYS );
+		actions.runnableAction( () -> viewer.align( VolumeViewerPanel.AlignPlane.XZ ), ALIGN_XZ_PLANE, ALIGN_XZ_PLANE_KEYS );
 	}
 }
