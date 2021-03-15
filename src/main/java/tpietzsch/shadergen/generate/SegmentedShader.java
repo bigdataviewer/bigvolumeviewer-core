@@ -30,7 +30,26 @@ package tpietzsch.shadergen.generate;
 
 import java.util.Map;
 
-import tpietzsch.shadergen.*;
+import tpietzsch.shadergen.AbstractShader;
+import tpietzsch.shadergen.Uniform1f;
+import tpietzsch.shadergen.Uniform1fv;
+import tpietzsch.shadergen.Uniform1i;
+import tpietzsch.shadergen.Uniform1iv;
+import tpietzsch.shadergen.Uniform2f;
+import tpietzsch.shadergen.Uniform2fv;
+import tpietzsch.shadergen.Uniform2i;
+import tpietzsch.shadergen.Uniform2iv;
+import tpietzsch.shadergen.Uniform3f;
+import tpietzsch.shadergen.Uniform3fv;
+import tpietzsch.shadergen.Uniform3i;
+import tpietzsch.shadergen.Uniform3iv;
+import tpietzsch.shadergen.Uniform4f;
+import tpietzsch.shadergen.Uniform4fv;
+import tpietzsch.shadergen.Uniform4i;
+import tpietzsch.shadergen.Uniform4iv;
+import tpietzsch.shadergen.UniformMatrix3f;
+import tpietzsch.shadergen.UniformMatrix4f;
+import tpietzsch.shadergen.UniformSampler;
 
 public class SegmentedShader extends AbstractShader
 {
