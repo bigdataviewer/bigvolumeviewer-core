@@ -67,8 +67,8 @@
 		<url>https://github.com/tpietzsch/jogl-minimal/issues</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.org/tpietzsch/jogl-minimal</url>
+		<system>GitHub Actions</system>
+		<url>https://github.com/tpietzsch/jogl-minimal/actions</url>
 	</ciManagement>
 
 	<properties>
