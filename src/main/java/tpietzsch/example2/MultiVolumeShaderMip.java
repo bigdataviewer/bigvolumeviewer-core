@@ -35,7 +35,6 @@ import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -107,7 +106,7 @@ public class MultiVolumeShaderMip
 	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > runBeforeBinding,
+			final TriConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment >, Integer > runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
@@ -187,7 +186,7 @@ public class MultiVolumeShaderMip
 			}
 
 			if ( runBeforeBinding != null )
-				runBeforeBinding.accept( segments, instancedSegments );
+				runBeforeBinding.accept( segments, instancedSegments, i );
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
