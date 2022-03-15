@@ -147,6 +147,7 @@ public class MultiVolumeShaderMip
 		{
 			final HashMap< SegmentType, Segment > instancedSegments = new HashMap<>();
 			final VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
+			instancedSegments.put(SegmentType.FragmentShader, fp);
 
 			final Segment accumulate;
 			final Segment sampleVolume;
