@@ -35,6 +35,7 @@ import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
+import static tpietzsch.backend.Texture.InternalFormat.R8;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.DITHER;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.FULL;
 import static tpietzsch.example2.VolumeRenderer.RepaintType.LOAD;
@@ -160,9 +161,6 @@ public class VolumeRenderer
 
 	private final DefaultQuad quad;
 
-
-
-
 	public VolumeRenderer(
 			final int renderWidth,
 			final int renderHeight,
@@ -177,7 +175,7 @@ public class VolumeRenderer
 
 		// set up gpu cache
 		// TODO This could be packaged into one class and potentially shared between renderers?
-		cacheSpec = new CacheSpec( R16, cacheBlockSize );
+		cacheSpec = new CacheSpec( R8, cacheBlockSize ); //new CacheSpec( R16, cacheBlockSize );
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );
@@ -436,7 +434,8 @@ public class VolumeRenderer
 
 		try
 		{
-			ProcessFillTasks.parallel( textureCache, pboChain, context, forkJoinPool, fillTasks );
+			//ProcessFillTasks.parallel( textureCache, pboChain, context, forkJoinPool, fillTasks );
+			ProcessFillTasks.sequential( textureCache, pboChain, context, fillTasks );
 		}
 		catch ( final InterruptedException e )
 		{

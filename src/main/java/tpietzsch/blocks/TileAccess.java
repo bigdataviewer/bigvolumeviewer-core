@@ -41,8 +41,10 @@ import tpietzsch.cache.CacheSpec;
 import tpietzsch.cache.UploadBuffer;
 import tpietzsch.multires.ResolutionLevel3D;
 
+import static net.imglib2.type.PrimitiveType.BYTE;
 import static net.imglib2.type.PrimitiveType.SHORT;
 import static tpietzsch.backend.Texture.InternalFormat.R16;
+import static tpietzsch.backend.Texture.InternalFormat.R8;
 
 /**
  * Copy blocks from a {@link ResolutionLevel3D} source to an {@link UploadBuffer}.
@@ -124,6 +126,16 @@ public class TileAccess< S >
 						new CopySubArrayImp.ShortToAddress(),
 						cacheSpec
 				);
+			} else if ( cacheSpec.format() == R8 && cellimg )
+			{
+				final boolean volatil = type instanceof Volatile;
+				return new TileAccess<>(
+						volatil
+								? new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img )
+								: new GridDataAccessImp.Cells<>( ( AbstractCellImg ) img ),
+						new CopySubArrayImp.ByteToAddress(),
+						cacheSpec
+				);
 			}
 		}
 
@@ -137,7 +149,7 @@ public class TileAccess< S >
 		{
 			final PrimitiveType primitive = ( ( NativeType ) type ).getNativeTypeFactory().getPrimitiveType();
 			final Fraction epp = ( ( NativeType ) type ).getEntitiesPerPixel();
-			if ( primitive == SHORT && epp.getNumerator() == epp.getDenominator() )
+			if (( primitive == SHORT && epp.getNumerator() == epp.getDenominator() )|| (primitive == BYTE && epp.getNumerator() == epp.getDenominator()))
 				return true;
 		}
 
