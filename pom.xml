@@ -80,6 +80,7 @@
 		<bigdataviewer-vistools.version>1.0.0-beta-28</bigdataviewer-vistools.version>
 		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
 		<ST4.version>4.0.8</ST4.version>
+		<joml.version>1.10.5</joml.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
