@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>30.0.0</version>
+		<version>34.0.0</version>
 	</parent>
 
 	<groupId>sc.fiji</groupId>
@@ -77,9 +77,11 @@
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
 
 		<enforcer.skip>true</enforcer.skip>
-		<bigdataviewer-core.version>10.2.1-SNAPSHOT</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-28</bigdataviewer-vistools.version>
-		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
+		<imglib2.version>6.1.0</imglib2.version>
+		<imglib2-cache.version>1.0.0-beta-17</imglib2-cache.version>
+		<bigdataviewer-core.version>10.4.6</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-32</bigdataviewer-vistools.version>
+		<bigdataviewer_fiji.version>6.2.4</bigdataviewer_fiji.version>
 		<ST4.version>4.0.8</ST4.version>
 		<joml.version>1.10.5</joml.version>
 
@@ -131,11 +133,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.jogamp.gluegen</groupId>
-			<artifactId>gluegen-rt-main</artifactId>
+			<artifactId>gluegen-rt</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.jogamp.jogl</groupId>
-			<artifactId>jogl-all-main</artifactId>
+			<artifactId>jogl-all</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.joml</groupId>

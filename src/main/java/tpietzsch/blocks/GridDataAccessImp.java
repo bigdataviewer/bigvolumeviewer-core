@@ -29,6 +29,7 @@
 package tpietzsch.blocks;
 
 import net.imglib2.RandomAccess;
+import net.imglib2.img.basictypeaccess.DataAccess;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileArrayDataAccess;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -37,7 +38,7 @@ import net.imglib2.img.cell.CellGrid;
 
 public class GridDataAccessImp
 {
-	abstract static class AbstractCells< T , A > implements GridDataAccess< T >
+	abstract static class AbstractCells< T , A extends DataAccess > implements GridDataAccess< T >
 	{
 		final RandomAccess< ? extends Cell< A > > access;
 
