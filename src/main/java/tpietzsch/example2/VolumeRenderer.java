@@ -248,6 +248,8 @@ public class VolumeRenderer
 		final long maxRenderNanoTime = System.nanoTime() + 1_000_000L * maxRenderMillis;
 		final JoglGpuContext context = JoglGpuContext.get( gl );
 		nextRequestedRepaint.type = NONE;
+		if ( renderStacks.isEmpty() )
+			return nextRequestedRepaint.type;
 
 		gl.glEnable( GL_DEPTH_TEST );
 		gl.glDepthFunc( GL_ALWAYS );
