@@ -185,5 +185,6 @@
 			<artifactId>imglib2-ij</artifactId>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
 </project>
