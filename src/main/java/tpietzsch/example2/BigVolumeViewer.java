@@ -41,6 +41,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import javax.swing.JFileChooser;
@@ -112,8 +113,8 @@ public class BigVolumeViewer
 	 *            optional parameters. See {@link VolumeViewerOptions}.
 	 */
 	public BigVolumeViewer(
-			final ArrayList< ConverterSetup > converterSetups,
-			final ArrayList< SourceAndConverter< ? > > sources,
+			final List< ConverterSetup > converterSetups,
+			final List< SourceAndConverter< ? > > sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final String windowTitle,
@@ -144,7 +145,7 @@ public class BigVolumeViewer
 				setups.put( source, setup );
 		}
 
-		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
+		setupAssignments = new SetupAssignments( new ArrayList<>( converterSetups ), 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
 		{
 			final MinMaxGroup group = setupAssignments.getMinMaxGroups().get( 0 );

@@ -68,7 +68,7 @@ public abstract class BvvHandle implements Bvv
 	// TODO: Remove
 	protected SetupAssignments setupAssignments;
 
-	protected final ArrayList< BvvSource > bvvSources;
+	protected final List< BvvSource > bvvSources;
 
 	protected final BvvOptions bvvOptions;
 
