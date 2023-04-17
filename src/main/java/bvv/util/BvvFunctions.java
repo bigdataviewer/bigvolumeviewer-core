@@ -80,6 +80,16 @@ public class BvvFunctions
 		return show( img, name, Bvv.options() );
 	}
 
+	public static Bvv show( final BvvOptions options )
+	{
+		final Bvv bvv = options.values.addTo();
+		final BvvHandle handle = ( bvv == null )
+				? new BvvHandleFrame( options )
+				: bvv.getBvvHandle();
+		handle.createViewer( Collections.emptyList(), Collections.emptyList(), 1 );
+		return handle;
+	}
+
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static < T > BvvStackSource< T > show(
 			final RandomAccessibleInterval< T > img,
