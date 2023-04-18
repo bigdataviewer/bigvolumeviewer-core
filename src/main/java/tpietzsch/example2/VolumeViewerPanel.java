@@ -956,12 +956,11 @@ public class VolumeViewerPanel
 			final Set< SourceAndConverter< ? > > visibleSources = state.getVisibleAndPresentSources();
 			final AffineTransform3D renderTransformWorldToScreen = state.getViewerTransform();
 
-			final Matrix4f view = MatrixMath.affine( renderTransformWorldToScreen, new Matrix4f() );
-			MatrixMath.screenPerspective( dCam, dClipNear, dClipFar, screenWidth, screenHeight, 0, pv ).mul( view );
+			renderData = new RenderData( currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight );
+			pv.set( renderData.getPv() );
 
 			renderStacks.clear();
 			renderConverters.clear();
-
 			for ( SourceAndConverter< ? > source : visibleSources )
 			{
 				final ConverterSetup converter = setups.getConverterSetup( source );
@@ -971,7 +970,6 @@ public class VolumeViewerPanel
 				renderStacks.add( stack3D );
 				renderConverters.add( converter );
 			}
-			renderData = new RenderData( pv, currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight );
 		}
 	}
 

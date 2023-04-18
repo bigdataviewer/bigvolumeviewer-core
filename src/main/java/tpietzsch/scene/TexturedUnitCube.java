@@ -33,7 +33,6 @@ import com.jogamp.opengl.GL3;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-import java.util.Collections;
 import org.joml.Matrix4fc;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.shadergen.DefaultShader;
