@@ -6,10 +6,11 @@ out vec3 Normal;
 
 uniform mat4 pvm;
 uniform mat4 vm;
+uniform mat3 itvm;
 
 void main()
 {
 	gl_Position = pvm * vec4( aPos, 1.0 );
-	FragPos = vec3(model * vec4(aPos, 1.0));
-	Normal = aNormal;
+	FragPos = vec3(vm * vec4(aPos, 1.0));
+	Normal = itvm * aNormal;
 }

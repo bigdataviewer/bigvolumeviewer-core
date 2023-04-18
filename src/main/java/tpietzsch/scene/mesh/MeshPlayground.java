@@ -44,7 +44,10 @@ public class MeshPlayground
 			STLMeshIO meshIO = new STLMeshIO();
 			meshIO.read( nmesh, new File( fn ) );
 			bbox( nmesh );
-			mesh = calculateNormals( nmesh );
+			mesh = calculateNormals(
+					nmesh
+//					Meshes.removeDuplicateVertices( nmesh, 5 )
+			);
 //			mesh = toBufferMesh( nmesh );
 		}
 		catch ( final IOException e )

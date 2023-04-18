@@ -33,7 +33,6 @@ import bvv.util.BvvFunctions;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.joml.Matrix4f;
 import tpietzsch.example2.VolumeViewerPanel;
-import tpietzsch.scene.TexturedUnitCube;
 import tpietzsch.scene.mesh.MeshPlayground;
 import tpietzsch.scene.mesh.StupidMesh;
 
@@ -55,11 +54,11 @@ public class ExampleMesh
 		viewer.state().setViewerTransform( vt );
 
 		final StupidMesh mesh = new StupidMesh( MeshPlayground.load() );
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
 		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().scale( 10 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-			mesh.draw( gl, data.getPv().mul( cubetransform, new Matrix4f() ), data.getCamview().mul( cubetransform, new Matrix4f() ) );
+			final Matrix4f meshtransform = new Matrix4f().scale( 10 );
+			final Matrix4f pvm = data.getPv().mul( meshtransform, new Matrix4f() );
+			final Matrix4f vm = data.getCamview().mul( meshtransform, new Matrix4f() );
+			mesh.draw( gl, pvm, vm );
 		} );
 		viewer.requestRepaint();
 	}

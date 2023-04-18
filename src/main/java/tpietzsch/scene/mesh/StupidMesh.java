@@ -35,6 +35,8 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import net.imagej.mesh.nio.BufferMesh;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import tpietzsch.backend.jogl.JoglGpuContext;
 import tpietzsch.shadergen.DefaultShader;
@@ -82,21 +84,18 @@ public class StupidMesh
 
 		final FloatBuffer vertices = mesh.vertices().verts();
 		vertices.rewind();
-		System.out.println( "vertices = " + vertices.limit() );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, meshPosVbo );
 		gl.glBufferData( GL.GL_ARRAY_BUFFER, vertices.limit() * Float.BYTES, vertices, GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
 
 		final FloatBuffer normals = mesh.vertices().normals();
 		normals.rewind();
-		System.out.println( "normals = " + normals.limit() );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, meshNormalVbo );
-		gl.glBufferData( GL.GL_ARRAY_BUFFER, normals.limit() * Float.BYTES, vertices, GL.GL_STATIC_DRAW );
+		gl.glBufferData( GL.GL_ARRAY_BUFFER, normals.limit() * Float.BYTES, normals, GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
 
 		final IntBuffer indices = mesh.triangles().indices();
 		indices.rewind();
-		System.out.println( "indices = " + indices.limit() );
 		gl.glBindBuffer( GL.GL_ELEMENT_ARRAY_BUFFER, meshEbo );
 		gl.glBufferData( GL.GL_ELEMENT_ARRAY_BUFFER, indices.limit() * Integer.BYTES, indices, GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ELEMENT_ARRAY_BUFFER, 0 );
@@ -110,10 +109,8 @@ public class StupidMesh
 		gl.glVertexAttribPointer( 0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0 );
 		gl.glEnableVertexAttribArray( 0 );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, meshNormalVbo );
-		gl.glVertexAttribPointer( 0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0 );
+		gl.glVertexAttribPointer( 1, 3, GL_FLOAT, false, 3 * Float.BYTES, 0 );
 		gl.glEnableVertexAttribArray( 1 );
-//		gl.glVertexAttribPointer( 1, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES );
-//		gl.glEnableVertexAttribArray( 1 );
 		gl.glBindBuffer( GL.GL_ELEMENT_ARRAY_BUFFER, meshEbo );
 		gl.glBindVertexArray( 0 );
 	}
@@ -124,13 +121,18 @@ public class StupidMesh
 			init( gl );
 
 		JoglGpuContext context = JoglGpuContext.get( gl );
+		final Matrix4f itvm = vm.invert( new Matrix4f() ).transpose();
 
 		prog.getUniformMatrix4f( "pvm" ).set( pvm );
 		prog.getUniformMatrix4f( "vm" ).set( vm );
+		prog.getUniformMatrix3f( "itvm" ).set( itvm.get3x3( new Matrix3f() ) );
 		prog.setUniforms( context );
 		prog.use( context );
 
 		gl.glBindVertexArray( vao );
+//		gl.glEnable( GL.GL_CULL_FACE );
+//		gl.glCullFace( GL.GL_BACK );
+//		gl.glFrontFace( GL.GL_CCW );
 		gl.glDrawElements( GL_TRIANGLES, ( int ) mesh.triangles().size() * 3, GL_UNSIGNED_INT, 0 );
 		gl.glBindVertexArray( 0 );
 	}

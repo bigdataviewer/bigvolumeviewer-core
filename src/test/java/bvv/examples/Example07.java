@@ -41,6 +41,8 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.joml.Matrix4f;
 import tpietzsch.example2.VolumeViewerPanel;
 import tpietzsch.scene.TexturedUnitCube;
+import tpietzsch.scene.mesh.MeshPlayground;
+import tpietzsch.scene.mesh.StupidMesh;
 
 public class Example07
 {
@@ -59,9 +61,15 @@ public class Example07
 
 		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
 		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
+		final StupidMesh mesh = new StupidMesh( MeshPlayground.load() );
 		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
+			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 10 );
 			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
+
+			final Matrix4f meshtransform = new Matrix4f().translate( 140, 150, 15 ).scale( 8 );
+			final Matrix4f pvm = data.getPv().mul( meshtransform, new Matrix4f() );
+			final Matrix4f vm = data.getCamview().mul( meshtransform, new Matrix4f() );
+			mesh.draw( gl, pvm, vm );
 		} );
 
 		viewer.requestRepaint();
