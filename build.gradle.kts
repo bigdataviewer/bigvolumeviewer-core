@@ -1,5 +1,8 @@
 
-plugins { java }
+plugins {
+    java
+    `maven-publish`
+}
 
 repositories {
     maven("https://maven.scijava.org/content/groups/public")
@@ -32,3 +35,9 @@ dependencies {
 group = "sc.fiji"
 version = "0.1.9-SNAPSHOT"
 description = "BigVolumeViewer"
+
+publishing {
+    publications.create<MavenPublication>("maven") {
+        from(components["java"])
+    }
+}
