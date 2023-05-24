@@ -14,7 +14,7 @@
 
 	<name>BigVolumeViewer</name>
 	<description>Volume rendering of bdv datasets</description>
-	<url>https://github.com/tpietzsch/jogl-minimal</url>
+	<url>https://github.com/bigdataviewer/bigvolumeviewer-core</url>
 	<inceptionYear>2018</inceptionYear>
 	<organization>
 		<name>BigDataViewer</name>
@@ -57,22 +57,22 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:git://github.com/tpietzsch/jogl-minimal</connection>
-		<developerConnection>scm:git:git@github.com:tpietzsch/jogl-minimal</developerConnection>
+		<connection>scm:git:git://github.com/bigdataviewer/bigvolumeviewer-core</connection>
+		<developerConnection>scm:git:git@github.com:bigdataviewer/bigvolumeviewer-core</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/tpietzsch/jogl-minimal</url>
+		<url>https://github.com/bigdataviewer/bigvolumeviewer-core</url>
 	</scm>
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/tpietzsch/jogl-minimal/issues</url>
+		<url>https://github.com/bigdataviewer/bigvolumeviewer-core/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>GitHub Actions</system>
-		<url>https://github.com/tpietzsch/jogl-minimal/actions</url>
+		<url>https://github.com/bigdataviewer/bigvolumeviewer-core/actions</url>
 	</ciManagement>
 
 	<properties>
-		<package-name>tpietzsch</package-name>
+		<package-name>bvv</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
 
