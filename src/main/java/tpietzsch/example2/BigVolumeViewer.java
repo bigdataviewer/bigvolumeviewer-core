@@ -1,7 +1,40 @@
+/*-
+ * #%L
+ * Volume rendering of bdv datasets
+ * %%
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
+ */
 package tpietzsch.example2;
 
 import static bdv.BigDataViewer.initSetups;
 
+import bdv.tools.transformation.ManualTransformationEditor;
+import bdv.viewer.ConverterSetups;
+import bdv.viewer.NavigationActions;
+import bdv.viewer.SynchronizedViewerState;
+import bdv.viewer.ViewerState;
 import com.jogamp.opengl.GL3;
 
 import java.io.File;
@@ -43,11 +76,8 @@ import bdv.tools.brightness.MinMaxGroup;
 import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
 import mpicbg.spim.data.SpimDataException;
-import tpietzsch.example2.VolumeViewerPanel.RenderData;
-import tpietzsch.frombdv.ManualTransformationEditor;
+import org.scijava.ui.behaviour.util.Actions;
 import tpietzsch.scene.TexturedUnitCube;
 
 public class BigVolumeViewer
@@ -92,18 +122,27 @@ public class BigVolumeViewer
 		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
 		options.inputTriggerConfig( keyConfig );
 
-		frame = new VolumeViewerFrame( sources, converterSetups, numTimepoints, cacheControl, this::renderScene, options );
+		frame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, this::renderScene, options );
 		if ( windowTitle != null )
 			frame.setTitle( windowTitle );
 		viewer = frame.getViewerPanel();
 
-		for ( final ConverterSetup setup : converterSetups )
-			setup.setViewer( viewer );
-
 		manualTransformation = new ManualTransformation( sources );
-		manualTransformationEditor = new ManualTransformationEditor( viewer, frame.getKeybindings() );
+		manualTransformationEditor = new ManualTransformationEditor( viewer.transformListeners(), viewer.state(), viewer::showMessage, frame.getKeybindings() );
 
 		bookmarks = new Bookmarks();
+
+		final ConverterSetups setups = frame.getConverterSetups();
+		if ( converterSetups.size() != sources.size() )
+			System.err.println( "WARNING! Constructing BigDataViewer, with converterSetups.size() that is not the same as sources.size()." );
+		final int numSetups = Math.min( converterSetups.size(), sources.size() );
+		for ( int i = 0; i < numSetups; ++i )
+		{
+			final SourceAndConverter< ? > source = sources.get( i );
+			final ConverterSetup setup = converterSetups.get( i );
+			if ( setup != null )
+				setups.put( source, setup );
+		}
 
 		setupAssignments = new SetupAssignments( converterSetups, 0, 65535 );
 		if ( setupAssignments.getMinMaxGroups().size() > 0 )
@@ -114,8 +153,7 @@ public class BigVolumeViewer
 		}
 
 		brightnessDialog = new BrightnessDialog( frame, setupAssignments );
-
-		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.getVisibilityAndGrouping() );
+		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.state() );
 
 		fileChooser = new JFileChooser();
 		fileChooser.setFileFilter( new FileFilter()
@@ -145,12 +183,13 @@ public class BigVolumeViewer
 			}
 		} );
 
-		NavigationActions.installActionBindings( frame.getKeybindings(), viewer, keyConfig );
-		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
-		frame.getDefaultActions().namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
-		frame.getDefaultActions().runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
-		frame.getDefaultActions().runnableAction( this::loadSettings, "load settings", "F12" );
-		frame.getDefaultActions().runnableAction( this::saveSettings, "save settings", "F11" );
+		final Actions actions = frame.getDefaultActions();
+		NavigationActions.install( actions, viewer, false );
+		actions.namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
+		actions.namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
+		actions.runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
+		actions.runnableAction( this::loadSettings, "load settings", "F12" );
+		actions.runnableAction( this::saveSettings, "save settings", "F11" );
 	}
 
 	public VolumeViewerPanel getViewer()
@@ -163,6 +202,15 @@ public class BigVolumeViewer
 		return frame;
 	}
 
+	public ConverterSetups getConverterSetups()
+	{
+		return frame.getConverterSetups();
+	}
+
+	/**
+	 * @deprecated Instead {@code getViewer().state()} returns the {@link ViewerState} that can be modified directly.
+	 */
+	@Deprecated
 	public SetupAssignments getSetupAssignments()
 	{
 		return setupAssignments;
@@ -359,9 +407,9 @@ public class BigVolumeViewer
 	{
 		final AffineTransform3D sourceToWorld = new AffineTransform3D();
 		final Interval interval;
-		final ViewerState state = viewer.getState();
+		final SynchronizedViewerState state = viewer.state();
 		final int t = state.getCurrentTimepoint();
-		final SourceState< ? > source = state.getSources().get( state.getCurrentSource() );
+		final SourceAndConverter< ? > source = state.getCurrentSource();
 		source.getSpimSource().getSourceTransform( t, 0, sourceToWorld );
 		interval = source.getSpimSource().getSource( t, 0 );
 
@@ -444,17 +492,17 @@ public class BigVolumeViewer
 		final VolumeViewerFrame frame = bvv.frame;
 		final VolumeViewerPanel viewer = bvv.viewer;
 
-		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state );
-		viewer.getTransformEventHandler().setTransform( resetTransform );
+		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state() );
+		viewer.state().setViewerTransform( resetTransform );
 		frame.getDefaultActions().runnableAction( () -> {
-			viewer.getTransformEventHandler().setTransform( resetTransform );
+			viewer.state().setViewerTransform( resetTransform );
 		}, "reset transform", "R" );
 
 		frame.getDefaultActions().runnableAction( bvv::addRandomCube, "add random cube", "B" );
 		frame.getDefaultActions().runnableAction( bvv::removeRandomCube, "remove random cube", "shift B" );
 
 		if ( ! bvv.tryLoadSettings( xmlFilename ) )
-			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state, bvv.setupAssignments );
+			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state(), viewer.getConverterSetups() );
 		bvv.activeSourcesDialog.update();
 
 		frame.setVisible( true );

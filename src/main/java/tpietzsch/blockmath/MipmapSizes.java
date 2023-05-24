@@ -1,3 +1,31 @@
+/*-
+ * #%L
+ * Volume rendering of bdv datasets
+ * %%
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
+ */
 package tpietzsch.blockmath;
 
 import java.util.ArrayList;
@@ -52,13 +80,17 @@ public class MipmapSizes
 		final Matrix4f NDCtoSource = sourceToNDC.invert( new Matrix4f() );
 		final float w = 2f / viewportWidth;
 		// viewport pixel width on near and far plane (in source coordinates)
-		sn = NDCtoSource.transformProject( w, 0, -1, new Vector3f() ).sub( NDCtoSource.transformProject( 0, 0, -1, new Vector3f() ) ).length();
-		sf = NDCtoSource.transformProject( w, 0, 1, new Vector3f() ).sub( NDCtoSource.transformProject( 0, 0, 1, new Vector3f() ) ).length();
+		NDCtoSource.transformProject( 0, 0, -1, pNear );
+		final Vector3f pFar = NDCtoSource.transformProject( 0, 0, 1, new Vector3f() );
+		sn = NDCtoSource.transformProject( w, 0, -1, new Vector3f() ).sub( pNear ).length();
+		sf = NDCtoSource.transformProject( w, 0, 1, new Vector3f() ).sub( pFar ).length();
 
-		NDCtoSource.unprojectInvRay( 0.5f, 0.5f, new int[] { 0, 0, 1, 1 }, pNear, pFarMinusNear );
+		pFar.sub( pNear, pFarMinusNear );
 		pFarMinusNear.normalize( dir );
 		drels = 1f / pFarMinusNear.lengthSquared();
+
 		// voxel size on near plane (in source coordinates)
+		// ... or rather: on any plane perpendicular to dir.
 		v0x = ( float ) Math.sqrt( 1.0 - dir.dot( 1, 0, 0 ) );
 		v0y = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 1, 0 ) );
 		v0z = ( float ) Math.sqrt( 1.0 - dir.dot( 0, 0, 1 ) );

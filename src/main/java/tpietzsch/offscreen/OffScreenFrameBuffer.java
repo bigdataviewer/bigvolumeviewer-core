@@ -1,3 +1,31 @@
+/*-
+ * #%L
+ * Volume rendering of bdv datasets
+ * %%
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
+ */
 package tpietzsch.offscreen;
 
 import com.jogamp.opengl.GL;
@@ -46,6 +74,8 @@ import static com.jogamp.opengl.GL2ES3.GL_DEPTH_STENCIL_ATTACHMENT;
 public class OffScreenFrameBuffer
 {
 	private final boolean withDepthAndStencil;
+
+	private final boolean flipY;
 
 	private int vaoQuad;
 
@@ -98,7 +128,7 @@ public class OffScreenFrameBuffer
 	 */
 	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat )
 	{
-		this( fbWidth, fbHeight, internalFormat, false );
+		this( fbWidth, fbHeight, internalFormat, false, false );
 	}
 
 	/**
@@ -106,13 +136,15 @@ public class OffScreenFrameBuffer
 	 * @param fbHeight height of offscreen framebuffer
 	 * @param internalFormat internal texture format
 	 * @param withDepthAndStencil whether to create a render buffer for depth and stencil
+	 * @param flipY whether to flip the Y axis when {@link #drawQuad drawing the texture}
 	 */
-	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat, final boolean withDepthAndStencil )
+	public OffScreenFrameBuffer( final int fbWidth, final int fbHeight, final int internalFormat, final boolean withDepthAndStencil, final boolean flipY )
 	{
 		this.fbWidth = fbWidth;
 		this.fbHeight = fbHeight;
 		this.internalFormat = internalFormat;
 		this.withDepthAndStencil = withDepthAndStencil;
+		this.flipY = flipY;
 
 		final Segment quadvp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.vp" ).instantiate();
 		final Segment quadfp = new SegmentTemplate( OffScreenFrameBuffer.class, "osfbquad.fp" ).instantiate();
@@ -176,11 +208,19 @@ public class OffScreenFrameBuffer
 				-1,  1, 0,     0, 1    // top left
 		};
 
+		final float verticesQuadFlipY[] = {
+				//    pos      texture
+				 1,  1, 0,     1, 0,   // top right
+				 1, -1, 0,     1, 1,   // bottom right
+				-1, -1, 0,     0, 1,   // bottom left
+				-1,  1, 0,     0, 0    // top left
+		};
+
 		final int[] tmp = new int[ 1 ];
 		gl.glGenBuffers( 1, tmp, 0 );
 		final int vboQuad = tmp[ 0 ];
 		gl.glBindBuffer( GL_ARRAY_BUFFER, vboQuad );
-		gl.glBufferData( GL_ARRAY_BUFFER, verticesQuad.length * Float.BYTES, FloatBuffer.wrap( verticesQuad ), GL.GL_STATIC_DRAW );
+		gl.glBufferData( GL_ARRAY_BUFFER, verticesQuad.length * Float.BYTES, FloatBuffer.wrap( flipY ? verticesQuadFlipY : verticesQuad ), GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
 
 		final int indices[] = {

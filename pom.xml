@@ -5,12 +5,12 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>27.0.1</version>
+		<version>34.0.0</version>
 	</parent>
 
 	<groupId>sc.fiji</groupId>
 	<artifactId>bigvolumeviewer</artifactId>
-	<version>0.1.9-SNAPSHOT</version>
+	<version>0.2.1-SNAPSHOT</version>
 
 	<name>BigVolumeViewer</name>
 	<description>Volume rendering of bdv datasets</description>
@@ -41,7 +41,13 @@
 			</roles>
 		</developer>
 	</developers>
-	<contributors><contributor><name>none</name></contributor></contributors>
+	<contributors>
+		<contributor>
+			<name>Ulrik Guenther</name>
+			<url>https://ulrik.is/writing</url>
+			<properties><id>skalarproduktraum</id></properties>
+		</contributor>
+	</contributors>
 
 	<mailingLists>
 		<mailingList>
@@ -61,8 +67,8 @@
 		<url>https://github.com/tpietzsch/jogl-minimal/issues</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.org/tpietzsch/jogl-minimal</url>
+		<system>GitHub Actions</system>
+		<url>https://github.com/tpietzsch/jogl-minimal/actions</url>
 	</ciManagement>
 
 	<properties>
@@ -70,12 +76,17 @@
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
 
-		<bigdataviewer-core.version>8.0.0</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
+		<enforcer.skip>true</enforcer.skip>
+		<imglib2.version>6.1.0</imglib2.version>
+		<imglib2-cache.version>1.0.0-beta-17</imglib2-cache.version>
+		<bigdataviewer-core.version>10.4.6</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-32</bigdataviewer-vistools.version>
+		<bigdataviewer_fiji.version>6.2.4</bigdataviewer_fiji.version>
 		<ST4.version>4.0.8</ST4.version>
+		<joml.version>1.10.5</joml.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 	</properties>
 
 	<repositories>
@@ -107,10 +118,6 @@
 			<artifactId>imglib2-realtransform</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-ui</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>ST4</artifactId>
 			<version>${ST4.version}</version>
@@ -126,11 +133,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.jogamp.gluegen</groupId>
-			<artifactId>gluegen-rt-main</artifactId>
+			<artifactId>gluegen-rt</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.jogamp.jogl</groupId>
-			<artifactId>jogl-all-main</artifactId>
+			<artifactId>jogl-all</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.joml</groupId>
