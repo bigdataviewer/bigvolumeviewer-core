@@ -31,6 +31,8 @@ package tpietzsch.example2;
 import bdv.TransformEventHandler;
 import bdv.ui.BdvDefaultCards;
 import bdv.ui.CardPanel;
+import bdv.ui.appearance.AppearanceManager;
+import bdv.ui.keymap.KeymapManager;
 import bdv.ui.splitpanel.SplitPanel;
 import bdv.viewer.ConverterSetups;
 import java.awt.BorderLayout;
@@ -54,6 +56,12 @@ import bdv.cache.CacheControl;
 import bdv.viewer.SourceAndConverter;
 import tpietzsch.example2.VolumeViewerPanel.RenderScene;
 
+/**
+ * A {@link JFrame} containing a {@link VolumeViewerPanel} and associated
+ * {@link InputActionBindings}.
+ *
+ * @author Tobias Pietzsch
+ */
 public class VolumeViewerFrame extends JFrame
 {
 	private final VolumeViewerPanel viewer;
@@ -66,9 +74,29 @@ public class VolumeViewerFrame extends JFrame
 
 	private final TriggerBehaviourBindings triggerbindings;
 
-	private final Actions actions;
+	// TODO REMOVE
+	// TODO REMOVE
+	// TODO REMOVE
+	private final Actions defaultActions;
+	// TODO REMOVE
+	// TODO REMOVE
+	// TODO REMOVE
 
-	private final Behaviours behaviours;
+	private final Behaviours transformBehaviours;
+
+	private final KeymapManager keymapManager;
+
+	private final AppearanceManager appearanceManager;
+
+	public VolumeViewerFrame(
+			final List< SourceAndConverter< ? > > sources,
+			final int numTimepoints,
+			final CacheControl cache,
+			final RenderScene renderScene, // TODO: remove this argument
+			final VolumeViewerOptions optional )
+	{
+		this( sources, numTimepoints, cache, renderScene, new KeymapManager( BigVolumeViewer.configDir ), new AppearanceManager( BigVolumeViewer.configDir ), optional );
+	}
 
 	/**
 	 *
@@ -85,10 +113,14 @@ public class VolumeViewerFrame extends JFrame
 			final List< SourceAndConverter< ? > > sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
-			final RenderScene renderScene,
+			final RenderScene renderScene, // TODO: remove this argument
+			final KeymapManager keymapManager,
+			final AppearanceManager appearanceManager,
 			final VolumeViewerOptions optional )
 	{
 		super( "BigVolumeViewer" );
+		this.keymapManager = keymapManager;
+		this.appearanceManager = appearanceManager;
 		viewer = new VolumeViewerPanel( sources, numTimepoints, cacheControl, renderScene, optional );
 
 		keybindings = new InputActionBindings();
@@ -97,8 +129,6 @@ public class VolumeViewerFrame extends JFrame
 		cards = new CardPanel();
 		BdvDefaultCards.setup( cards, viewer, viewer.getConverterSetups() );
 		splitPanel = new SplitPanel( viewer, cards );
-
-		final VolumeViewerOptions.Values options = optional.values;
 
 		getRootPane().setDoubleBuffered( true );
 //		add( viewer, BorderLayout.CENTER );
@@ -114,24 +144,29 @@ public class VolumeViewerFrame extends JFrame
 			}
 		} );
 
-		final InputTriggerConfig keyConfig = options.getInputTriggerConfig();
-		actions = new Actions( keyConfig, "all" );
-		actions.install( keybindings, "default" );
-		behaviours = new Behaviours( keyConfig, "all" );
-		behaviours.install( triggerbindings, "default" );
-
+		// TODO: getRootPanel --> viewer ???
 		SwingUtilities.replaceUIActionMap( getRootPane(), keybindings.getConcatenatedActionMap() );
 		SwingUtilities.replaceUIInputMap( getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
 
 		final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
-		mouseAndKeyHandler.setKeypressManager( options.getKeyPressedManager(), viewer.getDisplay().getComponent() );
+		mouseAndKeyHandler.setKeypressManager( optional.values.getKeyPressedManager(), viewer.getDisplay().getComponent() );
 		viewer.getDisplay().addHandler( mouseAndKeyHandler );
 
-		// TODO: should be a field?
-		final Behaviours transformBehaviours = new Behaviours( optional.values.getInputTriggerConfig(), "bdv" );
+		transformBehaviours = new Behaviours( optional.values.getInputTriggerConfig(), "bdv" );
 		transformBehaviours.install( triggerbindings, "transform" );
+
+
+		// TODO REMOVE
+		// TODO REMOVE
+		// TODO REMOVE
+		defaultActions = new Actions( optional.values.getInputTriggerConfig(), "bdv" );
+		defaultActions.install( keybindings, "default" );
+		// TODO REMOVE
+		// TODO REMOVE
+		// TODO REMOVE
+
 
 		final TransformEventHandler tfHandler = viewer.getTransformEventHandler();
 		tfHandler.install( transformBehaviours );
@@ -152,15 +187,16 @@ public class VolumeViewerFrame extends JFrame
 		return splitPanel;
 	}
 
-	public Actions getDefaultActions()
+	// TODO REMOVE
+	// TODO REMOVE
+	// TODO REMOVE
+	public Actions getDefaultActions() // TODO REMOVE
 	{
-		return actions;
+		return defaultActions;
 	}
-
-	public Behaviours getDefaultBehaviours()
-	{
-		return behaviours;
-	}
+	// TODO REMOVE
+	// TODO REMOVE
+	// TODO REMOVE
 
 	public InputActionBindings getKeybindings()
 	{
@@ -170,6 +206,16 @@ public class VolumeViewerFrame extends JFrame
 	public TriggerBehaviourBindings getTriggerbindings()
 	{
 		return triggerbindings;
+	}
+
+	/**
+	 * Get {@code Behaviours} hook where TransformEventHandler behaviours are installed.
+	 * This is installed in {@link #getTriggerbindings} with the id "transform".
+	 * The hook can be used to update the keymap and install additional behaviours.
+	 */
+	public Behaviours getTransformBehaviours()
+	{
+		return transformBehaviours;
 	}
 
 	public ConverterSetups getConverterSetups()

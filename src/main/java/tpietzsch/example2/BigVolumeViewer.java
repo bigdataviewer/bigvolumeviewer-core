@@ -37,6 +37,7 @@ import bdv.viewer.SynchronizedViewerState;
 import bdv.viewer.ViewerState;
 import com.jogamp.opengl.GL3;
 
+import dev.dirs.ProjectDirectories;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -83,6 +84,8 @@ import tpietzsch.scene.TexturedUnitCube;
 
 public class BigVolumeViewer
 {
+	public static String configDir = ProjectDirectories.from( "sc", "fiji", "bigvolumeviewer" ).configDir;
+
 	// ... BDV ...
 	private final VolumeViewerFrame frame;
 	private final VolumeViewerPanel viewer;
@@ -498,9 +501,6 @@ public class BigVolumeViewer
 		frame.getDefaultActions().runnableAction( () -> {
 			viewer.state().setViewerTransform( resetTransform );
 		}, "reset transform", "R" );
-
-		frame.getDefaultActions().runnableAction( bvv::addRandomCube, "add random cube", "B" );
-		frame.getDefaultActions().runnableAction( bvv::removeRandomCube, "remove random cube", "shift B" );
 
 		if ( ! bvv.tryLoadSettings( xmlFilename ) )
 			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state(), viewer.getConverterSetups() );
