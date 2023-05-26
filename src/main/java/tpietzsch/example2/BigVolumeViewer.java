@@ -30,7 +30,14 @@ package tpietzsch.example2;
 
 import static bdv.BigDataViewer.initSetups;
 
+import bdv.tools.PreferencesDialog;
+import bdv.tools.bookmarks.BookmarksEditor;
 import bdv.tools.transformation.ManualTransformationEditor;
+import bdv.ui.appearance.AppearanceManager;
+import bdv.ui.appearance.AppearanceSettingsPage;
+import bdv.ui.keymap.Keymap;
+import bdv.ui.keymap.KeymapManager;
+import bdv.ui.keymap.KeymapSettingsPage;
 import bdv.viewer.ConverterSetups;
 import bdv.viewer.NavigationActions;
 import bdv.viewer.SynchronizedViewerState;
@@ -46,6 +53,7 @@ import java.util.List;
 import java.util.Random;
 
 import javax.swing.JFileChooser;
+import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import net.imglib2.Interval;
@@ -60,8 +68,9 @@ import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.scijava.Context;
+import org.scijava.plugin.PluginService;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 
 import bdv.ViewerImgLoader;
 import bdv.cache.CacheControl;
@@ -69,7 +78,6 @@ import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
 import bdv.tools.InitializeViewerState;
-import bdv.tools.ToggleDialogAction;
 import bdv.tools.VisibilityAndGroupingDialog;
 import bdv.tools.bookmarks.Bookmarks;
 import bdv.tools.brightness.BrightnessDialog;
@@ -79,6 +87,7 @@ import bdv.tools.brightness.SetupAssignments;
 import bdv.tools.transformation.ManualTransformation;
 import bdv.viewer.SourceAndConverter;
 import mpicbg.spim.data.SpimDataException;
+import org.scijava.ui.behaviour.io.gui.CommandDescriptionsBuilder;
 import org.scijava.ui.behaviour.util.Actions;
 import tpietzsch.scene.TexturedUnitCube;
 
@@ -87,14 +96,19 @@ public class BigVolumeViewer
 	public static String configDir = ProjectDirectories.from( "sc", "fiji", "bigvolumeviewer" ).configDir;
 
 	// ... BDV ...
-	private final VolumeViewerFrame frame;
+	private final VolumeViewerFrame viewerFrame;
 	private final VolumeViewerPanel viewer;
 	private final ManualTransformation manualTransformation;
 	private final Bookmarks bookmarks;
 	private final SetupAssignments setupAssignments;
-	private final BrightnessDialog brightnessDialog;
-	private final VisibilityAndGroupingDialog activeSourcesDialog;
-	private final ManualTransformationEditor manualTransformationEditor;
+	final BrightnessDialog brightnessDialog;
+	final VisibilityAndGroupingDialog activeSourcesDialog; // TODO: remove
+
+	private final KeymapManager keymapManager;
+	private final AppearanceManager appearanceManager;
+	final PreferencesDialog preferencesDialog;
+	final ManualTransformationEditor manualTransformationEditor;
+	final BookmarksEditor bookmarkEditor;
 
 	private final JFileChooser fileChooser;
 	private File proposedSettingsFile;
@@ -123,20 +137,28 @@ public class BigVolumeViewer
 			final String windowTitle,
 			final VolumeViewerOptions options )
 	{
-		final InputTriggerConfig keyConfig = getInputTriggerConfig( options );
-		options.inputTriggerConfig( keyConfig );
+		final KeymapManager optionsKeymapManager = options.values.getKeymapManager();
+		final AppearanceManager optionsAppearanceManager = options.values.getAppearanceManager();
+		keymapManager = optionsKeymapManager != null ? optionsKeymapManager : createDefaultKeymapManager();
+		appearanceManager = optionsAppearanceManager != null ? optionsAppearanceManager : new AppearanceManager( configDir );
 
-		frame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, this::renderScene, options );
+		InputTriggerConfig inputTriggerConfig = options.values.getInputTriggerConfig();
+		final Keymap keymap = this.keymapManager.getForwardSelectedKeymap();
+		if ( inputTriggerConfig == null )
+			inputTriggerConfig = keymap.getConfig();
+
+		viewerFrame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, this::renderScene, options.inputTriggerConfig( inputTriggerConfig ) );
 		if ( windowTitle != null )
-			frame.setTitle( windowTitle );
-		viewer = frame.getViewerPanel();
+			viewerFrame.setTitle( windowTitle );
+		viewer = viewerFrame.getViewerPanel();
 
-		manualTransformation = new ManualTransformation( sources );
-		manualTransformationEditor = new ManualTransformationEditor( viewer.transformListeners(), viewer.state(), viewer::showMessage, frame.getKeybindings() );
+		manualTransformation = new ManualTransformation( viewer );
+		manualTransformationEditor = new ManualTransformationEditor( viewer, viewerFrame.getKeybindings() );
 
 		bookmarks = new Bookmarks();
+		bookmarkEditor = new BookmarksEditor( viewer, viewerFrame.getKeybindings(), bookmarks );
 
-		final ConverterSetups setups = frame.getConverterSetups();
+		final ConverterSetups setups = viewerFrame.getConverterSetups();
 		if ( converterSetups.size() != sources.size() )
 			System.err.println( "WARNING! Constructing BigDataViewer, with converterSetups.size() that is not the same as sources.size()." );
 		final int numSetups = Math.min( converterSetups.size(), sources.size() );
@@ -156,8 +178,8 @@ public class BigVolumeViewer
 				setupAssignments.moveSetupToGroup( setup, group );
 		}
 
-		brightnessDialog = new BrightnessDialog( frame, setupAssignments );
-		activeSourcesDialog = new VisibilityAndGroupingDialog( frame, viewer.state() );
+		brightnessDialog = new BrightnessDialog( viewerFrame, setupAssignments );
+		activeSourcesDialog = new VisibilityAndGroupingDialog( viewerFrame, viewer.state() );
 
 		fileChooser = new JFileChooser();
 		fileChooser.setFileFilter( new FileFilter()
@@ -187,13 +209,38 @@ public class BigVolumeViewer
 			}
 		} );
 
-		final Actions actions = frame.getDefaultActions();
-		NavigationActions.install( actions, viewer, false );
-		actions.namedAction( new ToggleDialogAction( "toggle brightness dialog", brightnessDialog ), "S" );
-		actions.namedAction( new ToggleDialogAction( "toggle active sources dialog", activeSourcesDialog ), "F6" );
-		actions.runnableAction( manualTransformationEditor::toggle, "toggle manual transformation", "T" );
-		actions.runnableAction( this::loadSettings, "load settings", "F12" );
-		actions.runnableAction( this::saveSettings, "save settings", "F11" );
+		preferencesDialog = new PreferencesDialog( viewerFrame, keymap, new String[] { KeyConfigContexts.BIGVOLUMEVIEWER } );
+		preferencesDialog.addPage( new AppearanceSettingsPage( "Appearance", appearanceManager ) );
+		preferencesDialog.addPage( new KeymapSettingsPage( "Keymap", this.keymapManager, this.keymapManager.getCommandDescriptions() ) );
+		appearanceManager.appearance().updateListeners().add( viewerFrame::repaint );
+		appearanceManager.addLafComponent( fileChooser );
+		SwingUtilities.invokeLater(() -> appearanceManager.updateLookAndFeel());
+
+		final Actions navActions = new Actions( inputTriggerConfig, KeyConfigContexts.BIGVOLUMEVIEWER, "navigation" );
+		navActions.install( viewerFrame.getKeybindings(), "navigation" );
+		NavigationActions.install( navActions, viewer, false );
+
+		final Actions bvvActions = new Actions( inputTriggerConfig, KeyConfigContexts.BIGVOLUMEVIEWER );
+		bvvActions.install( viewerFrame.getKeybindings(), "bdv" );
+		BigVolumeViewerActions.install( bvvActions, this );
+
+		keymap.updateListeners().add( () -> {
+			navActions.updateKeyConfig( keymap.getConfig() );
+			bvvActions.updateKeyConfig( keymap.getConfig() );
+			viewerFrame.getTransformBehaviours().updateKeyConfig( keymap.getConfig() );
+		} );
+	}
+
+	private static KeymapManager createDefaultKeymapManager()
+	{
+		final KeymapManager manager = new KeymapManager( configDir );
+		final CommandDescriptionsBuilder builder = new CommandDescriptionsBuilder();
+		final Context context = new Context( PluginService.class );
+		context.inject( builder );
+		builder.discoverProviders( KeyConfigScopes.BIGVOLUMEVIEWER );
+		context.dispose();
+		manager.setCommandDescriptions( builder.build() );
+		return manager;
 	}
 
 	public VolumeViewerPanel getViewer()
@@ -203,12 +250,12 @@ public class BigVolumeViewer
 
 	public VolumeViewerFrame getViewerFrame()
 	{
-		return frame;
+		return viewerFrame;
 	}
 
 	public ConverterSetups getConverterSetups()
 	{
-		return frame.getConverterSetups();
+		return viewerFrame.getConverterSetups();
 	}
 
 	/**
@@ -223,6 +270,16 @@ public class BigVolumeViewer
 	public ManualTransformationEditor getManualTransformEditor()
 	{
 		return manualTransformationEditor;
+	}
+
+	public KeymapManager getKeymapManager()
+	{
+		return keymapManager;
+	}
+
+	public AppearanceManager getAppearanceManager()
+	{
+		return appearanceManager;
 	}
 
 	// -------------------------------------------------------------------------------------------------------
@@ -312,55 +369,16 @@ public class BigVolumeViewer
 		xout.output( doc, new FileWriter( xmlFilename ) );
 	}
 
-	/**
-	 * If {@code options} doesn't define a {@link InputTriggerConfig}, try to
-	 * load it from files in this order:
-	 * <ol>
-	 * <li>"bdvkeyconfig.yaml" in the current directory.
-	 * <li>".bdv/bdvkeyconfig.yaml" in the user's home directory.
-	 * <li>legacy "bigdataviewer.keys.properties" in current directory (will be
-	 * also written to "bdvkeyconfig.yaml").
-	 * </ol>
-	 *
-	 * @param options
-	 * @return
-	 */
-	public static InputTriggerConfig getInputTriggerConfig( final VolumeViewerOptions options )
+	public void expandAndFocusCardPanel()
 	{
-		InputTriggerConfig conf = options.values.getInputTriggerConfig();
+		viewerFrame.getSplitPanel().setCollapsed( false );
+		viewerFrame.getSplitPanel().getRightComponent().requestFocusInWindow();
+	}
 
-		// try "bdvkeyconfig.yaml" in current directory
-		if ( conf == null && new File( "bdvkeyconfig.yaml" ).isFile() )
-		{
-			try
-			{
-				conf = new InputTriggerConfig( YamlConfigIO.read( "bdvkeyconfig.yaml" ) );
-			}
-			catch ( final IOException e )
-			{}
-		}
-
-		// try "~/.bdv/bdvkeyconfig.yaml"
-		if ( conf == null )
-		{
-			final String fn = System.getProperty( "user.home" ) + "/.bdv/bdvkeyconfig.yaml";
-			if ( new File( fn ).isFile() )
-			{
-				try
-				{
-					conf = new InputTriggerConfig( YamlConfigIO.read( fn ) );
-				}
-				catch ( final IOException e )
-				{}
-			}
-		}
-
-		if ( conf == null )
-		{
-			conf = new InputTriggerConfig();
-		}
-
-		return conf;
+	public void collapseCardPanel()
+	{
+		viewerFrame.getSplitPanel().setCollapsed( true );
+		viewer.requestFocusInWindow();
 	}
 
 	// -------------------------------------------------------------------------------------------------------
@@ -493,7 +511,7 @@ public class BigVolumeViewer
 						dCam( dCam ).
 						dClip( dClip ) );
 
-		final VolumeViewerFrame frame = bvv.frame;
+		final VolumeViewerFrame frame = bvv.viewerFrame;
 		final VolumeViewerPanel viewer = bvv.viewer;
 
 		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state() );

@@ -30,6 +30,8 @@ package tpietzsch.example2;
 
 import bdv.TransformEventHandler3D;
 import bdv.TransformEventHandlerFactory;
+import bdv.ui.appearance.AppearanceManager;
+import bdv.ui.keymap.KeymapManager;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.animate.MessageOverlayAnimator;
 import java.awt.event.KeyListener;
@@ -294,7 +296,36 @@ public class VolumeViewerOptions
 	}
 
 	/**
-	 * Read-only {@link VolumeViewerOptions} values.
+	 * Set the {@link KeymapManager} to share keymap settings with other
+	 * BigVolumeViewer windows.
+	 * <p>
+	 * This can be used to link multiple BigVolumeViewer windows such that they
+	 * use (and modify) the same {@code Keymap}, shortcuts and mouse gestures.
+	 * </p>
+	 */
+	public VolumeViewerOptions keymapManager( final KeymapManager keymapManager )
+	{
+		values.keymapManager = keymapManager;
+		return this;
+	}
+
+	/**
+	 * Set the {@link AppearanceManager} to share appearance settings with other
+	 * BigVolumeViewer windows.
+	 * <p>
+	 * This can be used to link multiple BigVolumeViewer windows such that they
+	 * use (and modify) the same {@code Appearance} settings, e.g., LookAndFeel,
+	 * scalebar overlay settings, etc.
+	 * </p>
+	 */
+	public VolumeViewerOptions appearanceManager( final AppearanceManager appearanceManager )
+	{
+		values.appearanceManager = appearanceManager;
+		return this;
+	}
+
+	/**
+	 * Read-only {@link ViewerOptions} values.
 	 */
 	public static class Values
 	{
@@ -318,6 +349,8 @@ public class VolumeViewerOptions
 		private TransformEventHandlerFactory transformEventHandlerFactory = TransformEventHandler3D::new;
 		private InputTriggerConfig inputTriggerConfig = null;
 		private KeyPressedManager keyPressedManager = null;
+		private KeymapManager keymapManager = null;
+		private AppearanceManager appearanceManager = null;
 
 		public VolumeViewerOptions optionsFromValues()
 		{
@@ -339,7 +372,9 @@ public class VolumeViewerOptions
 					msgOverlay( msgOverlay ).
 					transformEventHandlerFactory( transformEventHandlerFactory ).
 					inputTriggerConfig( inputTriggerConfig ).
-					shareKeyPressedEvents( keyPressedManager );
+					shareKeyPressedEvents( keyPressedManager ).
+					keymapManager( keymapManager ).
+					appearanceManager( appearanceManager );
 		}
 
 		public int getWidth()
@@ -430,6 +465,16 @@ public class VolumeViewerOptions
 		public KeyPressedManager getKeyPressedManager()
 		{
 			return keyPressedManager;
+		}
+
+		public KeymapManager getKeymapManager()
+		{
+			return keymapManager;
+		}
+
+		public AppearanceManager getAppearanceManager()
+		{
+			return appearanceManager;
 		}
 	}
 }
