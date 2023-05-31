@@ -57,9 +57,11 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import net.imglib2.Interval;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
+import net.imglib2.util.Util;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -102,7 +104,6 @@ public class BigVolumeViewer
 	private final Bookmarks bookmarks;
 	private final SetupAssignments setupAssignments;
 	final BrightnessDialog brightnessDialog;
-	final VisibilityAndGroupingDialog activeSourcesDialog; // TODO: remove
 
 	private final KeymapManager keymapManager;
 	private final AppearanceManager appearanceManager;
@@ -179,7 +180,6 @@ public class BigVolumeViewer
 		}
 
 		brightnessDialog = new BrightnessDialog( viewerFrame, setupAssignments );
-		activeSourcesDialog = new VisibilityAndGroupingDialog( viewerFrame, viewer.state() );
 
 		fileChooser = new JFileChooser();
 		fileChooser.setFileFilter( new FileFilter()
@@ -312,7 +312,6 @@ public class BigVolumeViewer
 		setupAssignments.restoreFromXml( root );
 		manualTransformation.restoreFromXml( root );
 		bookmarks.restoreFromXml( root );
-		activeSourcesDialog.update();
 		viewer.requestRepaint();
 	}
 
@@ -516,13 +515,14 @@ public class BigVolumeViewer
 
 		final AffineTransform3D resetTransform = InitializeViewerState.initTransform( windowWidth, windowHeight, false, viewer.state() );
 		viewer.state().setViewerTransform( resetTransform );
-		frame.getDefaultActions().runnableAction( () -> {
+		final Actions actions = new Actions( new InputTriggerConfig() );
+		actions.install( frame.getKeybindings(), "additional" );
+		actions.runnableAction( () -> {
 			viewer.state().setViewerTransform( resetTransform );
 		}, "reset transform", "R" );
 
 		if ( ! bvv.tryLoadSettings( xmlFilename ) )
 			InitializeViewerState.initBrightness( 0.001, 0.999, viewer.state(), viewer.getConverterSetups() );
-		bvv.activeSourcesDialog.update();
 
 		frame.setVisible( true );
 	}
@@ -537,12 +537,18 @@ public class BigVolumeViewer
 		final int windowHeight = 480;
 		final int renderWidth = 512;
 		final int renderHeight = 512;
+
+//		final int windowWidth = 1280;
+//		final int windowHeight = 960;
+//		final int renderWidth = 1280;
+//		final int renderHeight = 960;
+
 //		final int renderWidth = 3840;
 //		final int renderHeight = 1600;
 		final int ditherWidth = 8;
 		final int numDitherSamples = 8;
-		final int cacheBlockSize = 32;
-		final int maxCacheSizeInMB = 300;
+		final int cacheBlockSize = 64;
+		final int maxCacheSizeInMB = 4000;
 		final double dCam = 2000;
 		final double dClip = 1000;
 

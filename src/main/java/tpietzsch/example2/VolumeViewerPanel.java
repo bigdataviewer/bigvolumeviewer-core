@@ -299,7 +299,7 @@ public class VolumeViewerPanel
 			state.setCurrentSource( 0 );
 		multiBoxOverlayRenderer = new MultiBoxOverlayRenderer();
 		sourceInfoOverlayRenderer = new SourceInfoOverlayRenderer();
-		scaleBarOverlayRenderer = Prefs.showScaleBar() ? new ScaleBarOverlayRenderer() : null;
+		scaleBarOverlayRenderer = new ScaleBarOverlayRenderer();
 
 		setups = new ConverterSetups( state() );
 		setups.listeners().add( s -> requestRepaint() );

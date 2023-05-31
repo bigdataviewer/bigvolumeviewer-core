@@ -74,14 +74,6 @@ public class VolumeViewerFrame extends JFrame
 
 	private final TriggerBehaviourBindings triggerbindings;
 
-	// TODO REMOVE
-	// TODO REMOVE
-	// TODO REMOVE
-	private final Actions defaultActions;
-	// TODO REMOVE
-	// TODO REMOVE
-	// TODO REMOVE
-
 	private final Behaviours transformBehaviours;
 
 	private final KeymapManager keymapManager;
@@ -157,17 +149,6 @@ public class VolumeViewerFrame extends JFrame
 		transformBehaviours = new Behaviours( optional.values.getInputTriggerConfig(), "bdv" );
 		transformBehaviours.install( triggerbindings, "transform" );
 
-
-		// TODO REMOVE
-		// TODO REMOVE
-		// TODO REMOVE
-		defaultActions = new Actions( optional.values.getInputTriggerConfig(), "bdv" );
-		defaultActions.install( keybindings, "default" );
-		// TODO REMOVE
-		// TODO REMOVE
-		// TODO REMOVE
-
-
 		final TransformEventHandler tfHandler = viewer.getTransformEventHandler();
 		tfHandler.install( transformBehaviours );
 	}
@@ -186,17 +167,6 @@ public class VolumeViewerFrame extends JFrame
 	{
 		return splitPanel;
 	}
-
-	// TODO REMOVE
-	// TODO REMOVE
-	// TODO REMOVE
-	public Actions getDefaultActions() // TODO REMOVE
-	{
-		return defaultActions;
-	}
-	// TODO REMOVE
-	// TODO REMOVE
-	// TODO REMOVE
 
 	public InputActionBindings getKeybindings()
 	{
