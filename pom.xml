@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>34.0.0</version>
+		<version>35.1.1</version>
 	</parent>
 
 	<groupId>sc.fiji</groupId>
@@ -77,13 +77,7 @@
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
 
 		<enforcer.skip>true</enforcer.skip>
-		<imglib2.version>6.1.0</imglib2.version>
-		<imglib2-cache.version>1.0.0-beta-17</imglib2-cache.version>
-		<bigdataviewer-core.version>10.4.6</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-32</bigdataviewer-vistools.version>
-		<bigdataviewer_fiji.version>6.2.4</bigdataviewer_fiji.version>
-		<ST4.version>4.0.8</ST4.version>
-		<joml.version>1.10.5</joml.version>
+		<bigdataviewer-core.version>10.4.7-SNAPSHOT</bigdataviewer-core.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
@@ -120,7 +114,6 @@
 		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>ST4</artifactId>
-			<version>${ST4.version}</version>
 		</dependency>
 		<dependency>
 			<!-- only used for linear programming, get rid of this, we only need something extremely simple -->
