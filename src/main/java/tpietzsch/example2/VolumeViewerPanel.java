@@ -276,7 +276,6 @@ public class VolumeViewerPanel
 			final List< SourceAndConverter< ? > > sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
-			final RenderScene renderScene,
 			final VolumeViewerOptions optional )
 	{
 		super( new BorderLayout(), false );
@@ -285,7 +284,6 @@ public class VolumeViewerPanel
 		final boolean useGLJPanel = true; // TODO should come from VolumeViewerOptions
 
 		this.cacheControl = cacheControl;
-		this.renderScene = renderScene;
 
 		final int numGroups = options.getNumSourceGroups();
 		final ArrayList< SourceGroup > groups = new ArrayList<>( numGroups );

@@ -84,10 +84,9 @@ public class VolumeViewerFrame extends JFrame
 			final List< SourceAndConverter< ? > > sources,
 			final int numTimepoints,
 			final CacheControl cache,
-			final RenderScene renderScene, // TODO: remove this argument
 			final VolumeViewerOptions optional )
 	{
-		this( sources, numTimepoints, cache, renderScene, new KeymapManager( BigVolumeViewer.configDir ), new AppearanceManager( BigVolumeViewer.configDir ), optional );
+		this( sources, numTimepoints, cache, new KeymapManager( BigVolumeViewer.configDir ), new AppearanceManager( BigVolumeViewer.configDir ), optional );
 	}
 
 	/**
@@ -105,7 +104,6 @@ public class VolumeViewerFrame extends JFrame
 			final List< SourceAndConverter< ? > > sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
-			final RenderScene renderScene, // TODO: remove this argument
 			final KeymapManager keymapManager,
 			final AppearanceManager appearanceManager,
 			final VolumeViewerOptions optional )
@@ -113,7 +111,7 @@ public class VolumeViewerFrame extends JFrame
 		super( "BigVolumeViewer" );
 		this.keymapManager = keymapManager;
 		this.appearanceManager = appearanceManager;
-		viewer = new VolumeViewerPanel( sources, numTimepoints, cacheControl, renderScene, optional );
+		viewer = new VolumeViewerPanel( sources, numTimepoints, cacheControl, optional );
 
 		keybindings = new InputActionBindings();
 		triggerbindings = new TriggerBehaviourBindings();

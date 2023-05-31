@@ -148,7 +148,7 @@ public class BigVolumeViewer
 		if ( inputTriggerConfig == null )
 			inputTriggerConfig = keymap.getConfig();
 
-		viewerFrame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, this::renderScene, options.inputTriggerConfig( inputTriggerConfig ) );
+		viewerFrame = new VolumeViewerFrame( sources, numTimepoints, cacheControl, options.inputTriggerConfig( inputTriggerConfig ) );
 		if ( windowTitle != null )
 			viewerFrame.setTitle( windowTitle );
 		viewer = viewerFrame.getViewerPanel();
@@ -378,97 +378,6 @@ public class BigVolumeViewer
 	{
 		viewerFrame.getSplitPanel().setCollapsed( true );
 		viewer.requestFocusInWindow();
-	}
-
-	// -------------------------------------------------------------------------------------------------------
-	// ... "pre-existing" scene...
-
-	private final TexturedUnitCube[] cubes = new TexturedUnitCube[]{
-			new TexturedUnitCube("imglib2.png" ),
-			new TexturedUnitCube("fiji.png" ),
-			new TexturedUnitCube("imagej2.png" ),
-			new TexturedUnitCube("scijava.png" ),
-			new TexturedUnitCube("container.jpg" )
-	};
-	static class CubeAndTransform {
-		final TexturedUnitCube cube;
-		final Matrix4f model;
-		public CubeAndTransform( final TexturedUnitCube cube, final Matrix4f model )
-		{
-			this.cube = cube;
-			this.model = model;
-		}
-	}
-	private final ArrayList< CubeAndTransform > cubeAndTransforms = new ArrayList<>();
-
-	private void renderScene( final GL3 gl, final RenderData data )
-	{
-		synchronized ( cubeAndTransforms )
-		{
-			for ( final CubeAndTransform cubeAndTransform : cubeAndTransforms )
-			{
-				cubeAndTransform.cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubeAndTransform.model ) );
-			}
-		}
-	}
-
-	private final Random random = new Random();
-
-	void removeRandomCube()
-	{
-		synchronized ( cubeAndTransforms )
-		{
-			if ( !cubeAndTransforms.isEmpty() )
-				cubeAndTransforms.remove( random.nextInt( cubeAndTransforms.size() ) );
-		}
-		viewer.requestRepaint();
-	}
-
-	void addRandomCube()
-	{
-		final AffineTransform3D sourceToWorld = new AffineTransform3D();
-		final Interval interval;
-		final SynchronizedViewerState state = viewer.state();
-		final int t = state.getCurrentTimepoint();
-		final SourceAndConverter< ? > source = state.getCurrentSource();
-		source.getSpimSource().getSourceTransform( t, 0, sourceToWorld );
-		interval = source.getSpimSource().getSource( t, 0 );
-
-		final double[] zero = new double[ 3 ];
-		final double[] tzero = new double[ 3 ];
-		for ( int d = 0; d < 3; ++d )
-			zero[ d ] = interval.min( d );
-		sourceToWorld.apply( zero, tzero );
-
-		final double[] one = new double[ 3 ];
-		final double[] tone = new double[ 3 ];
-		final double[] size = new double[ 3 ];
-		for ( int i = 0; i < 3; ++i )
-		{
-			for ( int d = 0; d < 3; ++d )
-				one[ d ] = d == i ? interval.max( d ) + 1 : interval.min( d );
-			sourceToWorld.apply( one, tone );
-			LinAlgHelpers.subtract( tone, tzero, tone );
-			size[ i ] = LinAlgHelpers.length( tone );
-		}
-		final TexturedUnitCube cube = cubes[ random.nextInt( cubes.length ) ];
-		final Matrix4f model = new Matrix4f()
-				.translation(
-						( float ) ( tzero[ 0 ] + random.nextDouble() * size[ 0 ] ),
-						( float ) ( tzero[ 1 ] + random.nextDouble() * size[ 1 ] ),
-						( float ) ( tzero[ 2 ] + random.nextDouble() * size[ 1 ] ) )
-				.scale(
-						( float ) ( ( random.nextDouble() + 1 ) * size[ 0 ] * 0.05 )	)
-				.rotate(
-						( float ) ( random.nextDouble() * Math.PI ),
-						new Vector3f( random.nextFloat(), random.nextFloat(), random.nextFloat() ).normalize()
-				);
-
-		synchronized ( cubeAndTransforms )
-		{
-			cubeAndTransforms.add( new CubeAndTransform( cube, model ) );
-		}
-		viewer.requestRepaint();
 	}
 
 	// -------------------------------------------------------------------------------------------------------
