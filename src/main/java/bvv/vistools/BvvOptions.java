@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.util;
+package bvv.vistools;
 
 import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;

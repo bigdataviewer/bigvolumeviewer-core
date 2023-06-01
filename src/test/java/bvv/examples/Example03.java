@@ -29,9 +29,9 @@
 package bvv.examples;
 
 import bdv.util.AxisOrder;
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvStackSource;
+import bvv.vistools.Bvv;
+import bvv.vistools.BvvFunctions;
+import bvv.vistools.BvvStackSource;
 import ij.IJ;
 import ij.ImagePlus;
 import net.imglib2.img.Img;

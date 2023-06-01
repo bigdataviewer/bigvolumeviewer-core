@@ -30,8 +30,8 @@ package bvv.examples;
 
 import bdv.spimdata.SpimDataMinimal;
 import bdv.spimdata.XmlIoSpimDataMinimal;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvStackSource;
+import bvv.vistools.BvvFunctions;
+import bvv.vistools.BvvStackSource;
 import java.util.List;
 import mpicbg.spim.data.SpimDataException;
 import net.imglib2.type.numeric.ARGBType;
