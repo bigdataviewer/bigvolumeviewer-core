@@ -26,43 +26,43 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.scene;
+package bvv.vistools.examples.scene;
 
-import bvv.core.backend.jogl.JoglGpuContext;
-import bvv.core.shadergen.DefaultShader;
-import bvv.core.shadergen.Shader;
-import bvv.core.shadergen.generate.Segment;
-import bvv.core.shadergen.generate.SegmentTemplate;
-import bvv.core.util.Images;
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
+import org.joml.Matrix4fc;
+import bvv.core.backend.jogl.JoglGpuContext;
+import bvv.core.shadergen.DefaultShader;
+import bvv.core.shadergen.Shader;
+import bvv.core.shadergen.generate.Segment;
+import bvv.core.shadergen.generate.SegmentTemplate;
 
-import static com.jogamp.opengl.GL.GL_ELEMENT_ARRAY_BUFFER;
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_RGB;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
-import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 
-public class TexturedDepthRamp
+public class TexturedUnitCube
 {
+	private final String imageFilename;
+
 	private final Shader prog;
 
 	private int vao;
 
 	private int texId;
 
-	public TexturedDepthRamp()
+	public TexturedUnitCube( final String imageFilename )
 	{
-		final Segment rampVp = new SegmentTemplate( TexturedDepthRamp.class, "ramp.vp" ).instantiate();
-		final Segment rampFp = new SegmentTemplate( TexturedDepthRamp.class, "ramp.fp" ).instantiate();
-		prog = new DefaultShader( rampVp.getCode(), rampFp.getCode() );
+		this.imageFilename = imageFilename;
+		final Segment cobeVp = new SegmentTemplate( TexturedUnitCube.class, "cube.vp" ).instantiate();
+		final Segment cubeFp = new SegmentTemplate( TexturedUnitCube.class, "cube.fp" ).instantiate();
+		prog = new DefaultShader( cobeVp.getCode(), cubeFp.getCode() );
 	}
 
 	private boolean initialized;
@@ -73,11 +73,49 @@ public class TexturedDepthRamp
 
 		// ..:: VERTEX BUFFER ::..
 
-		final float vertices[] = { // 3 pos, 2 tex
-				 1,  1, -1,   1, 1,
-				 1, -1, -1,   1, 0,
-				-2, -2, -2,   0, 0,
-				-2,  2, -2,   0, 1,
+		final float vertices[] = {
+				// 3 pos, 2 tex
+				-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+				0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+				0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+				0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+				-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+
+				-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+				0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+				0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+				0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+				-0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+				-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+
+				-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+				-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+				-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+				-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+				0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+				0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+				0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+				0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+				0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+				0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+				-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+				0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+				0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+				0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+				-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+				-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+
+				-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+				0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+				0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+				0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+				-0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+				-0.5f, 0.5f, -0.5f, 0.0f, 1.0f
 		};
 		final int[] tmp = new int[ 2 ];
 		gl.glGenBuffers( 1, tmp, 0 );
@@ -86,18 +124,6 @@ public class TexturedDepthRamp
 		gl.glBufferData( GL.GL_ARRAY_BUFFER, vertices.length * Float.BYTES, FloatBuffer.wrap( vertices ), GL.GL_STATIC_DRAW );
 		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
 
-		// ..:: ELEMENT BUFFER ::..
-
-		int indices[] = {  // note that we start from 0!
-				0, 1, 3,   // first triangle
-				1, 2, 3    // second triangle
-		};
-		gl.glGenBuffers( 1, tmp, 0 );
-		final int ebo = tmp[ 0 ];
-		gl.glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ebo );
-		gl.glBufferData( GL_ELEMENT_ARRAY_BUFFER, indices.length * Integer.BYTES, IntBuffer.wrap( indices ), GL.GL_STATIC_DRAW );
-		gl.glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-
 		// ..:: TEXTURES ::..
 
 		gl.glGenTextures( 1, tmp, 0 );
@@ -105,7 +131,7 @@ public class TexturedDepthRamp
 		byte[] data = null;
 		try
 		{
-			data = Images.loadBytesRGB( TexturedDepthRamp.class.getResourceAsStream( "awesomeface.png" ) );
+			data = Images.loadBytesRGB( TexturedUnitCube.class.getResourceAsStream( imageFilename ) );
 		}
 		catch ( final IOException e )
 		{
@@ -115,6 +141,7 @@ public class TexturedDepthRamp
 		gl.glBindTexture( GL_TEXTURE_2D, texId );
 		gl.glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, ByteBuffer.wrap( data ) );
 		gl.glGenerateMipmap( GL_TEXTURE_2D );
+		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 
 		// ..:: VERTEX ARRAY OBJECT ::..
 
@@ -126,22 +153,25 @@ public class TexturedDepthRamp
 		gl.glEnableVertexAttribArray( 0 );
 		gl.glVertexAttribPointer( 1, 2, GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES );
 		gl.glEnableVertexAttribArray( 1 );
-		gl.glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ebo );
 		gl.glBindVertexArray( 0 );
 	}
 
-	public void draw( GL3 gl )
+	public void draw( GL3 gl, Matrix4fc pvm )
 	{
 		if ( !initialized )
 			init( gl );
 
 		JoglGpuContext context = JoglGpuContext.get( gl );
+
+		prog.getUniformMatrix4f( "pvm" ).set( pvm );
+		prog.setUniforms( context );
 		prog.use( context );
 
 		gl.glActiveTexture( GL_TEXTURE0 );
 		gl.glBindTexture( GL_TEXTURE_2D, texId );
 		gl.glBindVertexArray( vao );
-		gl.glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0 );
+		gl.glDrawArrays( GL_TRIANGLES, 0, 36 );
+		gl.glBindTexture( GL_TEXTURE_2D, 0 );
 		gl.glBindVertexArray( 0 );
 	}
 }

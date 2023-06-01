@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.util;
+package bvv.vistools.examples.scene;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

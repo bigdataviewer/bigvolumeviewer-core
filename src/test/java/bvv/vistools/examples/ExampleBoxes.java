@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.vistools.examples;
 
 import bdv.viewer.AbstractViewerPanel;
 import bdv.viewer.SourceAndConverter;
@@ -52,7 +52,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
 import bvv.core.render.RenderData;
 import bvv.core.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import bvv.vistools.examples.scene.TexturedUnitCube;
 
 public class ExampleBoxes
 {

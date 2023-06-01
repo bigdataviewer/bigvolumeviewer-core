@@ -26,43 +26,44 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.vistools.examples;
 
+import bdv.util.AxisOrder;
 import bvv.vistools.Bvv;
 import bvv.vistools.BvvFunctions;
-import bvv.vistools.BvvSource;
+import bvv.vistools.BvvStackSource;
 import ij.IJ;
 import ij.ImagePlus;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
 
-public class Example07
+public class Example03
 {
 	/**
-	 * ImgLib2 :-)
+	 * Show 16-bit 2-channel time-series.
 	 */
 	public static void main( final String[] args )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
+		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/Spindly-GFP.zip" );
 		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+		final double pw = imp.getCalibration().pixelWidth;
+		final double ph = imp.getCalibration().pixelHeight;
+		final double pd = imp.getCalibration().pixelDepth;
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+		// additional Bvv.options() to specify axis order and calibration
+		final BvvStackSource< UnsignedShortType > mitosis = BvvFunctions.show( img, "mitosis", Bvv.options()
+				.axisOrder( AxisOrder.XYCZT )
+				.sourceTransform( pw, ph, pd ) );
 
-		viewer.requestRepaint();
+		// setting the color and min/max of channel 0
+		mitosis.getConverterSetups().get( 0 ).setColor( new ARGBType( 0xffff0000 ) );
+		mitosis.getConverterSetups().get( 0 ).setDisplayRange( 1582, 11086 );
+
+		// setting the color and min/max of channel 1
+		mitosis.getConverterSetups().get( 1 ).setColor( new ARGBType( 0xff00ff00 ) );
+		mitosis.getConverterSetups().get( 1 ).setDisplayRange( 1614, 15787 );
 	}
 }

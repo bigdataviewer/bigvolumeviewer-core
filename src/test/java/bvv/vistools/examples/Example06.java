@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.vistools.examples;
 
 import bdv.util.volatiles.VolatileViews;
 import bvv.vistools.Bvv;
