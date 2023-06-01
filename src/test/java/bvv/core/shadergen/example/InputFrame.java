@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.util;
+package bvv.core.shadergen.example;
 
 import bdv.viewer.render.PainterThread;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -44,9 +44,9 @@ import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-import bvv.core.example2.InteractiveGLDisplayCanvas;
+import bvv.core.InteractiveGLDisplayCanvas;
 
-public class InputFrame
+class InputFrame
 {
 	private GLEventListener glEventListener;
 

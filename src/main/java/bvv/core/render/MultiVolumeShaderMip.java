@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
 
 import bdv.tools.brightness.ConverterSetup;
 import bvv.core.cache.CacheSpec;

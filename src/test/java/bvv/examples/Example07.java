@@ -38,7 +38,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
+import bvv.core.VolumeViewerPanel;
 import bvv.core.scene.TexturedUnitCube;
 
 public class Example07

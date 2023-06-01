@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core;
 
 import bdv.TransformEventHandler;
 import bdv.ui.BdvDefaultCards;

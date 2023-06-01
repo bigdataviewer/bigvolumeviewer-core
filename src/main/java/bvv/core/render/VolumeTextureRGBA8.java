@@ -26,43 +26,72 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.util;
+package bvv.core.render;
 
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.nio.Buffer;
+import bvv.core.backend.GpuContext;
+import bvv.core.backend.Texture3D;
 
-import net.imglib2.realtransform.AffineTransform3D;
+import static bvv.core.backend.Texture.InternalFormat.RGBA8;
 
-public class Syncd<T>
+public class VolumeTextureRGBA8 implements Texture3D
 {
-	private final T t;
+	private final int[] size = new int[ 3 ];
 
-	private final BiConsumer< T, T > setter;
-
-	private final Function< T, T > getter;
-
-	public Syncd( final T t, final BiConsumer< T, T > setter, final Function< T, T > getter )
+	/**
+	 * Reinitialize.
+	 */
+	public void init( final int[] size )
 	{
-		this.t = t;
-		this.setter = setter;
-		this.getter = getter;
+		for ( int d = 0; d < 3; d++ )
+			this.size[ d ] = size[ d ];
 	}
 
-	public synchronized void set( final T t )
+	public void upload( final GpuContext context, final Buffer data )
 	{
-		setter.accept( this.t, t );
+		context.delete( this ); // TODO: is this necessary everytime?
+		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
 	}
 
-	public synchronized T get()
+	@Override
+	public InternalFormat texInternalFormat()
 	{
-		return getter.apply( this.t );
+		return RGBA8;
 	}
 
-	public static Syncd< AffineTransform3D > affine3D()
+	@Override
+	public int texWidth()
 	{
-		return new Syncd<>(
-				new AffineTransform3D(),
-				AffineTransform3D::set,
-				AffineTransform3D::copy );
+		return size[ 0 ];
+	}
+
+	@Override
+	public int texHeight()
+	{
+		return size[ 1 ];
+	}
+
+	@Override
+	public int texDepth()
+	{
+		return size[ 2 ];
+	}
+
+	@Override
+	public MinFilter texMinFilter()
+	{
+		return MinFilter.LINEAR;
+	}
+
+	@Override
+	public MagFilter texMagFilter()
+	{
+		return MagFilter.LINEAR;
+	}
+
+	@Override
+	public Wrap texWrap()
+	{
+		return Wrap.CLAMP_TO_BORDER_ZERO;
 	}
 }

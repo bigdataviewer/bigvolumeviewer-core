@@ -1,8 +1,8 @@
-/*
+/*-
  * #%L
- * BigDataViewer core classes with minimal dependencies.
+ * Volume rendering of bdv datasets
  * %%
- * Copyright (C) 2012 - 2023 BigDataViewer developers.
+ * Copyright (C) 2018 - 2021 Tobias Pietzsch
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,15 +26,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
 
-/**
- * Constants that specify to what context an action or a behaviour applies.
- */
-public interface KeyConfigContexts
+import bvv.core.backend.GpuContext;
+import bvv.core.multires.SimpleStack3D;
+
+public interface SimpleStackManager
 {
+	SimpleVolume getSimpleVolume( GpuContext context, SimpleStack3D< ? > stack );
+
 	/**
-	 * The action or behaviour applies to the BVV views.
+	 * Free allocated resources associated to all stacks that have not been
+	 * {@link #getSimpleVolume(GpuContext,SimpleStack3D) requested} since the
+	 * last call to {@link #freeUnusedSimpleVolumes(GpuContext)}.
 	 */
-	String BIGVOLUMEVIEWER = "bvv";
+	void freeUnusedSimpleVolumes( GpuContext context );
+
+	/**
+	 * Free allocated resources associated to all stacks.
+	 */
+	void freeSimpleVolumes( GpuContext context );
 }

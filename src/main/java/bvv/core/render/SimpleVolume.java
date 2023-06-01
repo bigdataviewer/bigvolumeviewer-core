@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
 
 import bvv.core.util.MatrixMath;
 import net.imglib2.realtransform.AffineTransform3D;

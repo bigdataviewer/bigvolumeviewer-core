@@ -34,7 +34,7 @@ import bdv.util.BdvSource;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import bvv.core.example2.VolumeViewerOptions;
+import bvv.core.VolumeViewerOptions;
 
 /**
  * Optional parameters for {@link BdvFunctions}.

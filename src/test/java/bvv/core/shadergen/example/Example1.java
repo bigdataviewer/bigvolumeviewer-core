@@ -31,7 +31,6 @@ package bvv.core.shadergen.example;
 import bvv.core.shadergen.generate.Segment;
 import bvv.core.shadergen.generate.SegmentTemplate;
 import bvv.core.shadergen.generate.SegmentedShader;
-import bvv.core.util.InputFrame;
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;

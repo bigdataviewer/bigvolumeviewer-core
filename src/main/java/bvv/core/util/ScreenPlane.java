@@ -40,7 +40,7 @@ import static com.jogamp.opengl.GL.GL_STATIC_DRAW;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 
-public class ScreenPlane
+class ScreenPlane
 {
 	private final float[] vertices;
 

@@ -50,8 +50,8 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
-import bvv.core.example2.RenderData;
-import bvv.core.example2.VolumeViewerPanel;
+import bvv.core.render.RenderData;
+import bvv.core.VolumeViewerPanel;
 import bvv.core.scene.TexturedUnitCube;
 
 public class ExampleBoxes

@@ -40,7 +40,7 @@ import static com.jogamp.opengl.GL.GL_LINES;
 import static com.jogamp.opengl.GL.GL_STATIC_DRAW;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_INT;
 
-public class WireframeBox
+class WireframeBox
 {
 	private final float[] vertices;
 

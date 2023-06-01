@@ -26,15 +26,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
+
+import static bvv.core.backend.Texture.InternalFormat.R16;
 
 import java.nio.Buffer;
+
 import bvv.core.backend.GpuContext;
 import bvv.core.backend.Texture3D;
 
-import static bvv.core.backend.Texture.InternalFormat.R8;
-
-public class VolumeTextureU8 implements Texture3D
+public class VolumeTextureU16 implements Texture3D
 {
 	private final int[] size = new int[ 3 ];
 
@@ -56,7 +57,7 @@ public class VolumeTextureU8 implements Texture3D
 	@Override
 	public InternalFormat texInternalFormat()
 	{
-		return R8;
+		return R16;
 	}
 
 	@Override

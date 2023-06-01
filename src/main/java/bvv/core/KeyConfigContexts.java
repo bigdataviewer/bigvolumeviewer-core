@@ -1,8 +1,8 @@
-/*-
+/*
  * #%L
- * Volume rendering of bdv datasets
+ * BigDataViewer core classes with minimal dependencies.
  * %%
- * Copyright (C) 2018 - 2021 Tobias Pietzsch
+ * Copyright (C) 2012 - 2023 BigDataViewer developers.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,72 +26,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core;
 
-import java.nio.Buffer;
-import bvv.core.backend.GpuContext;
-import bvv.core.backend.Texture3D;
-
-import static bvv.core.backend.Texture.InternalFormat.RGBA8;
-
-public class VolumeTextureRGBA8 implements Texture3D
+/**
+ * Constants that specify to what context an action or a behaviour applies.
+ */
+public interface KeyConfigContexts
 {
-	private final int[] size = new int[ 3 ];
-
 	/**
-	 * Reinitialize.
+	 * The action or behaviour applies to the BVV views.
 	 */
-	public void init( final int[] size )
-	{
-		for ( int d = 0; d < 3; d++ )
-			this.size[ d ] = size[ d ];
-	}
-
-	public void upload( final GpuContext context, final Buffer data )
-	{
-		context.delete( this ); // TODO: is this necessary everytime?
-		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
-	}
-
-	@Override
-	public InternalFormat texInternalFormat()
-	{
-		return RGBA8;
-	}
-
-	@Override
-	public int texWidth()
-	{
-		return size[ 0 ];
-	}
-
-	@Override
-	public int texHeight()
-	{
-		return size[ 1 ];
-	}
-
-	@Override
-	public int texDepth()
-	{
-		return size[ 2 ];
-	}
-
-	@Override
-	public MinFilter texMinFilter()
-	{
-		return MinFilter.LINEAR;
-	}
-
-	@Override
-	public MagFilter texMagFilter()
-	{
-		return MagFilter.LINEAR;
-	}
-
-	@Override
-	public Wrap texWrap()
-	{
-		return Wrap.CLAMP_TO_BORDER_ZERO;
-	}
+	String BIGVOLUMEVIEWER = "bvv";
 }

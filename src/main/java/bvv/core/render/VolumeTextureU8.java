@@ -26,24 +26,72 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
 
+import java.nio.Buffer;
 import bvv.core.backend.GpuContext;
-import bvv.core.multires.SimpleStack3D;
+import bvv.core.backend.Texture3D;
 
-public interface SimpleStackManager
+import static bvv.core.backend.Texture.InternalFormat.R8;
+
+public class VolumeTextureU8 implements Texture3D
 {
-	SimpleVolume getSimpleVolume( GpuContext context, SimpleStack3D< ? > stack );
+	private final int[] size = new int[ 3 ];
 
 	/**
-	 * Free allocated resources associated to all stacks that have not been
-	 * {@link #getSimpleVolume(GpuContext,SimpleStack3D) requested} since the
-	 * last call to {@link #freeUnusedSimpleVolumes(GpuContext)}.
+	 * Reinitialize.
 	 */
-	void freeUnusedSimpleVolumes( GpuContext context );
+	public void init( final int[] size )
+	{
+		for ( int d = 0; d < 3; d++ )
+			this.size[ d ] = size[ d ];
+	}
 
-	/**
-	 * Free allocated resources associated to all stacks.
-	 */
-	void freeSimpleVolumes( GpuContext context );
+	public void upload( final GpuContext context, final Buffer data )
+	{
+		context.delete( this ); // TODO: is this necessary everytime?
+		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
+	}
+
+	@Override
+	public InternalFormat texInternalFormat()
+	{
+		return R8;
+	}
+
+	@Override
+	public int texWidth()
+	{
+		return size[ 0 ];
+	}
+
+	@Override
+	public int texHeight()
+	{
+		return size[ 1 ];
+	}
+
+	@Override
+	public int texDepth()
+	{
+		return size[ 2 ];
+	}
+
+	@Override
+	public MinFilter texMinFilter()
+	{
+		return MinFilter.LINEAR;
+	}
+
+	@Override
+	public MagFilter texMagFilter()
+	{
+		return MagFilter.LINEAR;
+	}
+
+	@Override
+	public Wrap texWrap()
+	{
+		return Wrap.CLAMP_TO_BORDER_ZERO;
+	}
 }

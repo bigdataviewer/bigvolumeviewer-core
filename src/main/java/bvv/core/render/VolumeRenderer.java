@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core.render;
 
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
@@ -35,13 +35,13 @@ import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static bvv.core.backend.Texture.InternalFormat.R16;
-import static bvv.core.example2.VolumeRenderer.RepaintType.DITHER;
-import static bvv.core.example2.VolumeRenderer.RepaintType.FULL;
-import static bvv.core.example2.VolumeRenderer.RepaintType.LOAD;
-import static bvv.core.example2.VolumeRenderer.RepaintType.NONE;
-import static bvv.core.example2.VolumeShaderSignature.PixelType.ARGB;
-import static bvv.core.example2.VolumeShaderSignature.PixelType.UBYTE;
-import static bvv.core.example2.VolumeShaderSignature.PixelType.USHORT;
+import static bvv.core.render.VolumeRenderer.RepaintType.DITHER;
+import static bvv.core.render.VolumeRenderer.RepaintType.FULL;
+import static bvv.core.render.VolumeRenderer.RepaintType.LOAD;
+import static bvv.core.render.VolumeRenderer.RepaintType.NONE;
+import static bvv.core.render.VolumeShaderSignature.PixelType.ARGB;
+import static bvv.core.render.VolumeShaderSignature.PixelType.UBYTE;
+import static bvv.core.render.VolumeShaderSignature.PixelType.USHORT;
 import static bvv.core.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static bvv.core.multires.SourceStacks.SourceStackType.SIMPLE;
 
@@ -69,7 +69,7 @@ import bvv.core.backend.jogl.JoglGpuContext;
 import bvv.core.blocks.TileAccess;
 import bvv.core.cache.PboChain;
 import bvv.core.dither.DitherBuffer;
-import bvv.core.example2.VolumeShaderSignature.VolumeSignature;
+import bvv.core.render.VolumeShaderSignature.VolumeSignature;
 import bvv.core.multires.MultiResolutionStack3D;
 import bvv.core.multires.SimpleStack3D;
 import bvv.core.multires.Stack3D;

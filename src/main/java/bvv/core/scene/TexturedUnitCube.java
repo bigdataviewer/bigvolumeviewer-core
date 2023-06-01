@@ -58,11 +58,6 @@ public class TexturedUnitCube
 
 	private int texId;
 
-	public TexturedUnitCube()
-	{
-		this("imagej2.png" );
-	}
-
 	public TexturedUnitCube( final String imageFilename )
 	{
 		this.imageFilename = imageFilename;

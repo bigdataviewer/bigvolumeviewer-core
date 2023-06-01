@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.core.example2;
+package bvv.core;
 
 import bdv.TransformEventHandler;
 import bdv.TransformState;
@@ -59,6 +59,8 @@ import bdv.viewer.render.PainterThread;
 import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
+import bvv.core.render.RenderData;
+import bvv.core.render.VolumeRenderer;
 import bvv.core.util.MatrixMath;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -91,7 +93,7 @@ import org.jdom2.Element;
 import org.joml.Matrix4f;
 import org.scijava.listeners.Listeners;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import bvv.core.example2.VolumeRenderer.RepaintType;
+import bvv.core.render.VolumeRenderer.RepaintType;
 import bvv.core.multires.SourceStacks;
 import bvv.core.multires.Stack3D;
 import bvv.core.offscreen.OffScreenFrameBuffer;
@@ -100,10 +102,10 @@ import bvv.core.offscreen.OffScreenFrameBufferWithDepth;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_LESS;
 import static com.jogamp.opengl.GL.GL_RGB8;
-import static bvv.core.example2.VolumeRenderer.RepaintType.FULL;
-import static bvv.core.example2.VolumeRenderer.RepaintType.LOAD;
-import static bvv.core.example2.VolumeRenderer.RepaintType.NONE;
-import static bvv.core.example2.VolumeRenderer.RepaintType.SCENE;
+import static bvv.core.render.VolumeRenderer.RepaintType.FULL;
+import static bvv.core.render.VolumeRenderer.RepaintType.LOAD;
+import static bvv.core.render.VolumeRenderer.RepaintType.NONE;
+import static bvv.core.render.VolumeRenderer.RepaintType.SCENE;
 
 public class VolumeViewerPanel
 		extends AbstractViewerPanel
