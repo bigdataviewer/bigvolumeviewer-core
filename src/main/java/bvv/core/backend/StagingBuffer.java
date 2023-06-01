@@ -26,43 +26,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.backend;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
-
-public class Example07
+/**
+ * Handle to a staging buffer for texture data. A staging buffer can be
+ * {@link GpuContext#map(StagingBuffer) mapped} to obtain a
+ * {@link java.nio.Buffer} that can be filled with data. When done writing data,
+ * the staging buffer can be {@link GpuContext#unmap(StagingBuffer) unmapped}.
+ * Texture blocks at a given offset within the filled staging buffer can be
+ * uploaded with
+ * {@link GpuContext#texSubImage3D(StagingBuffer, Texture3D, int, int, int, int, int, int, long)}
+ */
+public interface StagingBuffer
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
-	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
-
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
-
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
-
-		viewer.requestRepaint();
-	}
+	int getSizeInBytes();
 }

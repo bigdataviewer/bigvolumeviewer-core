@@ -26,43 +26,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.blocks;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
-
-public class Example07
+// e.g., S == short[], T = ByteBuffer
+public interface CopySubArray< S, T >
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
-	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+	// dox, doy, doz: start offset in dst
+	// dsx, dsy: dimensions of dst
+	// csx, csy, csz: dimensions of block to clear
+	void clearsubarray3d(
+			final T dst,
+			final int dox, final int doy, final int doz,
+			final int dsx, final int dsy,
+			final int csx, final int csy, final int csz );
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
-
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
-
-		viewer.requestRepaint();
-	}
+	// sox, soy, soz: start offset in src
+	// ssx, ssy: dimensions of src
+	// dox, doy, doz: start offset in dst
+	// dsx, dsy: dimensions of dst
+	// csx, csy, csz: dimensions of block to copy
+	void copysubarray3d(
+			final S src,
+			final int sox, final int soy, final int soz,
+			final int ssx, final int ssy,
+			final T dst,
+			final int dox, final int doy, final int doz,
+			final int dsx, final int dsy,
+			final int csx, final int csy, final int csz );
 }

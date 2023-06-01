@@ -26,43 +26,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.blockmath;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
-
-public class Example07
+public class RequiredBlock
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
+	private final int[] gridPos;
+
+	private int bestLevel;
+
+	public RequiredBlock( final int[] gridPos, final int bestLevel )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+		this.gridPos = gridPos;
+		this.bestLevel = bestLevel;
+	}
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	public int[] getGridPos()
+	{
+		return gridPos;
+	}
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	public int getBestLevel()
+	{
+		return bestLevel;
+	}
 
-		viewer.requestRepaint();
+	public void setBestLevel( final int bestLevel )
+	{
+		this.bestLevel = bestLevel;
 	}
 }

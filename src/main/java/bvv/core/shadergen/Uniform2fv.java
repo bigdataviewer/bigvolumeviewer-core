@@ -26,43 +26,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.shadergen;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
-
-public class Example07
+public interface Uniform2fv
 {
-	/**
-	 * ImgLib2 :-)
+	void set( float[] value );
+
+	/*
+	 * DEFAULT METHODS
 	 */
-	public static void main( final String[] args )
+
+	default void set( final float[][] v )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
-
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
-
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
-
-		viewer.requestRepaint();
+		final int elemSize = 2;
+		final float[] data = new float[ elemSize * v.length ];
+		int j = 0;
+		for ( int i = 0; i < v.length; ++i )
+			for ( int d = 0; d < elemSize; ++d )
+				data[ j++ ] = v[ i ][ d ];
+		set( data );
 	}
+//	default void set( final Vector3fc... v )
 }

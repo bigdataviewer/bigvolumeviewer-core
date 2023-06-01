@@ -26,43 +26,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.backend;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import java.nio.FloatBuffer;
 
-public class Example07
+public interface SetUniforms
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
-	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+	boolean shouldSet( boolean modified );
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	void setUniform1i( final String name, final int v0 );
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	void setUniform2i( final String name, final int v0, final int v1 );
 
-		viewer.requestRepaint();
-	}
+	void setUniform3i( final String name, final int v0, final int v1, final int v2 );
+
+	void setUniform4i( final String name, final int v0, final int v1, final int v2, final int v3 );
+
+	void setUniform1f( final String name, final float v0 );
+
+	void setUniform2f( final String name, final float v0, final float v1 );
+
+	void setUniform3f( final String name, final float v0, final float v1, final float v2 );
+
+	void setUniform4f( final String name, final float v0, final float v1, final float v2, final float v3 );
+
+	void setUniform1fv( final String name, final int count, final float[] value );
+
+	void setUniform2fv( final String name, final int count, final float[] value );
+
+	void setUniform3fv( final String name, final int count, final float[] value );
+
+	// transpose==true: data is in row-major order
+	void setUniformMatrix3f( final String name, final boolean transpose, final FloatBuffer value );
+
+	// transpose==true: data is in row-major order
+	void setUniformMatrix4f( final String name, final boolean transpose, final FloatBuffer value );
 }

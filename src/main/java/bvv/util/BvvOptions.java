@@ -29,13 +29,12 @@
 package bvv.util;
 
 import bdv.util.AxisOrder;
-import bdv.util.Bdv;
 import bdv.util.BdvFunctions;
 import bdv.util.BdvSource;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import tpietzsch.example2.VolumeViewerOptions;
+import bvv.core.example2.VolumeViewerOptions;
 
 /**
  * Optional parameters for {@link BdvFunctions}.

@@ -37,7 +37,7 @@ import bdv.viewer.SourceAndConverter;
 import java.util.HashSet;
 import java.util.List;
 import net.imglib2.type.numeric.ARGBType;
-import tpietzsch.multires.SourceStacks;
+import bvv.core.multires.SourceStacks;
 
 public class BvvStackSource< T > extends BvvSource
 {

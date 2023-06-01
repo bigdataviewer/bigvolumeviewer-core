@@ -26,43 +26,43 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.util;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
-public class Example07
+import net.imglib2.realtransform.AffineTransform3D;
+
+public class Syncd<T>
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
+	private final T t;
+
+	private final BiConsumer< T, T > setter;
+
+	private final Function< T, T > getter;
+
+	public Syncd( final T t, final BiConsumer< T, T > setter, final Function< T, T > getter )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+		this.t = t;
+		this.setter = setter;
+		this.getter = getter;
+	}
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	public synchronized void set( final T t )
+	{
+		setter.accept( this.t, t );
+	}
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	public synchronized T get()
+	{
+		return getter.apply( this.t );
+	}
 
-		viewer.requestRepaint();
+	public static Syncd< AffineTransform3D > affine3D()
+	{
+		return new Syncd<>(
+				new AffineTransform3D(),
+				AffineTransform3D::set,
+				AffineTransform3D::copy );
 	}
 }

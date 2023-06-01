@@ -38,9 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-import tpietzsch.example2.BigVolumeViewer;
-import tpietzsch.example2.VolumeViewerFrame;
-import tpietzsch.example2.VolumeViewerOptions;
+import bvv.core.example2.BigVolumeViewer;
+import bvv.core.example2.VolumeViewerFrame;
+import bvv.core.example2.VolumeViewerOptions;
 
 public class BvvHandleFrame extends BvvHandle
 {

@@ -47,7 +47,7 @@ import java.util.List;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-import tpietzsch.example2.VolumeViewerPanel;
+import bvv.core.example2.VolumeViewerPanel;
 
 /**
  * Represents a BigVolumeViewer frame or panel and can be used to get to the bvv

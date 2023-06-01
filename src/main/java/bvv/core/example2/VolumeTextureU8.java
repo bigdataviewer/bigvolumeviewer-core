@@ -26,43 +26,72 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.example2;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import java.nio.Buffer;
+import bvv.core.backend.GpuContext;
+import bvv.core.backend.Texture3D;
 
-public class Example07
+import static bvv.core.backend.Texture.InternalFormat.R8;
+
+public class VolumeTextureU8 implements Texture3D
 {
+	private final int[] size = new int[ 3 ];
+
 	/**
-	 * ImgLib2 :-)
+	 * Reinitialize.
 	 */
-	public static void main( final String[] args )
+	public void init( final int[] size )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+		for ( int d = 0; d < 3; d++ )
+			this.size[ d ] = size[ d ];
+	}
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	public void upload( final GpuContext context, final Buffer data )
+	{
+		context.delete( this ); // TODO: is this necessary everytime?
+		context.texSubImage3D( this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data );
+	}
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	@Override
+	public InternalFormat texInternalFormat()
+	{
+		return R8;
+	}
 
-		viewer.requestRepaint();
+	@Override
+	public int texWidth()
+	{
+		return size[ 0 ];
+	}
+
+	@Override
+	public int texHeight()
+	{
+		return size[ 1 ];
+	}
+
+	@Override
+	public int texDepth()
+	{
+		return size[ 2 ];
+	}
+
+	@Override
+	public MinFilter texMinFilter()
+	{
+		return MinFilter.LINEAR;
+	}
+
+	@Override
+	public MagFilter texMagFilter()
+	{
+		return MagFilter.LINEAR;
+	}
+
+	@Override
+	public Wrap texWrap()
+	{
+		return Wrap.CLAMP_TO_BORDER_ZERO;
 	}
 }

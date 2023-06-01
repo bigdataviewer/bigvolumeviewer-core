@@ -26,43 +26,51 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.shadergen.generate;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Example07
+public class SegmentedShaderBuilder
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
+	static final Object NOT_UNIQUE = new Object();
+
+	// maps uniform name to either NOT_UNIQUE or instantiated identifier (String
+	private final Map< String, Object > uniforms = new HashMap<>();
+
+	private final StringBuilder vpCode = new StringBuilder();
+
+	private final StringBuilder fpCode = new StringBuilder();
+
+	private void add( final Segment segment, final StringBuilder code )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
-
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
-
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
+		final Map< String, SegmentTemplate.Identifier > map = segment.getKeyToIdentifierMap();
+		map.forEach( ( name, identifier ) -> {
+			uniforms.compute( name, ( n, value ) -> {
+				if ( value == null && !identifier.isList() )
+					return ( String ) identifier.value();
+				else
+					return NOT_UNIQUE;
+			} );
 		} );
 
-		viewer.requestRepaint();
+		code.append( segment.getCode() );
+	}
+
+	public SegmentedShaderBuilder fragment( final Segment segment )
+	{
+		add( segment, fpCode );
+		return this;
+	}
+
+	public SegmentedShaderBuilder vertex( final Segment segment )
+	{
+		add( segment, vpCode );
+		return this;
+	}
+
+	public SegmentedShader build()
+	{
+		return new SegmentedShader( vpCode, fpCode, uniforms );
 	}
 }

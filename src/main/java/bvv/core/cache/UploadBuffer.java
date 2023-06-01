@@ -26,43 +26,66 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.cache;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import java.nio.Buffer;
 
-public class Example07
+import bvv.core.blocks.ByteUtils;
+
+public class UploadBuffer implements ByteUtils.Address
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
+	private final Buffer buffer;
+	private final int offset;
+	private TextureCache.ContentState state;
+
+	public UploadBuffer( final Buffer buffer, final int offset )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+		this.buffer = buffer;
+		this.offset = offset;
+	}
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	/**
+	 * Stores data for uploading to texture tile.
+	 *
+	 * @return a direct buffer
+	 */
+	public Buffer getBuffer()
+	{
+		return buffer;
+	}
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	/**
+	 * Starting offset for tile in buffer.
+	 *
+	 * @return offset in bytes
+	 */
+	public int getOffset()
+	{
+		return offset;
+	}
 
-		viewer.requestRepaint();
+	/**
+	 * Called by FillTask to say whether stored image block data was complete.
+	 */
+	public void setContentState( final TextureCache.ContentState state )
+	{
+		this.state = state;
+	}
+
+	/**
+	 * Was stored image block data complete?
+	 */
+	public TextureCache.ContentState getContentState()
+	{
+		return state;
+	}
+
+	/**
+	 * ...tentative...
+	 */
+	@Override
+	public long getAddress()
+	{
+		return ByteUtils.addressOf( buffer ) + offset;
 	}
 }

@@ -26,43 +26,47 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.shadergen;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import bvv.core.backend.GpuContext;
 
-public class Example07
+public interface Shader
 {
-	/**
-	 * ImgLib2 :-)
-	 */
-	public static void main( final String[] args )
-	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
+	Uniform1i getUniform1i( final String key );
 
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
+	Uniform2i getUniform2i( final String key );
 
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
+	Uniform3i getUniform3i( final String key );
 
-		viewer.requestRepaint();
-	}
+	Uniform4i getUniform4i( final String key );
+
+	Uniform1f getUniform1f( final String key );
+
+	Uniform2f getUniform2f( final String key );
+
+	Uniform3f getUniform3f( final String key );
+
+	Uniform4f getUniform4f( final String key );
+
+	Uniform1fv getUniform1fv( final String key );
+
+	Uniform2fv getUniform2fv( final String key );
+
+	Uniform3fv getUniform3fv( final String key );
+
+	UniformMatrix3f getUniformMatrix3f( final String key );
+
+	UniformMatrix4f getUniformMatrix4f( final String key );
+
+	UniformSampler getUniformSampler( final String key );
+
+	void use( final GpuContext gpu );
+
+	void bindSamplers( final GpuContext gpu );
+
+	void setUniforms( final GpuContext gpu );
+
+	StringBuilder getVertexShaderCode();
+
+	StringBuilder getFragmentShaderCode();
 }

@@ -30,7 +30,6 @@ package bvv.examples;
 
 import bdv.viewer.AbstractViewerPanel;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.SynchronizedViewerState;
 import bdv.viewer.ViewerState;
 import bvv.util.Bvv;
 import bvv.util.BvvFunctions;
@@ -51,9 +50,9 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Actions;
-import tpietzsch.example2.RenderData;
-import tpietzsch.example2.VolumeViewerPanel;
-import tpietzsch.scene.TexturedUnitCube;
+import bvv.core.example2.RenderData;
+import bvv.core.example2.VolumeViewerPanel;
+import bvv.core.scene.TexturedUnitCube;
 
 public class ExampleBoxes
 {

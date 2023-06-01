@@ -26,43 +26,33 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bvv.examples;
+package bvv.core.multires;
 
-import bvv.util.Bvv;
-import bvv.util.BvvFunctions;
-import bvv.util.BvvSource;
-import ij.IJ;
-import ij.ImagePlus;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.joml.Matrix4f;
-import bvv.core.example2.VolumeViewerPanel;
-import bvv.core.scene.TexturedUnitCube;
+import net.imglib2.EuclideanSpace;
+import net.imglib2.realtransform.AffineTransform3D;
 
-public class Example07
+/**
+ * A 3D stack (simple or multi-resolution)
+ * <p>
+ * This may be used as part of a cache key, so {@code equals()} and
+ * {@code hashCode()} should be overridden such that {@link Stack3D}s referring
+ * the same image data are equal.
+ *
+ * @param <T>
+ *            pixel type
+ */
+public interface Stack3D< T > extends EuclideanSpace, Typed< T >
 {
 	/**
-	 * ImgLib2 :-)
+	 * Get the transformation from image coordinates to world coordinates.
+	 *
+	 * @return transformation from image coordinates to world coordinates.
 	 */
-	public static void main( final String[] args )
+	AffineTransform3D getSourceTransform();
+
+	@Override
+	default int numDimensions()
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
-		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
-
-		final BvvSource source = BvvFunctions.show( img, "t1-head",
-				Bvv.options().maxAllowedStepInVoxels( 0 ).renderWidth( 1024 ).renderHeight( 1024 ).preferredSize( 1024, 1024 ) );
-		source.setDisplayRange( 0, 800 );
-		source.setColor( new ARGBType( 0xffff8800 ) );
-
-		final TexturedUnitCube cube = new TexturedUnitCube( "imglib2.png" );
-		final VolumeViewerPanel viewer = source.getBvvHandle().getViewerPanel();
-		viewer.setRenderScene( ( gl, data ) -> {
-			final Matrix4f cubetransform = new Matrix4f().translate( 140, 150, 65 ).scale( 80 );
-			cube.draw( gl, new Matrix4f( data.getPv() ).mul( cubetransform ) );
-		} );
-
-		viewer.requestRepaint();
+		return 3;
 	}
 }
