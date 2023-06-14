@@ -10,7 +10,7 @@
 
 	<groupId>sc.fiji</groupId>
 	<artifactId>bigvolumeviewer</artifactId>
-	<version>0.2.1-SNAPSHOT</version>
+	<version>0.3.0</version>
 
 	<name>BigVolumeViewer</name>
 	<description>Volume rendering of bdv datasets</description>
@@ -59,7 +59,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/bigdataviewer/bigvolumeviewer-core</connection>
 		<developerConnection>scm:git:git@github.com:bigdataviewer/bigvolumeviewer-core</developerConnection>
-		<tag>HEAD</tag>
+		<tag>bigvolumeviewer-0.3.0</tag>
 		<url>https://github.com/bigdataviewer/bigvolumeviewer-core</url>
 	</scm>
 	<issueManagement>
