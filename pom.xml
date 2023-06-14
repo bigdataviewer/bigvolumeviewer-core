@@ -76,9 +76,6 @@
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
 
-		<enforcer.skip>true</enforcer.skip>
-		<bigdataviewer-core.version>10.4.7-SNAPSHOT</bigdataviewer-core.version>
-
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 	</properties>
