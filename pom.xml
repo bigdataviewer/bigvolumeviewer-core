@@ -130,6 +130,16 @@
 			<artifactId>jogl-all</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.jogamp.gluegen</groupId>
+			<artifactId>gluegen-rt</artifactId>
+			<classifier>${scijava.natives.classifier.gluegen}</classifier>
+		</dependency>
+		<dependency>
+			<groupId>org.jogamp.jogl</groupId>
+			<artifactId>jogl-all</artifactId>
+			<classifier>${scijava.natives.classifier.jogl}</classifier>
+		</dependency>
+		<dependency>
 			<groupId>org.joml</groupId>
 			<artifactId>joml</artifactId>
 		</dependency>
