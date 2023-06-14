@@ -1,8 +1,8 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies.
+ * Volume rendering of bdv datasets
  * %%
- * Copyright (C) 2012 - 2023 BigDataViewer developers.
+ * Copyright (C) 2018 - 2023 Tobias Pietzsch
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
