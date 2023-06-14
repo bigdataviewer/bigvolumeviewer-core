@@ -44,25 +44,19 @@ import bvv.core.shadergen.generate.SegmentTemplate;
 import bvv.core.shadergen.generate.SegmentType;
 import bvv.core.shadergen.generate.SegmentedShader;
 import bvv.core.shadergen.generate.SegmentedShaderBuilder;
-import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import net.imglib2.type.numeric.ARGBType;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector2f;
-import org.joml.Vector2i;
-import org.joml.Vector3f;
-import org.joml.Vector3i;
 import org.joml.Vector4f;
 import bvv.core.backend.GpuContext;
 import bvv.core.backend.Texture;
 import bvv.core.backend.Texture2D;
 import bvv.core.dither.DitherBuffer;
-import org.joml.Vector4i;
 
 public class MultiVolumeShaderMip
 {
@@ -310,8 +304,8 @@ public class MultiVolumeShaderMip
 	}
 
 	/**
-	 * Register {@code texture} to be set for uniform sampler {@code name}.
-	 * The actual {@link UniformSampler#set(Texture)} happens as the last step of {@code setVolume()}.
+	 * Set uniform {@code name} to the given {@code value}, where the uniform
+	 * type is inferred from the type of {@code value}.
 	 * <p>
 	 * <em>(added for use by scenery)</em>
 	 *
@@ -319,34 +313,81 @@ public class MultiVolumeShaderMip
 	 * 		index of the volume
 	 * @param name
 	 * 		uniform name
-	 * @param texture
-	 * 		texture to set for uniform {@code name}
+	 * @param value
+	 * 		value to set for uniform {@code name}
 	 */
+	public void setUniform( final int index, final String name, final Object value)
+	{
+		prog.setUniformValueByType( volumeSegments[ index ].volume, name, value );
+	}
+
+	/**
+	 * Set uniform array {@code name} to the given {@code value}, where the
+	 * uniform type is inferred from the type of {@code value}. The {@code
+	 * value} type currently must be either {@code float[]} or {@code int[]} and
+	 * the value represents vectors of length {@code elementSize} packed into a
+	 * single array.
+	 * <p>
+	 * <em>(added for use by scenery)</em>
+	 *
+	 * @param index
+	 * 		index of the volume
+	 * @param name
+	 * 		uniform name
+	 * @param value
+	 * 		value to set for uniform {@code name}
+	 */
+	public void setUniform( final int index, final String name, final int elementSize, final Object value )
+	{
+		prog.setUniformValueByType( volumeSegments[ index ].volume, name, elementSize, value );
+	}
+
+	// TODO remove
+	/**
+	 * @deprecated replace by {@code setUniform( index, name, texture )}
+	 */
+	@Deprecated
 	public void registerCustomSampler( int index, String name, Texture texture )
 	{
-		volumeSegments[ index ].putSampler( prog, name, texture );
+		setUniform( index, name, texture );
 	}
 
+	// TODO remove
+	/**
+	 * @deprecated replace by {@code setUniform( index, name, value )}
+	 */
+	@Deprecated
 	public void setCustomUniformForVolume( int index, String name, Object value )
 	{
-		volumeSegments[ index ].additionalUniforms.put( name, value );
+		setUniform( index, name, value );
 	}
 
+	// TODO remove
+	// TODO is this still needed?
+	@Deprecated
 	public void removeCustomUniformForVolume( int index, String name )
 	{
-		volumeSegments[ index ].additionalUniforms.remove( name );
+		throw new UnsupportedOperationException();
 	}
 
+	// TODO remove
+	/**
+	 * @deprecated replace by {@code setUniform( index, name, elementSize, value )}
+	 */
+	@Deprecated
 	public void setCustomIntArrayUniformForVolume( int index, String name, final int elementSize, final int[] value )
 	{
-		final AbstractMap.SimpleEntry< Integer, int[] > entry = new AbstractMap.SimpleEntry< Integer, int[] >( elementSize, value );
-		volumeSegments[ index ].additionalUniforms.put( name, entry );
+		setUniform( index, name, elementSize, value );
 	}
 
+	// TODO remove
+	/**
+	 * @deprecated replace by {@code setUniform( index, name, elementSize, value )}
+	 */
+	@Deprecated
 	public void setCustomFloatArrayUniformForVolume( int index, String name, final int elementSize, final float[] value )
 	{
-		final AbstractMap.SimpleEntry< Integer, float[] > entry = new AbstractMap.SimpleEntry< Integer, float[] >( elementSize, value );
-		volumeSegments[ index ].additionalUniforms.put( name, entry );
+		setUniform( index, name, elementSize, value );
 	}
 
 	public void setVolume( int index, VolumeBlocks volume )
@@ -508,147 +549,13 @@ public class MultiVolumeShaderMip
 		}
 	}
 
-	// TODO remove
-	private static class AdditionalSampler
-	{
-		private final UniformSampler sampler;
-		private final Texture texture;
-
-		public AdditionalSampler( final UniformSampler sampler, final Texture texture )
-		{
-			this.sampler = sampler;
-			this.texture = texture;
-		}
-
-		public void setTexture()
-		{
-			sampler.set( texture );
-		}
-	}
-
 	static abstract class VolumeSegment
 	{
 		final Segment volume;
 
-		private final HashMap< String, AdditionalSampler > additionalSamplers = new HashMap<>();
-
-		private final HashMap< String, Object > additionalUniforms = new HashMap<>();
-
 		public VolumeSegment( final Segment volume )
 		{
 			this.volume = volume;
-		}
-
-		public void putSampler( final SegmentedShader prog, final String name, Texture texture )
-		{
-			final UniformSampler sampler = prog.getUniformSampler( volume, name );
-			additionalSamplers.put( name, new AdditionalSampler( sampler, texture ) );
-		}
-
-		public void removeSampler( final String name )
-		{
-			additionalSamplers.remove( name );
-		}
-
-		void setAdditionalSamplers()
-		{
-			additionalSamplers.values().forEach( AdditionalSampler::setTexture );
-		}
-
-		void setAdditionalUniforms( SegmentedShader prog )
-		{
-			additionalUniforms.forEach( ( name, value ) -> {
-				if ( value instanceof Integer )
-				{
-					prog.getUniform1i( volume, name ).set( ( int ) value );
-				}
-				else if ( value instanceof Float )
-				{
-					prog.getUniform1f( volume, name ).set( ( float ) value );
-				}
-				else if ( value instanceof Vector2f )
-				{
-					prog.getUniform2f( volume, name ).set( ( Vector2f ) value );
-				}
-				else if ( value instanceof Vector3f )
-				{
-					prog.getUniform3f( volume, name ).set( ( Vector3f ) value );
-				}
-				else if ( value instanceof Vector4f )
-				{
-					prog.getUniform4f( volume, name ).set( ( Vector4f ) value );
-				}
-				else if ( value instanceof Matrix3f )
-				{
-					prog.getUniformMatrix3f( volume, name ).set( ( Matrix3f ) value );
-				}
-				else if ( value instanceof Matrix4f )
-				{
-					prog.getUniformMatrix4f( volume, name ).set( ( Matrix4f ) value );
-				}
-				else if ( value instanceof Vector2i )
-				{
-					prog.getUniform2i( volume, name ).set( ( ( Vector2i ) value ).x, ( ( Vector2i ) value ).y );
-				}
-				else if ( value instanceof Vector3i )
-				{
-					prog.getUniform3i( volume, name ).set( ( ( Vector3i ) value ).x, ( ( Vector3i ) value ).y, ( ( Vector3i ) value ).z );
-				}
-				else if ( value instanceof Vector4i )
-				{
-					prog.getUniform4i( volume, name ).set( ( ( Vector4i ) value ).x, ( ( Vector4i ) value ).y, ( ( Vector4i ) value ).z, ( ( Vector4i ) value ).w );
-				}
-				else if ( value instanceof AbstractMap.SimpleEntry && ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getValue().getClass().getComponentType() == float.class )
-				{
-					final Integer elementSize = ( Integer ) ( ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getKey() );
-					final float[] array = ( ( float[] ) ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getValue() );
-
-					switch ( elementSize )
-					{
-					case 1:
-						prog.getUniform1fv( volume, name ).set( array );
-						break;
-					case 2:
-						prog.getUniform2fv( volume, name ).set( array );
-						break;
-					case 3:
-						prog.getUniform3fv( volume, name ).set( array );
-						break;
-					case 4:
-						prog.getUniform4fv( volume, name ).set( array );
-						break;
-					default:
-						throw new UnsupportedOperationException( "Uniform array element size not supported: " + elementSize );
-					}
-				}
-				else if ( value instanceof AbstractMap.SimpleEntry && ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getValue().getClass().getComponentType() == int.class )
-				{
-					final Integer elementSize = ( Integer ) ( ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getKey() );
-					final int[] array = ( ( int[] ) ( ( AbstractMap.SimpleEntry< ?, ? > ) value ).getValue() );
-
-					switch ( elementSize )
-					{
-					case 1:
-						prog.getUniform1iv( volume, name ).set( array );
-						break;
-					case 2:
-						prog.getUniform2iv( volume, name ).set( array );
-						break;
-					case 3:
-						prog.getUniform3iv( volume, name ).set( array );
-						break;
-					case 4:
-						prog.getUniform4iv( volume, name ).set( array );
-						break;
-					default:
-						throw new UnsupportedOperationException( "Uniform array element size not supported: " + elementSize );
-					}
-				}
-				else
-				{
-					throw new UnsupportedOperationException( "Object type " + value.getClass().getCanonicalName() + " is not usable for uniforms." );
-				}
-			} );
 		}
 	}
 
@@ -661,12 +568,10 @@ public class MultiVolumeShaderMip
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemin;
 		private final Uniform3f uniformSourcemax;
-		private final SegmentedShader shader;
 
 		public VolumeBlocksSegment( final SegmentedShader prog, final Segment volume )
 		{
 			super( volume );
-			shader = prog;
 			uniformBlockScales = prog.getUniform3fv( volume, "blockScales" );
 			uniformLutSampler = prog.getUniformSampler( volume, "lutSampler" );
 			uniformLutSize = prog.getUniform3f( volume, "lutSize" );
@@ -687,11 +592,7 @@ public class MultiVolumeShaderMip
 			uniformIm.set( blocks.getIms() );
 			uniformSourcemin.set( blocks.getSourceLevelMin() );
 			uniformSourcemax.set( blocks.getSourceLevelMax() );
-
-			setAdditionalSamplers();
-			setAdditionalUniforms( shader );
 		}
-
 	}
 
 	static class VolumeSimpleSegment extends VolumeSegment
@@ -699,12 +600,10 @@ public class MultiVolumeShaderMip
 		private final UniformSampler uniformVolumeSampler;
 		private final UniformMatrix4f uniformIm;
 		private final Uniform3f uniformSourcemax;
-		private final SegmentedShader shader;
 
 		public VolumeSimpleSegment( final SegmentedShader prog, final Segment volume )
 		{
 			super( volume );
-			shader = prog;
 			uniformVolumeSampler = prog.getUniformSampler( volume, "volume" );
 			uniformIm = prog.getUniformMatrix4f( volume, "im" );
 			uniformSourcemax = prog.getUniform3f( volume, "sourcemax" );
@@ -715,9 +614,6 @@ public class MultiVolumeShaderMip
 			uniformVolumeSampler.set( volume.getVolumeTexture() );
 			uniformIm.set( volume.getIms() );
 			uniformSourcemax.set( volume.getSourceMax() );
-
-			setAdditionalSamplers();
-			setAdditionalUniforms( shader );
 		}
 	}
 }

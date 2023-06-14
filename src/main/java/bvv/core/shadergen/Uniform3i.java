@@ -28,7 +28,14 @@
  */
 package bvv.core.shadergen;
 
+import org.joml.Vector3ic;
+
 public interface Uniform3i
 {
 	void set( int v0, int v1, int v2 );
+
+	default void set( final Vector3ic v )
+	{
+		set( v.x(), v.y(), v.z() );
+	}
 }

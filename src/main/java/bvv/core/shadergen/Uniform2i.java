@@ -28,7 +28,14 @@
  */
 package bvv.core.shadergen;
 
+import org.joml.Vector2ic;
+
 public interface Uniform2i
 {
 	void set( int v0, int v1 );
+
+	default void set( final Vector2ic v )
+	{
+		set( v.x(), v.y() );
+	}
 }

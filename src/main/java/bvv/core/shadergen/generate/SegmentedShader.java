@@ -28,6 +28,7 @@
  */
 package bvv.core.shadergen.generate;
 
+import bvv.core.backend.Texture;
 import bvv.core.shadergen.Uniform1fv;
 import bvv.core.shadergen.Uniform1iv;
 import bvv.core.shadergen.Uniform2fv;
@@ -50,6 +51,14 @@ import bvv.core.shadergen.Uniform4f;
 import bvv.core.shadergen.Uniform4i;
 import bvv.core.shadergen.UniformMatrix4f;
 import bvv.core.shadergen.UniformSampler;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Vector2f;
+import org.joml.Vector2i;
+import org.joml.Vector3f;
+import org.joml.Vector3i;
+import org.joml.Vector4f;
+import org.joml.Vector4i;
 
 public class SegmentedShader extends AbstractShader
 {
@@ -166,5 +175,114 @@ public class SegmentedShader extends AbstractShader
 	public UniformSampler getUniformSampler( final Segment segment, final String key )
 	{
 		return getUniformSampler( segment.getSingleIdentifier( key ) );
+	}
+
+
+	/**
+	 * <em>(added for use by scenery)</em>
+	 */
+	public void setUniformValueByType( Segment segment, String key, int elementSize, Object value )
+	{
+		if ( value instanceof float[] )
+		{
+			final float[] array = ( float[] ) value;
+			switch ( elementSize )
+			{
+			case 1:
+				getUniform1fv( segment, key ).set( array );
+				break;
+			case 2:
+				getUniform2fv( segment, key ).set( array );
+				break;
+			case 3:
+				getUniform3fv( segment, key ).set( array );
+				break;
+			case 4:
+				getUniform4fv( segment, key ).set( array );
+				break;
+			default:
+				throw new IllegalArgumentException( "Uniform array element size not supported: " + elementSize );
+			}
+		}
+		else if ( value instanceof int[] )
+		{
+			final int[] array = ( int[] ) value;
+			switch ( elementSize )
+			{
+			case 1:
+				getUniform1iv( segment, key ).set( array );
+				break;
+			case 2:
+				getUniform2iv( segment, key ).set( array );
+				break;
+			case 3:
+				getUniform3iv( segment, key ).set( array );
+				break;
+			case 4:
+				getUniform4iv( segment, key ).set( array );
+				break;
+			default:
+				throw new IllegalArgumentException( "Uniform array element size not supported: " + elementSize );
+			}
+		}
+		else
+		{
+			throw new IllegalArgumentException( "Object type " + value.getClass().getCanonicalName() + " is not usable for uniforms." );
+		}
+	}
+
+	/**
+	 * <em>(added for use by scenery)</em>
+	 */
+	public void setUniformValueByType( Segment segment, String key, Object value )
+	{
+		if ( value instanceof Integer )
+		{
+			getUniform1i( segment, key ).set( ( int ) value );
+		}
+		else if ( value instanceof Float )
+		{
+			getUniform1f( segment, key ).set( ( float ) value );
+		}
+		else if ( value instanceof Vector2f )
+		{
+			getUniform2f( segment, key ).set( ( Vector2f ) value );
+		}
+		else if ( value instanceof Vector3f )
+		{
+			getUniform3f( segment, key ).set( ( Vector3f ) value );
+		}
+		else if ( value instanceof Vector4f )
+		{
+			getUniform4f( segment, key ).set( ( Vector4f ) value );
+		}
+		else if ( value instanceof Vector2i )
+		{
+			getUniform2i( segment, key ).set( ( Vector2i ) value );
+		}
+		else if ( value instanceof Vector3i )
+		{
+			getUniform3i( segment, key ).set( ( Vector3i ) value );
+		}
+		else if ( value instanceof Vector4i )
+		{
+			getUniform4i( segment, key ).set( ( Vector4i ) value );
+		}
+		else if ( value instanceof Matrix3f )
+		{
+			getUniformMatrix3f( segment, key ).set( ( Matrix3f ) value );
+		}
+		else if ( value instanceof Matrix4f )
+		{
+			getUniformMatrix4f( segment, key ).set( ( Matrix4f ) value );
+		}
+		else if ( value instanceof Texture )
+		{
+			getUniformSampler( segment, key ).set( ( Texture ) value );
+		}
+		else
+		{
+			throw new IllegalArgumentException( "Object type " + value.getClass().getCanonicalName() + " is not usable for uniforms." );
+		}
 	}
 }
