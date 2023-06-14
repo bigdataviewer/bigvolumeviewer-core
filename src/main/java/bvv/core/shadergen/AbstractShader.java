@@ -28,8 +28,8 @@
  */
 package bvv.core.shadergen;
 
-import com.jogamp.common.nio.Buffers;
-
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -719,7 +719,7 @@ public abstract class AbstractShader implements Shader
 
 	static class UniformImpMatrix3f extends UniformImp implements UniformMatrix3f
 	{
-		private final FloatBuffer value = Buffers.newDirectFloatBuffer( 9 );
+		private final FloatBuffer value = newDirectFloatBuffer( 9 );
 
 		public UniformImpMatrix3f( final String name )
 		{
@@ -742,7 +742,7 @@ public abstract class AbstractShader implements Shader
 
 	static class UniformImpMatrix4f extends UniformImp implements UniformMatrix4f
 	{
-		private final FloatBuffer value = Buffers.newDirectFloatBuffer( 16 );
+		private final FloatBuffer value = newDirectFloatBuffer( 16 );
 
 		public UniformImpMatrix4f( final String name )
 		{
@@ -761,6 +761,13 @@ public abstract class AbstractShader implements Shader
 			m44.get( 0, value );
 			modified = true;
 		}
+	}
+
+	private static FloatBuffer newDirectFloatBuffer( final int capacity )
+	{
+		return ByteBuffer.allocateDirect( capacity * Float.BYTES )
+				.order( ByteOrder.nativeOrder() )
+				.asFloatBuffer();
 	}
 
 	static class UniformImpSampler extends UniformImp implements UniformSampler
