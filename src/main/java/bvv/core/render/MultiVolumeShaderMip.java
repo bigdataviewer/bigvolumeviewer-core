@@ -47,7 +47,7 @@ import bvv.core.shadergen.generate.SegmentedShaderBuilder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
+import bvv.core.util.TriConsumer;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -94,7 +94,7 @@ public class MultiVolumeShaderMip
 	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > runBeforeBinding,
+			final TriConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment >, Integer > runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
@@ -134,6 +134,7 @@ public class MultiVolumeShaderMip
 		{
 			final HashMap< SegmentType, Segment > instancedSegments = new HashMap<>();
 			final VolumeShaderSignature.VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
+			instancedSegments.put(SegmentType.FragmentShader, fp);
 
 			final Segment accumulate;
 			final Segment sampleVolume;
@@ -173,7 +174,7 @@ public class MultiVolumeShaderMip
 			}
 
 			if ( runBeforeBinding != null )
-				runBeforeBinding.accept( segments, instancedSegments );
+				runBeforeBinding.accept( segments, instancedSegments, i );
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
