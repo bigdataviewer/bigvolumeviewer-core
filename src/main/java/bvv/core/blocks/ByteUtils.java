@@ -62,7 +62,6 @@ public class ByteUtils
 			UNSAFE = AccessController.doPrivileged( action );
 
 			final Field bufferAddressField = Buffer.class.getDeclaredField( "address" );
-			bufferAddressField.setAccessible(true);
 			BUFFER_ADDRESS_OFFSET = UNSAFE.objectFieldOffset( bufferAddressField );
 
 			BYTE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset( byte[].class );
