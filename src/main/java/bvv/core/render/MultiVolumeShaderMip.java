@@ -47,7 +47,6 @@ import bvv.core.shadergen.generate.SegmentedShaderBuilder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import bvv.core.util.TriConsumer;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -87,6 +86,13 @@ public class MultiVolumeShaderMip
 	private int viewportWidth;
 	private String sceneDepthTextureName;
 
+	@FunctionalInterface
+	public interface TriConsumer
+	{
+		void accept( Map< SegmentType, SegmentTemplate > segments,
+				Map< SegmentType, Segment > segmentInstances, int volumeIndex );
+	}
+
 	/**
 	 * @param runBeforeBinding
 	 * 		<em>(added for use by scenery)</em>
@@ -94,7 +100,7 @@ public class MultiVolumeShaderMip
 	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final TriConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment >, Integer > runBeforeBinding,
+			final TriConsumer runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
