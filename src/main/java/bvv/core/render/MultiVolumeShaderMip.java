@@ -47,7 +47,6 @@ import bvv.core.shadergen.generate.SegmentedShaderBuilder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import net.imglib2.type.numeric.ARGBType;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -88,13 +87,36 @@ public class MultiVolumeShaderMip
 	private String sceneDepthTextureName;
 
 	/**
+	 * Functional interface to be able to use and integrate custom segments. Basically takes a three-parameter
+	 * lambda to contain segments, their instances, and the volume id. The lambda is run for each volume id. This
+	 * interface then enables custom segments and instances to be connected with each other, e.g. making new custom
+	 * per-volume uniforms possible.
+	 */
+	@FunctionalInterface
+	public interface SegmentConsumer
+	{
+		/**
+		 * Runs the lambda that was handed over, offering access to available segments, their instances, and the current
+		 * volume index. The lambda is executed for each individual volume id.
+		 *
+		 * @param segments
+		 * @param segmentInstances
+		 * @param volumeIndex
+		 */
+		void accept( Map< SegmentType, SegmentTemplate > segments,
+				Map< SegmentType, Segment > segmentInstances, int volumeIndex );
+	}
+
+	/**
 	 * @param runBeforeBinding
 	 * 		<em>(added for use by scenery)</em>
-	 * 		This is called for each volume to be able to establish additional segment binding, for example to connect convert-segment to sample-segment for alpha blending instead of max projection.
+	 * 		This is a lambda (functional interface) called for each volume to be able to establish additional segment
+	 * 		binding, for example to connect convert-segment to sample-segment for alpha blending instead of
+	 * 		max projection.
 	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final BiConsumer< Map< SegmentType, SegmentTemplate >, Map< SegmentType, Segment > > runBeforeBinding,
+			final SegmentConsumer runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
@@ -134,6 +156,7 @@ public class MultiVolumeShaderMip
 		{
 			final HashMap< SegmentType, Segment > instancedSegments = new HashMap<>();
 			final VolumeShaderSignature.VolumeSignature volumeSignature = signature.getVolumeSignatures().get( i );
+			instancedSegments.put(SegmentType.FragmentShader, fp);
 
 			final Segment accumulate;
 			final Segment sampleVolume;
@@ -173,7 +196,7 @@ public class MultiVolumeShaderMip
 			}
 
 			if ( runBeforeBinding != null )
-				runBeforeBinding.accept( segments, instancedSegments );
+				runBeforeBinding.accept( segments, instancedSegments, i );
 
 			fp.bind( "intersectBoundingBox", i, sampleVolume );
 			fp.bind( "vis", i, accumulate );
