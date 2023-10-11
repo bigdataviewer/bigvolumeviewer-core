@@ -26,8 +26,8 @@ float convert( float v ) { // to be repeated 3 times with different parameters
 
 Load the segments as `SegmentTemplate`, specify what are the "special" identifiers (that should be repeated or connected)
 ```
-templateFragConvert = new SegmentTemplate( "convertlin.fp", "offset", "scale", "convert" );
-templateFragMain = new SegmentTemplate( "ex1.fp", "rgb", "convertR", "convertG", "convertB" );
+templateFragConvert = new SegmentTemplate( "b.fp", "offset", "scale", "convert" );
+templateFragMain = new SegmentTemplate( "a.fp", "rgb", "convertR", "convertG" );
 ```
 
 `SegmentTemplate` stores `List<String> keys` (special identifiers).
@@ -38,7 +38,7 @@ Segment fragConvertR = templateFragConvert.instantiate();
 Segment fragConvertR = templateFragConvert.instantiate();
 ```
 
-`Segment.bind(key, other_segment, key_in_othersegment)` binds `segment.key` ot `other_segment.key`, meaning they will both be replaced by the same string eventually.
+`Segment.bind(key, other_segment, key_in_othersegment)` binds `segment.key` to `other_segment.key`, meaning they will both be replaced by the same string eventually.
 Technically this is done by pointing them to the same `Identifier`. There is no union-find or similar going on, therefore order matters and it maybe buggy.
 E.g.
 ```
@@ -110,4 +110,4 @@ creates a list of new unique Strings for `vis` (which is a `Identifier` holding 
 ```
 fp.bind( "convert", i, colConv, "convert" );
 ```
-binds *i*th `convert` to `colConv.convert` identifier.
+binds the *i*th `convert` to the `colConv.convert` identifier.
