@@ -86,9 +86,23 @@ public class MultiVolumeShaderMip
 	private int viewportWidth;
 	private String sceneDepthTextureName;
 
+	/**
+	 * Functional interface to be able to use and integrate custom segments. Basically takes a three-parameter
+	 * lambda to contain segments, their instances, and the volume id. The lambda is run for each volume id. This
+	 * interface then enables custom segments and instances to be connected with each other, e.g. making new custom
+	 * per-volume uniforms possible.
+	 */
 	@FunctionalInterface
-	public interface TriConsumer
+	public interface SegmentConsumer
 	{
+		/**
+		 * Runs the lambda that was handed over, offering access to available segments, their instances, and the current
+		 * volume index. The lambda is executed for each individual volume id.
+		 *
+		 * @param segments
+		 * @param segmentInstances
+		 * @param volumeIndex
+		 */
 		void accept( Map< SegmentType, SegmentTemplate > segments,
 				Map< SegmentType, Segment > segmentInstances, int volumeIndex );
 	}
@@ -96,11 +110,13 @@ public class MultiVolumeShaderMip
 	/**
 	 * @param runBeforeBinding
 	 * 		<em>(added for use by scenery)</em>
-	 * 		This is called for each volume to be able to establish additional segment binding, for example to connect convert-segment to sample-segment for alpha blending instead of max projection.
+	 * 		This is a lambda (functional interface) called for each volume to be able to establish additional segment
+	 * 		binding, for example to connect convert-segment to sample-segment for alpha blending instead of
+	 * 		max projection.
 	 */
 	public MultiVolumeShaderMip( VolumeShaderSignature signature, final boolean useDepthTexture, final double degrade,
 			final Map< SegmentType, SegmentTemplate > segments,
-			final TriConsumer runBeforeBinding,
+			final SegmentConsumer runBeforeBinding,
 			final String depthTextureName )
 	{
 		this.signature = signature;
