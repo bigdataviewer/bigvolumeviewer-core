@@ -46,7 +46,7 @@ public class Example03
 	 */
 	public static void main( final String[] args )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/Spindly-GFP.zip" );
+		final ImagePlus imp = IJ.openImage( "https://imagej.net/ij/images/Spindly-GFP.zip" );
 		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
 
 		final double pw = imp.getCalibration().pixelWidth;
