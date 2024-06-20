@@ -43,7 +43,7 @@ public class Example01
 	 */
 	public static void main( final String[] args )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/t1-head.zip" );
+		final ImagePlus imp = IJ.openImage( "https://imagej.net/ij/images/t1-head.zip" );
 		final Img< UnsignedShortType > img = ImageJFunctions.wrapShort( imp );
 
 		final BvvSource source = BvvFunctions.show( img, "t1-head" );

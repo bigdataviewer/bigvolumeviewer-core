@@ -43,7 +43,7 @@ public class Example02
 	 */
 	public static void main( final String[] args )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/flybrain.zip" );
+		final ImagePlus imp = IJ.openImage( "https://imagej.net/ij/images/flybrain.zip" );
 		final Img< ARGBType > img = ImageJFunctions.wrapRGBA( imp );
 
 		// additional Bvv.options() to specify calibration

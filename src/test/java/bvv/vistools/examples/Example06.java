@@ -57,7 +57,7 @@ public class Example06
 	 */
 	public static void main( final String[] args )
 	{
-		final ImagePlus imp = IJ.openImage( "https://imagej.nih.gov/ij/images/flybrain.zip" );
+		final ImagePlus imp = IJ.openImage( "https://imagej.net/ij/images/flybrain.zip" );
 		final RandomAccessibleInterval< ARGBType > flybrain = ImageJFunctions.wrapRGBA( imp );
 
 		AffineTransform3D transform = new AffineTransform3D();
