@@ -177,7 +177,7 @@ public class VolumeRenderer
 
 		// set up gpu cache
 		// TODO This could be packaged into one class and potentially shared between renderers?
-		cacheSpec = new CacheSpec( R16, cacheBlockSize );
+		cacheSpec = new CacheSpec( R16, cacheBlockSize ); //new CacheSpec( R8, cacheBlockSize );
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );

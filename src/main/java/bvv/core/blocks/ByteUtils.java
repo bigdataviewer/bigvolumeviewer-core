@@ -94,7 +94,11 @@ public class ByteUtils
 		UNSAFE.setMemory( dst, csx, src );
 	}
 
-	public interface Address
+    public static void copyBytes( final byte[] src, final long dst, final long sox, final long csx) {
+		UNSAFE.copyMemory( src, BYTE_ARRAY_OFFSET + sox, null, dst, csx );
+    }
+
+    public interface Address
 	{
 		long getAddress();
 	}
