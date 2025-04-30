@@ -28,6 +28,7 @@
  */
 package bvv.core.render;
 
+import static bvv.core.backend.Texture.InternalFormat.R8;
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -62,6 +63,8 @@ import java.util.concurrent.ForkJoinPool;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import org.joml.Matrix4f;
 
 import bdv.tools.brightness.ConverterSetup;
@@ -177,7 +180,7 @@ public class VolumeRenderer
 
 		// set up gpu cache
 		// TODO This could be packaged into one class and potentially shared between renderers?
-		cacheSpec = new CacheSpec( R16, cacheBlockSize ); //new CacheSpec( R8, cacheBlockSize );
+		cacheSpec = new CacheSpec( R8, cacheBlockSize ); //new CacheSpec( R8, cacheBlockSize );
 		final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
 		textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
 		pboChain = new PboChain( 5, 100, textureCache );
@@ -276,7 +279,13 @@ public class VolumeRenderer
 					if ( !TileAccess.isSupportedType( stack.getType() ) )
 						throw new IllegalArgumentException();
 					multiResStacks.add( ( MultiResolutionStack3D< ? > ) stack );
-					volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT ) );
+					final Object pixelType = stack.getType();
+					if (( pixelType instanceof UnsignedShortType ) || (pixelType instanceof VolatileUnsignedShortType))
+						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT ) );
+					else if (( pixelType instanceof UnsignedByteType ) || (pixelType instanceof VolatileUnsignedByteType))
+						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, UBYTE ) );
+					else
+						throw new IllegalArgumentException("Multiresolution stack with pixel type "+pixelType.getClass().getName()+" unsupported in BigVolumeViewer.");
 				}
 				else if ( stack instanceof SimpleStack3D )
 				{
