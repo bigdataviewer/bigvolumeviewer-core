@@ -47,7 +47,7 @@ import net.imglib2.view.Views;
 import java.util.Random;
 
 /**
- * Show how 8-bit images can be displayed in BigVolumeViewer
+ * Show both a 8-bit and a 16-bit cached image
  * A precomputed label image made of 3D voronoi labels is displayed and an on-the-fly computed
  * image consisting of the border between the different labels is displayed.
  *
@@ -55,31 +55,40 @@ import java.util.Random;
  *
  * @author Nicolas Chiaruttini, EPFL, 2025
  */
-public class Example08 {
+public class Example09 {
 
     public static void main(String... args) {
 
         long[] imageVoxelSize = new long[] { 512, 512, 512 };
         int numberOfPoints = 800;
 
-        RandomAccessibleInterval<UnsignedByteType> labelImage = get8BitsLabelImage(imageVoxelSize, numberOfPoints);
-        //RandomAccessibleInterval<UnsignedShortType> labelImage = get16BitsLabelImage(imageVoxelSize, numberOfPoints);
-        //RandomAccessibleInterval<FloatType> labelImage = getFloatLabelImage(imageVoxelSize, numberOfPoints);
+        RandomAccessibleInterval<UnsignedByteType> labelImage_1 = get8BitsLabelImage(imageVoxelSize, numberOfPoints);
 
-        final SharedQueue queue = new SharedQueue( Runtime.getRuntime().availableProcessors()-1 );
-        Img<UnsignedByteType> nonVRAI = get3DBorderLabelImage(labelImage);
-        RandomAccessibleInterval<Volatile<UnsignedByteType>> rai = VolatileViews.wrapAsVolatile(nonVRAI, queue);
+        RandomAccessibleInterval<UnsignedByteType> labelImage_2 = get8BitsLabelImage(imageVoxelSize, numberOfPoints/2);
 
-        //ImageJFunctions.show(nonVRAI, "Borders"); // SLOW -> triggers a lot of computation. Remove Thread.sleep in this file if you want to do it.
+        final SharedQueue queue_1 = new SharedQueue( Runtime.getRuntime().availableProcessors()-1 );
+        Img<UnsignedByteType> nonVRAI8bits_1 = get3DBorderLabelImage8Bits(labelImage_1);
+        RandomAccessibleInterval<Volatile<UnsignedByteType>> rai8bits_1 = VolatileViews.wrapAsVolatile(nonVRAI8bits_1, queue_1);
 
-        final BvvStackSource< ? > bvvSourceBorders = BvvFunctions.show( rai, "Borders");
-        bvvSourceBorders.setDisplayRange( 0, 2 );
-        bvvSourceBorders.setColor(new ARGBType(0x00FF00FF));
+        final SharedQueue queue_2 = new SharedQueue( Runtime.getRuntime().availableProcessors()-1 );
+        Img<UnsignedByteType> nonVRAI8bits_2 = get3DBorderLabelImage8Bits(labelImage_2);
+        RandomAccessibleInterval<Volatile<UnsignedByteType>> rai8bits_2 = VolatileViews.wrapAsVolatile(nonVRAI8bits_2, queue_2);
 
-        ImageJFunctions.show(labelImage, "Labels");
-        final BvvStackSource< ? > bvvSourceLabels = BvvFunctions.show( labelImage, "Labels", BvvOptions.options().addTo(bvvSourceBorders));
-        bvvSourceLabels.setDisplayRange( 0, 350 );
-        bvvSourceLabels.setColor(new ARGBType(0xFF00FF00));
+        Img<UnsignedShortType> nonVRAI16bits = get3DBorderLabelImage16Bits(labelImage_1);
+        RandomAccessibleInterval<Volatile<UnsignedShortType>> rai16bits = VolatileViews.wrapAsVolatile(nonVRAI16bits, queue_1);
+
+        final BvvStackSource< ? > bvvSourceBorders8bits_1 = BvvFunctions.show( rai8bits_1, "Borders 8 bits 1");
+        bvvSourceBorders8bits_1.setDisplayRange( 0, 2 );
+        bvvSourceBorders8bits_1.setColor(new ARGBType(0x00FF00FF));
+
+
+        final BvvStackSource< ? > bvvSourceBorders8bits_2 = BvvFunctions.show( rai8bits_2, "Borders 8 bits 2", BvvOptions.options().addTo(bvvSourceBorders8bits_1));
+        bvvSourceBorders8bits_2.setDisplayRange( 0, 2 );
+        bvvSourceBorders8bits_2.setColor(new ARGBType(0x000000FF));
+
+        /*final BvvStackSource< ? > bvvSourceBorders16bits = BvvFunctions.show( rai16bits, "Borders 16 bits", BvvOptions.options().addTo(bvvSourceBorders8bits));
+        bvvSourceBorders16bits.setDisplayRange( 0, 2 );
+        bvvSourceBorders16bits.setColor(new ARGBType(0x0000FFFF));*/
 
     }
 
@@ -97,14 +106,7 @@ public class Example08 {
         return getTestLabelImage(iterableFloat, imageVoxelSize);
     }
 
-    public static RandomAccessibleInterval<UnsignedShortType> get16BitsLabelImage(long[] imageVoxelSize, int numberOfPoints) {
-        FinalInterval interval = new FinalInterval( imageVoxelSize );
-        IterableRealInterval< UnsignedShortType > iterableFloat = createShortRandomPoints( interval, numberOfPoints );
-        // Get test label image
-        return getTestLabelImage(iterableFloat, imageVoxelSize);
-    }
-
-    public static <T extends Type<T> & Comparable<T> > Img<UnsignedByteType> get3DBorderLabelImage(RandomAccessibleInterval<T> lblImg) {
+    public static <T extends Type<T> & Comparable<T> > Img<UnsignedByteType> get3DBorderLabelImage8Bits(RandomAccessibleInterval<T> lblImg) {
         // Make edge display on demand
         final int[] cellDimensions = new int[] { 64, 64, 64 };
 
@@ -155,6 +157,68 @@ public class Example08 {
                     } else {
                         if (v.compareTo(inZS.next())!=0) {
                             out.next().set( (byte) 3 );
+                        } else {
+                            out.next();
+                        }
+                    }
+                }
+            }
+        }, DiskCachedCellImgOptions.options().initializeCellsAsDirty( true ) );
+
+        return borderLabel;
+    }
+
+    public static <T extends Type<T> & Comparable<T> > Img<UnsignedShortType> get3DBorderLabelImage16Bits(RandomAccessibleInterval<T> lblImg) {
+        // Make edge display on demand
+        final int[] cellDimensions = new int[] { 64, 64, 64 };
+
+        // Cached Image Factory Options
+        final DiskCachedCellImgOptions factoryOptions = DiskCachedCellImgOptions.options()
+                .cellDimensions( cellDimensions )
+                .cacheType( DiskCachedCellImgOptions.CacheType.BOUNDED )
+                .maxCacheSize( 100 );
+
+        // Expand label image by one pixel to avoid out of bounds exception
+        final RandomAccessibleInterval<T> lblImgWithBorder =  Views.expandBorder(lblImg, 1,1,1);
+
+        // Creates cached image factory of Type Byte
+        final DiskCachedCellImgFactory< UnsignedShortType > factory = new DiskCachedCellImgFactory<>( new UnsignedShortType(), factoryOptions );
+
+        // Creates shifted views by one pixel in each dimension
+        RandomAccessibleInterval<T> lblImgXShift = Views.translate(lblImgWithBorder, 1,0,0);
+        RandomAccessibleInterval<T> lblImgYShift = Views.translate(lblImgWithBorder, 0,1,0);
+        RandomAccessibleInterval<T> lblImgZShift = Views.translate(lblImgWithBorder, 0,0,1);
+
+        // Creates border image, with cell Consumer method, which creates the image
+        final Img<UnsignedShortType> borderLabel = factory.create( lblImg,  cell -> {
+
+            Thread.sleep(1000);
+
+            // Cursor on the source image
+            final Cursor<T> inNS = Views.flatIterable( Views.interval( lblImg, cell ) ).cursor();
+
+            // Cursor on shifted source image
+            final Cursor<T> inXS = Views.flatIterable( Views.interval( lblImgXShift, cell ) ).cursor();
+            final Cursor<T> inYS = Views.flatIterable( Views.interval( lblImgYShift, cell ) ).cursor();
+            final Cursor<T> inZS = Views.flatIterable( Views.interval( lblImgZShift, cell ) ).cursor();
+
+            // Cursor on output image
+            final Cursor<UnsignedShortType> out = Views.flatIterable( cell ).cursor();
+
+            // Loops through voxels
+            while ( out.hasNext() ) {
+                T v = inNS.next();
+                if (v.compareTo(inXS.next())!=0) {
+                    out.next().set( (byte) 255 );
+                    inYS.next();
+                    inZS.next();
+                } else {
+                    if (v.compareTo(inYS.next())!=0) {
+                        out.next().set( (byte) 512 );
+                        inZS.next();
+                    } else {
+                        if (v.compareTo(inZS.next())!=0) {
+                            out.next().set( (byte) 1024 );
                         } else {
                             out.next();
                         }
@@ -274,32 +338,6 @@ public class Example08 {
         return elements;
     }
 
-    public static IterableRealInterval<UnsignedShortType> createShortRandomPoints(RealInterval interval, int numPoints) {
-        // the number of dimensions
-        int numDimensions = interval.numDimensions();
-
-        // a random number generator
-        Random rnd = new Random( 2001);//System.currentTimeMillis() );
-
-        // a list of Samples with coordinates
-        RealPointSampleList< UnsignedShortType > elements =
-                new RealPointSampleList<>( numDimensions );
-
-        for ( int i = 0; i < numPoints; ++i )
-        {
-            RealPoint point = new RealPoint( numDimensions );
-
-            for ( int d = 0; d < numDimensions; ++d )
-                point.setPosition( rnd.nextDouble() *
-                        ( interval.realMax( d ) - interval.realMin( d ) ) + interval.realMin( d ), d );
-
-            // add a new element with a random intensity in the range 0...1
-            elements.add( point, new UnsignedShortType( rnd.nextInt(65535) ) );
-        }
-
-        return elements;
-    }
-
     /**
      * Create a number of n-dimensional random points in a certain interval
      * having a random intensity 0...1
@@ -337,14 +375,4 @@ public class Example08 {
         return elements;
     }
 
-    public static <T extends NativeType<T>, A extends ArrayDataAccess<A>, CA extends ArrayDataAccess<CA>> CachedCellImg<T, CA> wrapAsCachedCellImg(
-            final RandomAccessibleInterval<T> source,
-            final int[] blockSize) {
-
-        final long[] dimensions = Intervals.dimensionsAsLongArray(source);
-        final CellGrid grid = new CellGrid(dimensions, blockSize);
-
-        final RandomAccessibleCacheLoader<T, A, CA> loader = RandomAccessibleCacheLoader.get(grid, Views.zeroMin(source), AccessFlags.setOf());
-        return new ReadOnlyCachedCellImgFactory().createWithCacheLoader(dimensions, source.randomAccess().get(), loader);
-    }
 }
