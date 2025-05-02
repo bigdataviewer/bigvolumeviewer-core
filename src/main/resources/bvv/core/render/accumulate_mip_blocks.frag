@@ -1,5 +1,5 @@
 if (vis)
 {
-	float x = sampleVolume(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+	float x = sampleVolume(wpos);
 	v = max(v, convert(x));
 }

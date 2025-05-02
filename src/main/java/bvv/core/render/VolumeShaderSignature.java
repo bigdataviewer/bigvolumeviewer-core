@@ -28,6 +28,7 @@
  */
 package bvv.core.render;
 
+import bvv.core.cache.TextureCache;
 import bvv.core.multires.SourceStacks;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,11 +46,13 @@ public final class VolumeShaderSignature
 	{
 		private final SourceStacks.SourceStackType sourceStackType;
 		private final PixelType pixelType;
+		private final TextureCache textureCache;
 
-		public VolumeSignature( final SourceStacks.SourceStackType sourceStackType, final PixelType pixelType )
+		public VolumeSignature( final SourceStacks.SourceStackType sourceStackType, final PixelType pixelType , final TextureCache textureCache)
 		{
 			this.sourceStackType = sourceStackType;
 			this.pixelType = pixelType;
+			this.textureCache = textureCache;
 		}
 
 		public SourceStacks.SourceStackType getSourceStackType()
@@ -60,6 +63,11 @@ public final class VolumeShaderSignature
 		public PixelType getPixelType()
 		{
 			return pixelType;
+		}
+		
+		public TextureCache getTextureCache()
+		{
+			return textureCache;
 		}
 
 		@Override
