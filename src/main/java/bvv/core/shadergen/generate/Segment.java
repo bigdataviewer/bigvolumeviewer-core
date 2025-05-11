@@ -124,9 +124,7 @@ public class Segment
 
 	String getSingleIdentifier( final String key )
 	{
-		final SegmentTemplate.Identifier identifier = keyToIdentifier.get( key );
-		if ( identifier == null )
-			throw new IllegalArgumentException( "Key '" + key + "' does not exist." );
+		final SegmentTemplate.Identifier identifier = getIdentifier( key );
 		if ( identifier.isList() )
 			throw new IllegalArgumentException( "Key '" + key + "' maps to a list of identifiers. Expected single identifier." );
 		return ( String ) identifier.value();

@@ -103,7 +103,6 @@ public class TextureCache implements Texture3D
 
 		public void useAtTimestamp( final int timestamp )
 		{
-//			lru = Math.max( lru, timestamp );
 			lru = timestamp;
 		}
 	}

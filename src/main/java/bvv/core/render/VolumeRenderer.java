@@ -149,7 +149,6 @@ public class VolumeRenderer
 	/**
 	 * VolumeBlocks for one volume each.
 	 * These have associated lookup textures, so we keep them around and reuse them so that we do not create new textures all the time.
-	 * And deleting textures is not yet in the backend... (TODO)
 	 */
 	private final ArrayList< VolumeBlocks > volumes;
 
