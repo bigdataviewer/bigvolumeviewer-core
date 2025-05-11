@@ -28,6 +28,7 @@
  */
 package bvv.core.render;
 
+import static bvv.core.blocks.TileAccess.getPrimitiveType;
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -45,12 +46,16 @@ import static bvv.core.render.VolumeShaderSignature.PixelType.UBYTE;
 import static bvv.core.render.VolumeShaderSignature.PixelType.USHORT;
 import static bvv.core.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static bvv.core.multires.SourceStacks.SourceStackType.SIMPLE;
+import static net.imglib2.type.PrimitiveType.BYTE;
+import static net.imglib2.type.PrimitiveType.SHORT;
 
+import bvv.core.backend.Texture.InternalFormat;
 import bvv.core.cache.CacheSpec;
 import bvv.core.cache.FillTask;
 import bvv.core.cache.ProcessFillTasks;
 import bvv.core.cache.TextureCache;
 import bvv.core.util.DefaultQuad;
+
 import com.jogamp.opengl.GL3;
 
 import java.util.ArrayList;
@@ -60,11 +65,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
+import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
+
 import org.joml.Matrix4f;
 
 import bdv.tools.brightness.ConverterSetup;
@@ -135,15 +142,9 @@ public class VolumeRenderer
 	private final int numDitherSteps;
 
 	// ... gpu cache ...
-	// TODO This could be packaged into one class and potentially shared between renderers?
-	private final CacheSpec cacheSpecR8; // TODO remove
-	private final CacheSpec cacheSpecR16; // TODO remove
+	private final TextureCacheAndPboChain cacheR8;
 
-	private final TextureCache textureCacheR8;
-	private final TextureCache textureCacheR16;
-
-	private final PboChain pboChainR8;
-	private final PboChain pboChainR16;
+	private final TextureCacheAndPboChain cacheR16;
 
 	private final ForkJoinPool forkJoinPool;
 
@@ -165,8 +166,30 @@ public class VolumeRenderer
 
 	private final DefaultQuad quad;
 
+	private static class TextureCacheAndPboChain
+	{
+		private final TextureCache textureCache;
 
+		private final PboChain pboChain;
 
+		TextureCacheAndPboChain( final InternalFormat format, final int[] blockSize, final int maxCacheSizeInMB )
+		{
+			final CacheSpec cacheSpec = new CacheSpec( format, blockSize );
+			final int[] cacheGridDimensions = TextureCache.findSuitableGridSize( cacheSpec, maxCacheSizeInMB );
+			textureCache = new TextureCache( cacheGridDimensions, cacheSpec );
+			pboChain = new PboChain( 5, 100, textureCache );
+		}
+
+		public TextureCache textureCache()
+		{
+			return textureCache;
+		}
+
+		public PboChain pboChain()
+		{
+			return pboChain;
+		}
+	}
 
 	public VolumeRenderer(
 			final int renderWidth,
@@ -180,21 +203,14 @@ public class VolumeRenderer
 		this.renderWidth = renderWidth;
 		this.renderHeight = renderHeight;
 
-		// set up gpu cache
-		// TODO This could be packaged into one class and potentially shared between renderers?
-		cacheSpecR8 = new CacheSpec( R8, cacheBlockSize );
-		final int[] cacheGridDimensionsR8 = TextureCache.findSuitableGridSize( cacheSpecR8, maxCacheSizeInMB );
-		textureCacheR8 = new TextureCache( cacheGridDimensionsR8, cacheSpecR8 );
-		pboChainR8 = new PboChain( 5, 100, textureCacheR8 );
-
-		cacheSpecR16 = new CacheSpec( R16, cacheBlockSize );
-		final int[] cacheGridDimensionsR16 = TextureCache.findSuitableGridSize( cacheSpecR16, maxCacheSizeInMB );
-		textureCacheR16 = new TextureCache( cacheGridDimensionsR16, cacheSpecR16 );
-		pboChainR16 = new PboChain( 5, 100, textureCacheR16 );
+		// Set up one cache texture for each supported data type. Note that no
+		// GPU memory is allocated until the respective data type is actually
+		// used for the first time.
+		cacheR8 = new TextureCacheAndPboChain( R8, cacheBlockSize, maxCacheSizeInMB );
+		cacheR16 = new TextureCacheAndPboChain( R16, cacheBlockSize, maxCacheSizeInMB );
 
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
-
 
 
 		// set up dither buffer (or null)
@@ -216,11 +232,22 @@ public class VolumeRenderer
 		quad = new DefaultQuad();
 	}
 
+	/**
+	 * Make sure that we can deal with at least {@code n} blocked volumes.
+	 * I.e., add VolumeBlock luts if necessary.
+	 *
+	 * @param n
+	 * 		number of blocked volumes that shall be rendered
+	 */
+	private void needAtLeastNumBlockVolumes( final int n )
+	{
+		while ( volumes.size() < n )
+			volumes.add( new VolumeBlocks() );
+	}
+
 	private MultiVolumeShaderMip createMultiVolumeShader( final VolumeShaderSignature signature )
 	{
-		final MultiVolumeShaderMip progvol = new MultiVolumeShaderMip( signature, true, 1.0 );
-		//progvol.setTextureCache( textureCacheR8 );
-		return progvol;
+		return new MultiVolumeShaderMip( signature, true, 1.0 );
 	}
 
 	public void init( final GL3 gl )
@@ -275,29 +302,29 @@ public class VolumeRenderer
 						throw new IllegalArgumentException();
 					multiResStacks.add( ( MultiResolutionStack3D< ? > ) stack );
 					final Object pixelType = stack.getType();
-					if (( pixelType instanceof UnsignedShortType ) || (pixelType instanceof VolatileUnsignedShortType))
-						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT, textureCacheR16 ) );
-					else if (( pixelType instanceof UnsignedByteType ) || (pixelType instanceof VolatileUnsignedByteType))
-						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, UBYTE, textureCacheR8 ) );
+					if ( ( pixelType instanceof UnsignedShortType ) || ( pixelType instanceof VolatileUnsignedShortType ) )
+						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT ) );
+					else if ( ( pixelType instanceof UnsignedByteType ) || ( pixelType instanceof VolatileUnsignedByteType ) )
+						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, UBYTE ) );
 					else
-						throw new IllegalArgumentException("Multiresolution stack with pixel type "+pixelType.getClass().getName()+" unsupported in BigVolumeViewer.");
+						throw new IllegalArgumentException( "Multiresolution stack with pixel type " + pixelType.getClass().getName() + " unsupported in BigVolumeViewer." );
 				}
 				else if ( stack instanceof SimpleStack3D )
 				{
 					final Object pixelType = stack.getType();
 					if ( pixelType instanceof UnsignedShortType )
-						volumeSignatures.add( new VolumeSignature( SIMPLE, USHORT, null ) );
+						volumeSignatures.add( new VolumeSignature( SIMPLE, USHORT ) );
 					else if ( pixelType instanceof UnsignedByteType )
-						volumeSignatures.add( new VolumeSignature( SIMPLE, UBYTE, null ) );
+						volumeSignatures.add( new VolumeSignature( SIMPLE, UBYTE ) );
 					else if ( pixelType instanceof ARGBType )
-						volumeSignatures.add( new VolumeSignature( SIMPLE, ARGB, null ) );
+						volumeSignatures.add( new VolumeSignature( SIMPLE, ARGB ) );
 					else
 						throw new IllegalArgumentException();
 				}
 				else
 					throw new IllegalArgumentException();
 			}
-			//needAtLeastNumBlockVolumes( multiResStacks.size() );
+			needAtLeastNumBlockVolumes( multiResStacks.size() );
 			updateBlocks( context, multiResStacks, pv );
 
 			double minWorldVoxelSize = Double.POSITIVE_INFINITY;
@@ -311,7 +338,7 @@ public class VolumeRenderer
 					if ( volumeSignatures.get( i ).getSourceStackType() == MULTIRESOLUTION )
 					{
 						final VolumeBlocks volume = volumes.get( mri++ );
-						progvol.setVolume( i, volume, volumeSignatures.get( i ).getTextureCache() );
+						progvol.setVolume( i, volume );
 						minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
 					}
 					else
@@ -397,29 +424,49 @@ public class VolumeRenderer
 		}
 	}
 
-	private void updateBlocks(
+
+	/**
+	 * @param context
+	 * @param multiResStacks
+	 * @param volumes
+	 * 		VolumeBlocks to use (not initialized yet, indices corresponds to multiResStacks indices
+	 * @param cache
+	 * 		the texture cache to use
+	 * @param viewportWidth
+	 * 		width of the surface to be rendered
+	 * @param pv
+	 *        {@code projection * view} matrix, transforms world coordinates to NDC coordinates
+	 *
+	 * @return {@code true} if all required blocks for all volumes are loaded.
+	 * (That is, if {@code false} is returned, the frame should be repainted
+	 * until the remaining incomplete blocks are loaded.)
+	 */
+	private static boolean updateBlocks(
 			final JoglGpuContext context,
 			final List< ? extends MultiResolutionStack3D< ? > > multiResStacks,
+			final List< VolumeBlocks > volumes,
+			final TextureCacheAndPboChain cache,
+			final ForkJoinPool forkJoinPool,
+			final int viewportWidth,
 			final Matrix4f pv )
 	{
+		final TextureCache textureCache = cache.textureCache();
+		final PboChain pboChain = cache.pboChain();
+
 		final List< VolumeAndTasks > tasksPerVolume = new ArrayList<>();
 		int numTasks = 0;
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
-			if (volumes.size() == i) { // we need to create it
-				volumes.add(new VolumeBlocks(
-						(stack.getType() instanceof UnsignedShortType || stack.getType() instanceof VolatileUnsignedShortType?textureCacheR16:textureCacheR8)));
-			}
 			final VolumeBlocks volume = volumes.get( i );
-			volume.init( stack, renderWidth, pv );
+			volume.init( stack, textureCache, viewportWidth, pv );
 			final List< FillTask > tasks = volume.getFillTasks();
 			numTasks += tasks.size();
 			tasksPerVolume.add( new VolumeAndTasks( tasks, volume, stack.resolutions().size() - 1 ) );
 		}
 
 		A:
-		while ( numTasks > textureCacheR8.getMaxNumTiles() )
+		while ( numTasks > textureCache.getMaxNumTiles() )
 		{
 			tasksPerVolume.sort( Comparator.comparingInt( VolumeAndTasks::numTasks ).reversed() );
 			for ( final VolumeAndTasks vat : tasksPerVolume )
@@ -441,34 +488,67 @@ public class VolumeRenderer
 		final ArrayList< FillTask > fillTasks = new ArrayList<>();
 		for ( final VolumeAndTasks vat : tasksPerVolume )
 			fillTasks.addAll( vat.tasks );
-		if ( fillTasks.size() > textureCacheR8.getMaxNumTiles() )
-			fillTasks.subList( textureCacheR8.getMaxNumTiles(), fillTasks.size() ).clear();
-
-		if ( fillTasks.size() > textureCacheR16.getMaxNumTiles() )
-			fillTasks.subList( textureCacheR16.getMaxNumTiles(), fillTasks.size() ).clear();
+		if ( fillTasks.size() > textureCache.getMaxNumTiles() )
+			fillTasks.subList( textureCache.getMaxNumTiles(), fillTasks.size() ).clear();
 
 		try
 		{
-			ProcessFillTasks.parallel( textureCacheR8, pboChainR8, context, forkJoinPool, fillTasks );
-			ProcessFillTasks.parallel( textureCacheR16, pboChainR16, context, forkJoinPool, fillTasks );
+			ProcessFillTasks.parallel( textureCache, pboChain, context, forkJoinPool, fillTasks );
 		}
 		catch ( final InterruptedException e )
 		{
 			e.printStackTrace();
 		}
 
-		boolean needsRepaint = false;
-		final int timestamp = textureCacheR8.nextTimestamp() + textureCacheR16.nextTimestamp();
+		boolean complete = true;
+		final int timestamp = textureCache.nextTimestamp();
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final VolumeBlocks volume = volumes.get( i );
-			final boolean complete = volume.makeLut( timestamp );
-			if ( !complete )
-				needsRepaint = true;
+			complete &= volume.makeLut( timestamp );
 			volume.getLookupTexture().upload( context );
 		}
 
-		if ( needsRepaint )
+		return complete;
+	}
+
+	private void updateBlocks(
+			final JoglGpuContext context,
+			final List< ? extends MultiResolutionStack3D< ? > > multiResStacks,
+			final Matrix4f pv )
+	{
+
+		final List< MultiResolutionStack3D< ? > > multiResStacksR8 = new ArrayList<>();
+		final List< VolumeBlocks > volumesR8 = new ArrayList<>();
+
+		final List< MultiResolutionStack3D< ? > > multiResStacksR16 = new ArrayList<>();
+		final List< VolumeBlocks > volumesR16 = new ArrayList<>();
+
+		for ( int i = 0; i < multiResStacks.size(); i++ )
+		{
+			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
+			final VolumeBlocks volume = volumes.get( i );
+			final PrimitiveType primitiveType = getPrimitiveType( stack.getType() );
+			if ( primitiveType == BYTE )
+			{
+				multiResStacksR8.add( stack );
+				volumesR8.add( volume );
+			}
+			else if ( primitiveType == SHORT )
+			{
+				multiResStacksR16.add( stack );
+				volumesR16.add( volume );
+			}
+			else
+			{
+				throw new IllegalArgumentException();
+			}
+		}
+
+		boolean complete = true;
+		complete &= updateBlocks( context, multiResStacksR8, volumesR8, cacheR8, forkJoinPool, renderWidth, pv );
+		complete &= updateBlocks( context, multiResStacksR16, volumesR16, cacheR16, forkJoinPool, renderWidth, pv );
+		if ( !complete )
 			nextRequestedRepaint.request( LOAD );
 	}
 }
