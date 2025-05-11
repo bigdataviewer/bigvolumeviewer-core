@@ -44,7 +44,6 @@ import bvv.core.shadergen.generate.SegmentTemplate;
 import bvv.core.shadergen.generate.SegmentType;
 import bvv.core.shadergen.generate.SegmentedShader;
 import bvv.core.shadergen.generate.SegmentedShaderBuilder;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -247,30 +246,9 @@ public class MultiVolumeShaderMip
 //		final StringBuilder vertexShaderCode = prog.getVertexShaderCode();
 //		System.out.println( "vertexShaderCode = " + vertexShaderCode );
 //		System.out.println( "\n\n--------------------------------\n\n" );
-//
 //		final StringBuilder fragmentShaderCode = prog.getFragmentShaderCode();
 //		System.out.println( "fragmentShaderCode = " + fragmentShaderCode );
 //		System.out.println( "\n\n--------------------------------\n\n" );
-//
-//		String folderToSave = "/home/eugene/Desktop/projects/bvv/20250502_shaders/";
-//
-//		File file = new File(folderToSave+"vertex.txt");
-//		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-//		    writer.append(vertexShaderCode);
-//		}
-//		catch ( IOException exc )
-//		{
-//			exc.printStackTrace();
-//		}
-//
-//		file = new File(folderToSave+"fragment.txt");
-//		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-//		    writer.append(fragmentShaderCode);
-//		}
-//		catch ( IOException exc )
-//		{
-//			exc.printStackTrace();
-//		}
 	}
 
 	public static Map< SegmentType, SegmentTemplate > getDefaultSegments( boolean useDepthTexture )
