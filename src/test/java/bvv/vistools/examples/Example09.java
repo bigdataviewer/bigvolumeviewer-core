@@ -209,16 +209,16 @@ public class Example09 {
             while ( out.hasNext() ) {
                 T v = inNS.next();
                 if (v.compareTo(inXS.next())!=0) {
-                    out.next().set( (byte) 255 );
+                    out.next().set( 255 );
                     inYS.next();
                     inZS.next();
                 } else {
                     if (v.compareTo(inYS.next())!=0) {
-                        out.next().set( (byte) 512 );
+                        out.next().set( 512 );
                         inZS.next();
                     } else {
                         if (v.compareTo(inZS.next())!=0) {
-                            out.next().set( (byte) 1024 );
+                            out.next().set( 1024 );
                         } else {
                             out.next();
                         }
