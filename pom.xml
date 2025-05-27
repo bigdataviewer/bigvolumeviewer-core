@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>38.0.1</version>
+		<version>40.0.0</version>
 	</parent>
 
 	<groupId>sc.fiji</groupId>
@@ -75,17 +75,6 @@
 		<package-name>bvv</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
-
-
-
-		<imglib2.version>7.1.2</imglib2.version>
-		<imglib2-algorithm.version>0.16.0</imglib2-algorithm.version>
-		<imglib2-cache.version>1.0.0-beta-19</imglib2-cache.version>
-		<imglib2-realtransform.version>4.0.3</imglib2-realtransform.version>
-		<imglib2-ij.version>2.0.3</imglib2-ij.version>
-		<bigdataviewer-core.version>10.6.1</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-36</bigdataviewer-vistools.version>
-		<spim_data.version>2.3.4</spim_data.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
