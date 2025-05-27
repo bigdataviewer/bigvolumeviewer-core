@@ -8,7 +8,7 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 {
 	vec4 mfront = im * wfront;
 	vec4 mback = im * wback;
-	intersectBox( mfront.xyz, (mback - mfront).xyz, sourcemin, sourcemax, tnear, tfar );
+	intersectBox( mfront.xyz, (mback - mfront).xyz, sourcemin-0.5, sourcemax+0.5, tnear, tfar );
 }
 
 uniform sampler3D volumeCache;
@@ -29,7 +29,11 @@ uniform vec3 lutOffset;
 
 float sampleVolume( vec4 wpos )
 {
-	vec3 pos = (im * wpos).xyz + 0.5;
+	vec3 pos = (im * wpos).xyz ;
+	vec3 over = pos * step(0.0,pos) - pos;
+	float zerofade = 1.0;
+	pos = over + pos;
+	zerofade = (1.0-over.x)*(1.0-over.y)*(1-over.z);	
 	vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
 
 	uvec4 lutv = texture( lutSampler, q / lutSize );
@@ -39,5 +43,5 @@ float sampleVolume( vec4 wpos )
 	vec3 c0 = B0 + mod( pos * sj, blockSize ) + 0.5 * sj;
 	                                       // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
 
-	return texture( volumeCache, c0 / cacheSize ).r;
+	return zerofade*texture( volumeCache, c0 / cacheSize ).r;
 }

@@ -5,7 +5,7 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 {
 	vec4 mfront = im * wfront;
 	vec4 mback = im * wback;
-	intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( 0, 0, 0 ), sourcemax, tnear, tfar );
+	intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( -0.5, -0.5, -0.5 ), sourcemax+0.5, tnear, tfar );
 }
 
 uniform sampler3D volume;
