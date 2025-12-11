@@ -44,6 +44,7 @@ import net.imglib2.util.Fraction;
 
 import static net.imglib2.type.PrimitiveType.BYTE;
 import static net.imglib2.type.PrimitiveType.SHORT;
+import static net.imglib2.type.PrimitiveType.FLOAT;
 
 /**
  * Copy blocks from a {@link ResolutionLevel3D} source to an {@link UploadBuffer}.
@@ -137,6 +138,16 @@ public class TileAccess< S >
 						cacheSpec
 				);
 			}
+			else if ( cellimg && primitive == FLOAT && cacheSpec.format() == Texture.InternalFormat.R32F )
+			{
+				return new TileAccess<>(
+						volatil
+								? new GridDataAccessImp.VolatileCells<>( ( AbstractCellImg ) img )
+								: new GridDataAccessImp.Cells<>( ( AbstractCellImg ) img ),
+						new CopySubArrayImp.FloatToAddress(),
+						cacheSpec
+				);
+			}
 		}
 
 		throw new UnsupportedOperationException( "pixel and/or image type not supported (yet)." );
@@ -150,7 +161,7 @@ public class TileAccess< S >
 		{
 			final PrimitiveType primitive = ( ( NativeType ) type ).getNativeTypeFactory().getPrimitiveType();
 			final Fraction epp = ( ( NativeType ) type ).getEntitiesPerPixel();
-			return ( primitive == SHORT || primitive == BYTE ) && epp.getNumerator() == epp.getDenominator();
+			return ( primitive == SHORT || primitive == BYTE || primitive == FLOAT ) && epp.getNumerator() == epp.getDenominator();
 		}
 
 		return false;

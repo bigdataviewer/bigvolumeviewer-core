@@ -30,6 +30,7 @@ package bvv.core.render;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
@@ -54,6 +56,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 {
 	private final HashMap< SimpleStack3D< ? >, VolumeTextureU16 > texturesU16;
 	private final HashMap< SimpleStack3D< ? >, VolumeTextureU8 > texturesU8;
+	private final HashMap< SimpleStack3D< ? >, VolumeTextureU32 > texturesU32;
 	private final HashMap< SimpleStack3D< ? >, VolumeTextureRGBA8 > texturesRGBA8;
 
 	private final HashMap< Texture3D, Integer > timestamps;
@@ -61,6 +64,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 	public DefaultSimpleStackManager()
 	{
+		texturesU32 = new HashMap<>();
 		texturesU16 = new HashMap<>();
 		texturesU8 = new HashMap<>();
 		texturesRGBA8 = new HashMap<>();
@@ -87,6 +91,12 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		else if ( type instanceof UnsignedByteType )
 		{
 			texture = texturesU8.computeIfAbsent( stack, s -> uploadToTextureU8( context, ( RandomAccessibleInterval< UnsignedByteType > ) image ) );
+			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
+			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
+		}
+		else if ( type instanceof FloatType )
+		{
+			texture = texturesU32.computeIfAbsent( stack, s -> uploadToTextureU32( context, ( RandomAccessibleInterval< FloatType > ) image ) );
 			sourceMax = new Vector3f( image.max( 0 ), image.max( 1 ), image.max( 2 ) );
 			sourceMin = new Vector3f( image.min( 0 ), image.min( 1 ), image.min( 2 ) );
 		}
@@ -161,6 +171,30 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 		int i = 0;
 		while ( cursor.hasNext() )
 			sdata.put( i++, cursor.next().getShort() );
+	}
+	
+	private static VolumeTextureU32 uploadToTextureU32( final GpuContext context, final RandomAccessibleInterval< FloatType > rai )
+	{
+		final VolumeTextureU32 texture = new VolumeTextureU32();
+		texture.init( Intervals.dimensionsAsIntArray( rai ) );
+
+		final int numBytes = ( int ) ( 4 * Intervals.numElements( rai ) );
+		final ByteBuffer data = ByteBuffer.allocateDirect( numBytes ); // allocate a bit more than needed...
+		data.order( ByteOrder.nativeOrder() );
+		copyToBufferU32( rai, data );
+		texture.upload( context, data );
+		return texture;
+	}
+	
+	private static void copyToBufferU32( final RandomAccessibleInterval< FloatType  > rai, final ByteBuffer buffer )
+	{
+		// TODO handle specific RAI types more efficiently
+		// TODO multithreading
+		final Cursor< FloatType > cursor = Views.flatIterable( rai ).cursor();
+		final FloatBuffer sdata = buffer.asFloatBuffer();
+		int i = 0;
+		while ( cursor.hasNext() )
+			sdata.put( i++, cursor.next().getRealFloat() );
 	}
 
 	private static VolumeTextureU8 uploadToTextureU8( final GpuContext context, final RandomAccessibleInterval< UnsignedByteType > rai )
