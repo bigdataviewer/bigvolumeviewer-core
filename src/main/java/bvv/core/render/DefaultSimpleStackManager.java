@@ -124,6 +124,7 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 	{
 		final Iterator< Map.Entry< Texture3D, Integer > > it = timestamps.entrySet().iterator();
 
+		texturesU32.entrySet().removeIf( entry -> timestamps.get( entry.getValue() ) < currentTimestamp );
 		texturesU16.entrySet().removeIf( entry -> timestamps.get( entry.getValue() ) < currentTimestamp );
 		texturesU8.entrySet().removeIf( entry -> timestamps.get( entry.getValue() ) < currentTimestamp );
 		texturesRGBA8.entrySet().removeIf( entry -> timestamps.get( entry.getValue() ) < currentTimestamp );
