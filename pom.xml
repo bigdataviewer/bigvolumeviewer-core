@@ -154,6 +154,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
+			<version>10.6.8</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -182,4 +183,19 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- Use source/target instead of release to allow sun.misc.Unsafe access on JDK 16+ -->
+					<release combine.self="override"/>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
