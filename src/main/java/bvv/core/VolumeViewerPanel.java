@@ -78,7 +78,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import javax.swing.DefaultBoundedRangeModel;
 import javax.swing.JSlider;
@@ -241,7 +240,7 @@ public class VolumeViewerPanel
 	 * calling {@link #requestRepaint()} so listeners have the chance to
 	 * interfere.
 	 */
-	protected final CopyOnWriteArrayList< TimePointListener > timePointListeners;
+	private final Listeners.List< TimePointListener > timePointListeners;
 
 	/**
 	 * Current animator for viewer transform, or null. This is for example used
@@ -360,7 +359,7 @@ public class VolumeViewerPanel
 			if ( renderData != null )
 				l.transformChanged( renderData.getRenderTransformWorldToScreen() );
 		} );
-		timePointListeners = new CopyOnWriteArrayList<>();
+		timePointListeners = new Listeners.SynchronizedList<>( l -> l.timePointChanged( state.getCurrentTimepoint() ) );
 
 		msgOverlay = options.getMsgOverlay();
 
@@ -656,8 +655,7 @@ public class VolumeViewerPanel
 					sliderTime.setValue( timepoint );
 				blockSliderTimeEvents = false;
 			} );
-			for ( final TimePointListener l : timePointListeners )
-				l.timePointChanged( timepoint );
+			timePointListeners.list.forEach( l -> l.timePointChanged( timepoint ) );
 			requestRepaint();
 			break;
 		}
@@ -791,6 +789,7 @@ public class VolumeViewerPanel
 		return transformEventHandler;
 	}
 
+	@Override
 	public ConverterSetups getConverterSetups()
 	{
 		return setups;
@@ -847,50 +846,41 @@ public class VolumeViewerPanel
 	}
 
 	/**
-	 * Add a {@link TimePointListener} to notify about time-point
+	 * Add/remove {@link TimePointListener} to notify about time-point
 	 * changes. Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
-	 *
-	 * @param listener
-	 *            the listener to add.
+	 * {@link #requestRepaint()} so listeners have the chance to interfere.
 	 */
+	@Override
+	public Listeners< TimePointListener > timePointListeners()
+	{
+		return timePointListeners;
+	}
+
+	/**
+	 * @deprecated Use {@code timePointListeners().add( listener )}.
+	 */
+	@Deprecated
 	public void addTimePointListener( final TimePointListener listener )
 	{
-		addTimePointListener( listener, Integer.MAX_VALUE );
+		timePointListeners().add( listener );
 	}
 
 	/**
-	 * Add a {@link TimePointListener} to notify about time-point
-	 * changes. Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
-	 *
-	 * @param listener
-	 *            the listener to add.
-	 * @param index
-	 *            position in the list of listeners at which to insert this one.
+	 * @deprecated Use {@code timePointListeners().add( index, listener )}.
 	 */
+	@Deprecated
 	public void addTimePointListener( final TimePointListener listener, final int index )
 	{
-		synchronized ( timePointListeners )
-		{
-			final int s = timePointListeners.size();
-			timePointListeners.add( index < 0 ? 0 : index > s ? s : index, listener );
-			listener.timePointChanged( state.getCurrentTimepoint() );
-		}
+		timePointListeners().add( index, listener );
 	}
 
 	/**
-	 * Remove a {@link TimePointListener}.
-	 *
-	 * @param listener
-	 *            the listener to remove.
+	 * @deprecated Use {@code timePointListeners().remove( listener )}.
 	 */
+	@Deprecated
 	public void removeTimePointListener( final TimePointListener listener )
 	{
-		synchronized ( timePointListeners )
-		{
-			timePointListeners.remove( listener );
-		}
+		timePointListeners().remove( listener );
 	}
 
 	private static int getDitherStep( final int ditherWidth )
