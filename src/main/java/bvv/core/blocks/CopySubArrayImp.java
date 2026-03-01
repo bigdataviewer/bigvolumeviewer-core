@@ -66,6 +66,23 @@ public class CopySubArrayImp
 			copysubarray3dn( copy, sox, soy, soz, ssx, ssy, dox, doy, doz, dsx, dsy, csx, csy, csz );
 		}
 	}
+	
+	public static class FloatToAddress implements CopySubArray< float[], ByteUtils.Address >
+	{
+		@Override
+		public void clearsubarray3d( final ByteUtils.Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		{
+			final ArrayFill fill = ( o, l ) -> ByteUtils.setFloats( 0, dst.getAddress() + 4 * o, l );
+			fillsubarray3dn( fill, dox, doy, doz, dsx, dsy, csx, csy, csz );
+		}
+
+		@Override
+		public void copysubarray3d( final float[] src, final int sox, final int soy, final int soz, final int ssx, final int ssy, final ByteUtils.Address dst, final int dox, final int doy, final int doz, final int dsx, final int dsy, final int csx, final int csy, final int csz )
+		{
+			final ArrayCopy copy = ( so, o, l ) -> ByteUtils.copyFloats( src, dst.getAddress() + 4 * o, so, l );
+			copysubarray3dn( copy, sox, soy, soz, ssx, ssy, dox, doy, doz, dsx, dsy, csx, csy, csz );
+		}
+	}
 
 	static void copysubarray3dn(
 			ArrayCopy copysubarray1dn,

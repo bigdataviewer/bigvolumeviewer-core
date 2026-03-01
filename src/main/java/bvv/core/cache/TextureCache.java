@@ -316,6 +316,13 @@ public class TextureCache implements Texture3D
 				return true;
 			} , () -> true ), oobTile ) );
 		}
+		if(spec.format() == InternalFormat.R32F)
+		{
+			tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
+				ByteUtils.setFloats( 0, buf.getAddress(), elementsPerTile );
+				return true;
+			} , () -> true ), oobTile ) );
+		}
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )
