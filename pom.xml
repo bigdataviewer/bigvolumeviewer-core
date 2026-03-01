@@ -10,7 +10,7 @@
 
 	<groupId>sc.fiji</groupId>
 	<artifactId>bigvolumeviewer</artifactId>
-	<version>0.4.2-SNAPSHOT</version>
+	<version>0.4.3-SNAPSHOT</version>
 
 	<name>BigVolumeViewer</name>
 	<description>Volume rendering of bdv datasets</description>
@@ -192,7 +192,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<!-- Use source/target instead of release to allow sun.misc.Unsafe access on JDK 16+ -->
-					<release combine.self="override"/>
+					<release combine.self="override" />
 					<source>1.8</source>
 					<target>1.8</target>
 				</configuration>
