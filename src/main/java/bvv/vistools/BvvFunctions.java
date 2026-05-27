@@ -30,6 +30,7 @@ package bvv.vistools;
 
 import bdv.BigDataViewer;
 import bdv.ViewerImgLoader;
+import bdv.cache.CacheControl;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.spimdata.WrapBasicImgLoader;
 import bdv.tools.brightness.ConverterSetup;
@@ -193,9 +194,10 @@ public class BvvFunctions
 		final BvvHandle handle = getHandle( options );
 		final AbstractSequenceDescription< ?, ?, ? > seq = spimData.getSequenceDescription();
 		final int numTimepoints = seq.getTimePoints().size();
-		final VolatileGlobalCellCache cache = ( VolatileGlobalCellCache ) ( ( ViewerImgLoader ) seq.getImgLoader() ).getCacheControl();
+		final CacheControl cache = ( ( ViewerImgLoader ) seq.getImgLoader() ).getCacheControl();
 		handle.getBvvHandle().getCacheControls().addCacheControl( cache );
-		cache.clearCache();
+		if ( cache instanceof VolatileGlobalCellCache )
+			( ( VolatileGlobalCellCache ) cache ).clearCache();
 
 		WrapBasicImgLoader.wrapImgLoaderIfNecessary( spimData );
 		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
