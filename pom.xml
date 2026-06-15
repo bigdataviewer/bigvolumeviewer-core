@@ -73,6 +73,7 @@
 
 	<properties>
 		<scijava.jvm.version>11</scijava.jvm.version>
+		<scijava.javadoc.url.java>https://javadoc.scijava.org/Java11/</scijava.javadoc.url.java>
 		<package-name>bvv</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Tobias Pietzsch</license.copyrightOwners>
@@ -81,9 +82,6 @@
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
-
-		<!-- NB: Allow sun.misc.Unsafe access on JDK 16+ -->
-		<maven.compiler.release />
 	</properties>
 
 	<repositories>
@@ -188,4 +186,19 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- Use source/target instead of release to allow sun.misc.Unsafe access on JDK 16+ -->
+					<release combine.self="override" />
+					<source>${scijava.jvm.version}</source>
+					<target>${scijava.jvm.version}</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
