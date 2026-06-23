@@ -43,6 +43,7 @@ public class ByteUtils
 	private static final long BUFFER_ADDRESS_OFFSET;
 	private static final long BYTE_ARRAY_OFFSET;
 	private static final long SHORT_ARRAY_OFFSET;
+	private static final long FLOAT_ARRAY_OFFSET;
 
 	static
 	{
@@ -66,6 +67,7 @@ public class ByteUtils
 
 			BYTE_ARRAY_OFFSET = UNSAFE.arrayBaseOffset( byte[].class );
 			SHORT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset( short[].class );
+			FLOAT_ARRAY_OFFSET = UNSAFE.arrayBaseOffset( float[].class );
 		}
 		catch ( final Exception ex )
 		{
@@ -97,6 +99,17 @@ public class ByteUtils
 	public static void copyBytes( final byte[] src, final long dst, final long sox, final long csx )
 	{
 		UNSAFE.copyMemory( src, BYTE_ARRAY_OFFSET + sox, null, dst, csx );
+	}
+	
+	public static void setFloats( final float src, final long dst, final long csx )
+	{
+		for ( int i = 0; i < csx; ++i )
+			UNSAFE.putFloat( dst + 4 * i, src );
+	}
+
+	public static void copyFloats( final float[] src, final long dst, final long sox, final long csx )
+	{
+		UNSAFE.copyMemory( src, FLOAT_ARRAY_OFFSET + 4 * sox, null, dst, 4 * csx );
 	}
 
 	public interface Address

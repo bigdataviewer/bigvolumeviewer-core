@@ -184,6 +184,7 @@ public class MultiVolumeShaderMip
 			switch ( volumeSignature.getPixelType() )
 			{
 			default:
+			case SFLOAT:
 			case USHORT:
 			case UBYTE:
 				convert = templateConvert.instantiate();
@@ -519,6 +520,9 @@ public class MultiVolumeShaderMip
 			case UBYTE:
 			case ARGB:
 				rangeScale = 0xff;
+				break;
+			case SFLOAT:
+				rangeScale = 1.0;
 				break;
 			}
 		}

@@ -47,6 +47,11 @@
 			<url>https://ulrik.is/writing</url>
 			<properties><id>skalarproduktraum</id></properties>
 		</contributor>
+		<contributor>
+			<name>Eugene Katrukha</name>
+			<url>https://imagej.net/people/ekatrukha</url>
+			<properties><id>ekatrukha</id></properties>
+		</contributor>
 	</contributors>
 
 	<mailingLists>

@@ -37,6 +37,7 @@ import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_UNPACK_ALIGNMENT;
 import static bvv.core.backend.Texture.InternalFormat.R8;
 import static bvv.core.backend.Texture.InternalFormat.R16;
+import static bvv.core.backend.Texture.InternalFormat.R32F;
 import static bvv.core.render.VolumeRenderer.RepaintType.DITHER;
 import static bvv.core.render.VolumeRenderer.RepaintType.FULL;
 import static bvv.core.render.VolumeRenderer.RepaintType.LOAD;
@@ -44,10 +45,12 @@ import static bvv.core.render.VolumeRenderer.RepaintType.NONE;
 import static bvv.core.render.VolumeShaderSignature.PixelType.ARGB;
 import static bvv.core.render.VolumeShaderSignature.PixelType.UBYTE;
 import static bvv.core.render.VolumeShaderSignature.PixelType.USHORT;
+import static bvv.core.render.VolumeShaderSignature.PixelType.SFLOAT;
 import static bvv.core.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static bvv.core.multires.SourceStacks.SourceStackType.SIMPLE;
 import static net.imglib2.type.PrimitiveType.BYTE;
 import static net.imglib2.type.PrimitiveType.SHORT;
+import static net.imglib2.type.PrimitiveType.FLOAT;
 
 import bvv.core.backend.Texture.InternalFormat;
 import bvv.core.cache.CacheSpec;
@@ -69,8 +72,10 @@ import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
+import net.imglib2.type.volatiles.VolatileFloatType;
 
 import org.joml.Matrix4f;
 
@@ -145,6 +150,8 @@ public class VolumeRenderer
 	private final TextureCacheAndPboChain cacheR8;
 
 	private final TextureCacheAndPboChain cacheR16;
+	
+	private final TextureCacheAndPboChain cacheR32F;
 
 	private final ForkJoinPool forkJoinPool;
 
@@ -208,6 +215,7 @@ public class VolumeRenderer
 		// used for the first time.
 		cacheR8 = new TextureCacheAndPboChain( R8, cacheBlockSize, maxCacheSizeInMB );
 		cacheR16 = new TextureCacheAndPboChain( R16, cacheBlockSize, maxCacheSizeInMB );
+		cacheR32F = new TextureCacheAndPboChain( R32F, cacheBlockSize, maxCacheSizeInMB );
 
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
@@ -306,6 +314,8 @@ public class VolumeRenderer
 						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, USHORT ) );
 					else if ( ( pixelType instanceof UnsignedByteType ) || ( pixelType instanceof VolatileUnsignedByteType ) )
 						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, UBYTE ) );
+					else if ( ( pixelType instanceof FloatType ) || ( pixelType instanceof VolatileFloatType ) )
+						volumeSignatures.add( new VolumeSignature( MULTIRESOLUTION, SFLOAT ) );
 					else
 						throw new IllegalArgumentException( "Multiresolution stack with pixel type " + pixelType.getClass().getName() + " unsupported in BigVolumeViewer." );
 				}
@@ -316,6 +326,8 @@ public class VolumeRenderer
 						volumeSignatures.add( new VolumeSignature( SIMPLE, USHORT ) );
 					else if ( pixelType instanceof UnsignedByteType )
 						volumeSignatures.add( new VolumeSignature( SIMPLE, UBYTE ) );
+					else if ( pixelType instanceof FloatType )
+						volumeSignatures.add( new VolumeSignature( SIMPLE, SFLOAT ) );
 					else if ( pixelType instanceof ARGBType )
 						volumeSignatures.add( new VolumeSignature( SIMPLE, ARGB ) );
 					else
@@ -523,6 +535,9 @@ public class VolumeRenderer
 
 		final List< MultiResolutionStack3D< ? > > multiResStacksR16 = new ArrayList<>();
 		final List< VolumeBlocks > volumesR16 = new ArrayList<>();
+		
+		final List< MultiResolutionStack3D< ? > > multiResStacksR32 = new ArrayList<>();
+		final List< VolumeBlocks > volumesR32 = new ArrayList<>();
 
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
@@ -539,6 +554,11 @@ public class VolumeRenderer
 				multiResStacksR16.add( stack );
 				volumesR16.add( volume );
 			}
+			else if ( primitiveType == FLOAT )
+			{
+				multiResStacksR32.add( stack );
+				volumesR32.add( volume );
+			}
 			else
 			{
 				throw new IllegalArgumentException();
@@ -548,6 +568,8 @@ public class VolumeRenderer
 		boolean complete = true;
 		complete &= updateBlocks( context, multiResStacksR8, volumesR8, cacheR8, forkJoinPool, renderWidth, pv );
 		complete &= updateBlocks( context, multiResStacksR16, volumesR16, cacheR16, forkJoinPool, renderWidth, pv );
+		complete &= updateBlocks( context, multiResStacksR32, volumesR32, cacheR32F, forkJoinPool, renderWidth, pv );
+
 		if ( !complete )
 			nextRequestedRepaint.request( LOAD );
 	}
