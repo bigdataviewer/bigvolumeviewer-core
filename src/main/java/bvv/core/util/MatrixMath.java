@@ -58,7 +58,7 @@ public class MatrixMath
 	 * @param dClip visible depth away from z=0 in both directions
 	 * @param screenWidth the width of the screen
 	 * @param screenHeight the height of the screen
-	 * @param screenPadding additional padding on all sides of the screen plane
+	 * @param screenPadding additional padding of the screen plane (screenPadding/2 on each side)
 	 * @param matrix is set to the screenPerspective transformation and returned
 	 */
 	public static Matrix4f screenPerspective( double dCam, final double dClip, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
@@ -74,7 +74,7 @@ public class MatrixMath
 	 * @param dClipFar visible depth away from z=0 away from camera
 	 * @param screenWidth the width of the screen
 	 * @param screenHeight the height of the screen
-	 * @param screenPadding additional padding on all sides of the screen plane
+	 * @param screenPadding additional padding of the screen plane (screenPadding/2 on each side)
 	 * @param matrix is set to the screenPerspective transformation and returned
 	 */
 	public static Matrix4f screenPerspective( double dCam, final double dClipNear, final double dClipFar, final double screenWidth, final double screenHeight, final double screenPadding, Matrix4f matrix )
@@ -121,8 +121,8 @@ public class MatrixMath
 	 *     <li>translate the origin back from the screen by {@code dCam} in Z</li>
 	 * </ol>
 	 * This corresponds to a camera in front of the screen, looking at (the center of) the (BDV) screen plane.
-	 * It transforms coordinates in the BDV screen coordinate system (X left, Y down, Z into the screen, origin at the upper-left screen corner)
-	 * to BVV camera coordinates (still X left, Y down, Z into the screen, but origin in XY center of the screen, and in front of the screen by {@code z=dCam}).
+	 * It transforms coordinates in the BDV screen coordinate system (X right, Y down, Z into the screen, origin at the upper-left screen corner)
+	 * to BVV camera coordinates (still X right, Y down, Z into the screen, but origin in XY center of the screen, and in front of the screen by {@code z=dCam}).
 	 *
 	 * @param dCam
 	 * 		distance camera to z=0 plane
@@ -140,7 +140,7 @@ public class MatrixMath
 
 	/**
 	 * Setup projection frustum transformation such that the (BDV) screen plane at distance {@code dCam} exactly touches the frustum sides.
-	 * Also invert the Y and Z axes to rotate from BVV camera coordinates (right-handed, X left, Y down, Z into screen) to OpenGL (right-handed, X left, Y up, Z out of screen) coordinates.
+	 * Also invert the Y and Z axes to rotate from BVV camera coordinates (right-handed, X right, Y down, Z into screen) to OpenGL (right-handed, X right, Y up, Z out of screen) coordinates.
 	 *
 	 * @param dCam
 	 * 		distance camera to z=0 plane
@@ -153,7 +153,7 @@ public class MatrixMath
 	 * @param screenHeight
 	 * 		the height of the screen
 	 * @param screenPadding
-	 * 		additional padding on all sides of the screen plane
+	 * 		additional padding of the screen plane (screenPadding/2 on each side)
 	 * @param matrix
 	 * 		is set to the screenPerspective transformation and returned
 	 */
