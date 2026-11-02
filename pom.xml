@@ -47,6 +47,21 @@
 			<url>https://ulrik.is/writing</url>
 			<properties><id>skalarproduktraum</id></properties>
 		</contributor>
+		<contributor>
+			<name>Eugene Katrukha</name>
+			<url>https://imagej.net/people/ekatrukha</url>
+			<properties><id>ekatrukha</id></properties>
+		</contributor>
+		<contributor>
+			<name>Nicolas Chiaruttini</name>
+			<url>https://imagej.net/people/NicoKiaru</url>
+			<properties><id>NicoKiaru</id></properties>
+		</contributor>
+		<contributor>
+			<name>Curtis Rueden</name>
+			<url>https://imagej.net/people/ctrueden</url>
+			<properties><id>ctrueden</id></properties>
+		</contributor>
 	</contributors>
 
 	<mailingLists>
