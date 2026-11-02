@@ -28,7 +28,6 @@
  */
 package bvv.core.multires;
 
-import bdv.util.volatiles.VolatileView;
 import bdv.viewer.Source;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,13 +36,18 @@ import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.cell.AbstractCellImg;
+import net.imglib2.Volatile;
+import net.imglib2.blocks.PrimitiveBlocks;
+import net.imglib2.blocks.VolatilePrimitiveBlocks;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.util.Intervals;
 import bvv.core.blocks.TileAccess;
 
 import static bvv.core.multires.SourceStacks.SourceStackType.MULTIRESOLUTION;
 import static bvv.core.multires.SourceStacks.SourceStackType.SIMPLE;
 import static bvv.core.multires.SourceStacks.SourceStackType.UNDEFINED;
+import static net.imglib2.blocks.PrimitiveBlocks.OnFallback.FAIL;
 
 public class SourceStacks
 {
@@ -88,22 +92,33 @@ public class SourceStacks
 			setSourceStackType( source, stackType );
 		}
 
+		final int generation = generationOf( source );
 		if ( stackType == SIMPLE )
-		{
-			final int generation;
-			synchronized ( source )
-			{
-				generation = sourceGenerations.computeIfAbsent( source, s -> new AtomicInteger() ).get();
-			}
 			return new SimpleStack3DImp<>( source, timepoint, generation );
-		}
 		else if ( stackType == MULTIRESOLUTION )
-			return new MultiResolutionStack3DImp<>( source, timepoint );
+			return new MultiResolutionStack3DImp<>( source, timepoint, generation );
 		else
 			return null;
 	}
 
-	/*
+	/**
+	 * How many times {@link #invalidate} has been called for {@code source}.
+	 * <p>
+	 * The generation is part of the identity of every stack and resolution level
+	 * built from the source, so that everything keyed on those — the {@code
+	 * TileAccess.Cache}, and the {@code TextureCache} via {@code ImageBlockKey} —
+	 * misses after an invalidation and re-reads the source instead of serving
+	 * blocks copied from the image it held before.
+	 */
+	private static int generationOf( final Source< ? > source )
+	{
+		synchronized ( source )
+		{
+			return sourceGenerations.computeIfAbsent( source, s -> new AtomicInteger() ).get();
+		}
+	}
+
+	/**
 	 * Decide whether to use a cached multiresolution stack or a simple stack.
 	 * Depends on properties of source and what is currently implemented in BVV...
 	 */
@@ -113,15 +128,53 @@ public class SourceStacks
 
 		if ( TileAccess.isSupportedType( type ) )
 		{
-			RandomAccessible< ? > rai = source.getSource( timepoint, 0 );
-			if ( rai instanceof VolatileView )
-				rai = ( ( VolatileView ) rai ).getVolatileViewData().getImg();
-
-			if ( rai instanceof AbstractCellImg )
+			final boolean volatil = type instanceof Volatile;
+			final int nLevels = source.getNumMipmapLevels();
+			boolean supportsBlocks = true;
+			for ( int l = 0; l < nLevels; l++ )
+			{
+				final RandomAccessible< ? > rai = source.getSource( timepoint, l );
+				final boolean levelSupported = volatil
+						? VolatilePrimitiveBlocks.isSupported( rai, FAIL )
+						: PrimitiveBlocks.isSupported( rai, FAIL );
+				if (!levelSupported) {
+					supportsBlocks = false;
+					break;
+				}
+			}
+			if ( !supportsBlocks )
+				return SIMPLE;
+			if ( volatil || nLevels > 1 )
 				return MULTIRESOLUTION;
+			return fitsSimpleTexture( source.getSource( timepoint, 0 ) ) ? SIMPLE : MULTIRESOLUTION;
 		}
-
 		return SIMPLE;
+	}
+
+	/**
+	 * Largest extent, in any dimension, of a source that is uploaded whole.
+	 * OpenGL 4.x guarantees {@code GL_MAX_3D_TEXTURE_SIZE >= 2048}.
+	 */
+	private static final int MAX_SIMPLE_TEXTURE_SIZE = 2048;
+
+	/**
+	 * Largest size, in bytes, of a source that should be uploaded non-tiled.
+	 */
+	private static final long MAX_SIMPLE_TEXTURE_MB = 512;
+
+	/**
+	 * Whether {@code rai} is small enough to be uploaded as a simple non-tiled 3D texture.
+	 * <p>
+	 * Currently: whether extent is max {@value #MAX_SIMPLE_TEXTURE_SIZE} in any dimension, and
+	 * whether total size if at most {@value #MAX_SIMPLE_TEXTURE_MB} MB.
+	 */
+	private static boolean fitsSimpleTexture( final RandomAccessibleInterval< ? > rai )
+	{
+		for ( int d = 0; d < rai.numDimensions(); d++ )
+			if ( rai.dimension( d ) > MAX_SIMPLE_TEXTURE_SIZE )
+				return false;
+		final int bytesPerPixel = ( ( NativeType< ? > ) rai.getType() ).getNativeTypeFactory().getPrimitiveType().getByteCount();
+		return Intervals.numElements( rai ) * bytesPerPixel <= (MAX_SIMPLE_TEXTURE_MB << 20);
 	}
 
 	static abstract class Stack3DImp< T > implements Stack3D< T >
@@ -200,15 +253,18 @@ public class SourceStacks
 	{
 		private final ArrayList< ResolutionLevel3DImp< T > > resolutions;
 
-		MultiResolutionStack3DImp( final Source< T > source, final int timepoint )
+		MultiResolutionStack3DImp( final Source< T > source, final int timepoint, final int generation )
 		{
-			super( source, timepoint, 0 /*TODO*/ );
+			super( source, timepoint, generation );
 
+			// NB: not invalidated with the source. This caches the mipmap geometry
+			// (resolutions, scales, level transforms), which invalidate() does not
+			// claim to change — it says the pixel data changed.
 			final SourceStackResolutions ssr = SourceStacks.sourceStackResolutions.computeIfAbsent( source, s -> new SourceStackResolutions( source, timepoint ) );
 
 			resolutions = new ArrayList<>();
 			for ( int level = 0; level < source.getNumMipmapLevels(); level++ )
-				resolutions.add( new ResolutionLevel3DImp<>( source, timepoint, level, ssr ) );
+				resolutions.add( new ResolutionLevel3DImp<>( source, timepoint, level, generation, ssr ) );
 		}
 
 		@Override
@@ -226,17 +282,20 @@ public class SourceStacks
 
 		private final Source< T > source;
 
+		private final int generation;
+
 		private final int[] resolution;
 
 		private final double[] scale;
 
 		private final AffineTransform3D levelt;
 
-		ResolutionLevel3DImp( final Source< T > source, final int timepoint, final int level, final SourceStackResolutions sourceStackResolutions )
+		ResolutionLevel3DImp( final Source< T > source, final int timepoint, final int level, final int generation, final SourceStackResolutions sourceStackResolutions )
 		{
 			this.level = level;
 			this.timepoint = timepoint;
 			this.source = source;
+			this.generation = generation;
 
 			resolution = sourceStackResolutions.resolutions[ level ];
 			scale = sourceStackResolutions.scales[ level ];
@@ -293,6 +352,8 @@ public class SourceStacks
 				return false;
 			if ( level != that.level )
 				return false;
+			if ( generation != that.generation )
+				return false;
 			return source.equals( that.source );
 		}
 
@@ -301,6 +362,7 @@ public class SourceStacks
 		{
 			int result = level;
 			result = 31 * result + timepoint;
+			result = 31 * result + generation;
 			result = 31 * result + source.hashCode();
 			return result;
 		}

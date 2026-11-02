@@ -34,7 +34,6 @@ import net.imglib2.util.IntervalIndexer;
 import org.joml.Vector3f;
 import bvv.core.backend.GpuContext;
 import bvv.core.backend.Texture3D;
-import bvv.core.blocks.ByteUtils;
 
 import static bvv.core.backend.Texture.InternalFormat.RGBA8UI;
 
@@ -67,6 +66,9 @@ public class LookupTextureARGB implements Texture3D
 	 */
 	private ByteBuffer data;
 
+	/** all-zero, to clear {@link #data} in one bulk copy */
+	private byte[] zeros;
+
 	/**
 	 * Reinitialize the lut data.
 	 *
@@ -87,8 +89,13 @@ public class LookupTextureARGB implements Texture3D
 
 		final int numBytes = 4 * size[ 0 ] * size[ 1 ] * size[ 2 ];
 		if ( data == null || data.capacity() < numBytes )
+		{
 			data = ByteBuffer.allocateDirect( 3 * numBytes / 2 ); // allocate a bit more than needed...
-		ByteUtils.setBytes( ( byte ) 0, ByteUtils.addressOf( data ), numBytes );
+			zeros = new byte[ data.capacity() ];
+		}
+		// NB: put() is relative, so clear a duplicate to leave data's own
+		// position at 0, where upload() and putTile() expect it.
+		data.duplicate().put( zeros, 0, numBytes );
 	}
 
 	/**

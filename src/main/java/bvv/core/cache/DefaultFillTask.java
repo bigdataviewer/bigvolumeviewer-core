@@ -28,25 +28,48 @@
  */
 package bvv.core.cache;
 
+import java.nio.ByteBuffer;
 import java.util.function.BooleanSupplier;
-import java.util.function.Predicate;
 
 import static bvv.core.cache.TextureCache.ContentState.COMPLETE;
 import static bvv.core.cache.TextureCache.ContentState.INCOMPLETE;
 
 public class DefaultFillTask implements FillTask
 {
+	/**
+	 * Fills the tile portion of an upload buffer with one block of image data.
+	 */
+	@FunctionalInterface
+	public interface Filler
+	{
+		/**
+		 * Fill {@code buffer} with the block's data.
+		 *
+		 * @param buffer
+		 * 		this tile's portion of the staging buffer
+		 *
+		 * @return {@code true} if the block data was complete, {@code false} if
+		 * 		parts of it were not available
+		 */
+		boolean fill( ByteBuffer buffer );
+	}
+
 	final ImageBlockKey< ? > key;
 
-	final Predicate< UploadBuffer > fill;
+	final Filler fill;
 
 	final BooleanSupplier containsData;
 
 	/**
-	 * {@code fill.test()} fills buffer and returns whether block data was
-	 * complete
+	 * @param key
+	 * 		identifies a particular block in a particular image.
+	 * @param fill
+	 * 		fills an upload buffer with image data of that block.
+	 * @param containsData
+	 * 		called to determine whether it makes sense to upload
+	 * 		a block, before allocating a texture slot or doing any copying work.
 	 */
-	public DefaultFillTask( final ImageBlockKey< ? > key, final Predicate< UploadBuffer > fill, final BooleanSupplier containsData )
+	public DefaultFillTask( final ImageBlockKey< ? > key, final Filler fill, final BooleanSupplier containsData )
 	{
 		this.key = key;
 		this.fill = fill;
@@ -68,7 +91,7 @@ public class DefaultFillTask implements FillTask
 	@Override
 	public void fill( final UploadBuffer buffer )
 	{
-		final boolean complete = fill.test( buffer );
+		final boolean complete = fill.fill( buffer.buffer() );
 		buffer.setContentState( complete ? COMPLETE : INCOMPLETE );
 	}
 }

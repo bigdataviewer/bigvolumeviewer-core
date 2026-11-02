@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.util.Intervals;
 import bvv.core.backend.Texture3D;
 import bvv.core.backend.Texture.InternalFormat;
-import bvv.core.blocks.ByteUtils;
 
 import static bvv.core.cache.TextureCache.ContentState.INCOMPLETE;
 
@@ -301,21 +300,13 @@ public class TextureCache implements Texture3D
 		final Tile oobTile = tiles[ 0 ];
 		final Object dummyImage = new Object();
 		final ImageBlockKey< Object > oobDummyKey = new ImageBlockKey<>( dummyImage, new int[] { 0, 0, 0 } );
-		final int elementsPerTile = ( int ) Intervals.numElements( spec.paddedBlockSize() );
-		if(spec.format() == InternalFormat.R8)
-		{
-			tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
-				ByteUtils.setBytes( ( byte ) 0, buf.getAddress(), elementsPerTile );
-				return true;
-			} , () -> true ), oobTile ) );
-		}
-		if(spec.format() == InternalFormat.R16)
-		{
-			tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
-				ByteUtils.setShorts( ( short ) 0, buf.getAddress(), elementsPerTile );
-				return true;
-			} , () -> true ), oobTile ) );
-		}
+		final int bytesPerTile = spec.format().getBytesPerElement()
+				* ( int ) Intervals.numElements( spec.paddedBlockSize() );
+		final byte[] zeros = new byte[ bytesPerTile ];
+		tileFillTasks.add( new TileFillTask( new DefaultFillTask( oobDummyKey, buf -> {
+			buf.put( zeros );
+			return true;
+		} , () -> true ), oobTile ) );
 	}
 
 	private List< Tile > assignFillTiles( final int size, final int currentTimestamp )

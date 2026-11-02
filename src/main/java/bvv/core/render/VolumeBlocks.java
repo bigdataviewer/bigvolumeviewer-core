@@ -37,7 +37,7 @@ import bvv.core.cache.DefaultFillTask;
 import bvv.core.cache.FillTask;
 import bvv.core.cache.ImageBlockKey;
 import bvv.core.cache.TextureCache;
-import bvv.core.cache.UploadBuffer;
+import java.nio.ByteBuffer;
 import bvv.core.multires.ResolutionLevel3D;
 import bvv.core.util.MatrixMath;
 import java.util.ArrayList;
@@ -66,13 +66,11 @@ import bvv.core.multires.MultiResolutionStack3D;
 public class VolumeBlocks
 {
 	private final LookupTextureARGB lut;
-	private final TileAccess.Cache tileAccess;
 	private final MipmapSizes sizes;
 
 	public VolumeBlocks()
 	{
 		this.lut = new LookupTextureARGB();
-		this.tileAccess = new TileAccess.Cache();
 		this.sizes = new MipmapSizes();
 	}
 
@@ -363,7 +361,7 @@ public class VolumeBlocks
 
 	private boolean canLoadCompletely( final ImageBlockKey< ResolutionLevel3D< ? > > key )
 	{
-		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
+		return TileAccess.of( key.image(), cacheSpec ).canLoadCompletely( key.pos(), false );
 	}
 
 	private boolean containsData( final ImageBlockKey< ResolutionLevel3D< ? > > key )
@@ -380,13 +378,13 @@ public class VolumeBlocks
 		 *
 		 * Decisions, decisions...
 		 */
-		return tileAccess.get( key.image(), cacheSpec ).canLoadCompletely( key.pos(), true );
-//		return tileAccess.get( key.image(), cacheSpec ).canLoadPartially( key.pos() );
+		return TileAccess.of( key.image(), cacheSpec ).canLoadCompletely( key.pos(), true );
+//		return TileAccess.of( key.image(), cacheSpec ).canLoadPartially( key.pos() );
 	}
 
-	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final UploadBuffer buffer )
+	private boolean loadTile( final ImageBlockKey< ResolutionLevel3D< ? > > key, final ByteBuffer buffer )
 	{
-		return tileAccess.get( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
+		return TileAccess.of( key.image(), cacheSpec ).loadTile( key.pos(), buffer );
 	}
 
 	/**

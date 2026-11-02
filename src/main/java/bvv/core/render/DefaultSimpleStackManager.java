@@ -28,6 +28,8 @@
  */
 package bvv.core.render;
 
+import static net.imglib2.blocks.PrimitiveBlocks.OnFallback.ACCEPT;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -36,13 +38,14 @@ import java.util.HashMap;
 
 import java.util.Iterator;
 import java.util.Map;
-import net.imglib2.Cursor;
+import java.util.function.IntFunction;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.blocks.PrimitiveBlocks;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 
 import org.joml.Vector3f;
 
@@ -154,13 +157,57 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 	private static void copyToBufferU16( final RandomAccessibleInterval< UnsignedShortType  > rai, final ByteBuffer buffer )
 	{
-		// TODO handle specific RAI types more efficiently
-		// TODO multithreading
-		final Cursor< UnsignedShortType > cursor = Views.flatIterable( rai ).cursor();
 		final ShortBuffer sdata = buffer.asShortBuffer();
-		int i = 0;
-		while ( cursor.hasNext() )
-			sdata.put( i++, cursor.next().getShort() );
+		copySlabs( rai, short[]::new, ( slab, length ) -> sdata.put( slab, 0, length ) );
+	}
+
+	/**
+	 * Approximate number of pixels copied per slab in {@link #copySlabs}.
+	 */
+	private static final int SLAB_ELEMENTS = 1 << 20;
+
+	/**
+	 * Receives the slabs copied by {@link #copySlabs}, in order.
+	 *
+	 * @param <A>
+	 * 		primitive array type
+	 */
+	private interface SlabSink< A >
+	{
+		/**
+		 * Consume the first {@code length} elements of {@code slab}.
+		 */
+		void put( A slab, int length );
+	}
+
+	/**
+	 * Copy the 3D {@code rai} in flat iteration order, as slabs of whole
+	 * z-planes of about {@link #SLAB_ELEMENTS} pixels each, into {@code sink}.
+	 * One slab array is allocated with {@code newArray} and reused.
+	 */
+	private static < T extends NativeType< T >, A > void copySlabs(
+			final RandomAccessibleInterval< T > rai,
+			final IntFunction< A > newArray,
+			final SlabSink< A > sink )
+	{
+		// ACCEPT: fall-back to LoopBuilder is fine
+		final PrimitiveBlocks< T > blocks = PrimitiveBlocks.of( rai, ACCEPT );
+		final int w = ( int ) rai.dimension( 0 );
+		final int h = ( int ) rai.dimension( 1 );
+		final int d = ( int ) rai.dimension( 2 );
+		final int planeSize = w * h;
+
+		final int planesPerSlab = Math.max( 1, Math.min( d, SLAB_ELEMENTS / planeSize ) );
+		final A slab = newArray.apply( planesPerSlab * planeSize );
+		final long[] srcPos = rai.minAsLongArray();
+		final int[] size = { w, h, 0 };
+		for ( int z = 0; z < d; z += planesPerSlab )
+		{
+			size[ 2 ] = Math.min( planesPerSlab, d - z );
+			srcPos[ 2 ] = rai.min( 2 ) + z;
+			blocks.copy( srcPos, slab, size );
+			sink.put( slab, size[ 2 ] * planeSize );
+		}
 	}
 
 	private static VolumeTextureU8 uploadToTextureU8( final GpuContext context, final RandomAccessibleInterval< UnsignedByteType > rai )
@@ -178,12 +225,8 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 	private static void copyToBufferU8( final RandomAccessibleInterval< UnsignedByteType  > rai, final ByteBuffer buffer )
 	{
-		// TODO handle specific RAI types more efficiently
-		// TODO multithreading
-		final Cursor< UnsignedByteType > cursor = Views.flatIterable( rai ).cursor();
-		int i = 0;
-		while ( cursor.hasNext() )
-			buffer.put( i++, cursor.next().getByte() );
+		final ByteBuffer bdata = buffer.duplicate();
+		copySlabs( rai, byte[]::new, ( slab, length ) -> bdata.put( slab, 0, length ) );
 	}
 
 	private static VolumeTextureRGBA8 uploadToTextureRGBA8( final GpuContext context, final RandomAccessibleInterval< ARGBType > rai )
@@ -201,21 +244,16 @@ public class DefaultSimpleStackManager implements SimpleStackManager
 
 	private static void copyToBufferRGBA8( final RandomAccessibleInterval< ARGBType > rai, final ByteBuffer buffer )
 	{
-		// TODO handle specific RAI types more efficiently
-		// TODO multithreading
-		final Cursor< ARGBType > cursor = Views.flatIterable( rai ).cursor();
-		final IntBuffer sdata = buffer.asIntBuffer();
-		int i = 0;
-		while ( cursor.hasNext() )
-			sdata.put( i++, toRGBA( cursor.next().get() ) );
+		final IntBuffer idata = buffer.asIntBuffer();
+		copySlabs( rai, int[]::new, ( slab, length ) -> {
+			for ( int i = 0; i < length; i++ )
+				slab[ i ] = toRGBA( slab[ i ] );
+			idata.put( slab, 0, length );
+		} );
 	}
 
 	private static int toRGBA( final int argb )
 	{
-		final int a = ( argb >> 24 ) & 0xff;
-		final int r = ( argb >> 16 ) & 0xff;
-		final int g = ( argb >> 8 ) & 0xff;
-		final int b = argb & 0xff;
-		return ( a << 24 ) | ( b << 16 ) | ( g << 8 ) | r;
+		return ( argb & 0xff00ff00 ) | ( ( argb >> 16 ) & 0xff ) | ( ( argb & 0xff ) << 16 );
 	}
 }

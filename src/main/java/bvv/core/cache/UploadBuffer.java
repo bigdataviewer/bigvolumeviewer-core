@@ -28,40 +28,50 @@
  */
 package bvv.core.cache;
 
-import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
-import bvv.core.blocks.ByteUtils;
-
-public class UploadBuffer implements ByteUtils.Address
+/**
+ * One tile's portion of a staging buffer, to be filled with image block data and
+ * then uploaded to the {@link TextureCache}.
+ * <p>
+ * The staging buffer is shared by many tiles, so {@link #buffer()} is a view
+ * limited to this tile's portion.
+ * <p>
+ * {@code UploadBuffer} is created by {@code PboChain.take}, filled once, and
+ * discarded once it was uploaded to the {@link TextureCache}
+ */
+public class UploadBuffer
 {
-	private final Buffer buffer;
-	private final int offset;
+	private final ByteBuffer buffer;
+
 	private TextureCache.ContentState state;
 
-	public UploadBuffer( final Buffer buffer, final int offset )
+	/**
+	 * @param buffer
+	 * 		the staging buffer this tile is part of
+	 * @param offset
+	 * 		start of this tile in {@code buffer}, in bytes
+	 * @param size
+	 * 		size of this tile, in bytes
+	 */
+	public UploadBuffer( final ByteBuffer buffer, final int offset, final int size )
 	{
-		this.buffer = buffer;
-		this.offset = offset;
+		final ByteBuffer dup = buffer.duplicate();
+		dup.position( offset );
+		dup.limit( offset + size );
+		// NB: order() has to be set after slice(), which does not inherit it.
+		this.buffer = dup.slice().order( ByteOrder.nativeOrder() );
 	}
 
 	/**
-	 * Stores data for uploading to texture tile.
-	 *
-	 * @return a direct buffer
+	 * This tile's portion of the staging buffer, in native byte order. Writing
+	 * more than {@code size} bytes to it throws rather than running into the
+	 * next tile.
 	 */
-	public Buffer getBuffer()
+	public ByteBuffer buffer()
 	{
 		return buffer;
-	}
-
-	/**
-	 * Starting offset for tile in buffer.
-	 *
-	 * @return offset in bytes
-	 */
-	public int getOffset()
-	{
-		return offset;
 	}
 
 	/**
@@ -78,14 +88,5 @@ public class UploadBuffer implements ByteUtils.Address
 	public TextureCache.ContentState getContentState()
 	{
 		return state;
-	}
-
-	/**
-	 * ...tentative...
-	 */
-	@Override
-	public long getAddress()
-	{
-		return ByteUtils.addressOf( buffer ) + offset;
 	}
 }

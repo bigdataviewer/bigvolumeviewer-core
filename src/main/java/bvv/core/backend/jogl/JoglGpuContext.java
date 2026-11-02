@@ -165,7 +165,7 @@ public class JoglGpuContext implements GpuContext
 	}
 
 	@Override
-	public Buffer map( final StagingBuffer stagingBuffer )
+	public ByteBuffer map( final StagingBuffer stagingBuffer )
 	{
 		final int pboId = getPboId( stagingBuffer );
 

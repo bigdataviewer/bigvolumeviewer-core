@@ -28,7 +28,7 @@
  */
 package bvv.core.cache;
 
-import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -484,9 +484,12 @@ public class PboChain
 
 		final Pbo pbo;
 
-		public PboUploadBuffer( final Buffer buffer, final int offset, final Pbo pbo )
+		final int offset;
+
+		public PboUploadBuffer( final ByteBuffer buffer, final int offset, final int size, final Pbo pbo )
 		{
-			super( buffer, offset );
+			super( buffer, offset, size );
+			this.offset = offset;
 			this.pbo = pbo;
 		}
 
@@ -510,7 +513,7 @@ public class PboChain
 		private final ArrayList< PboUploadBuffer > buffers = new ArrayList<>();
 
 		private PboState state;
-		private Buffer buffer;
+		private ByteBuffer buffer;
 		private int nextIndex;
 		private int uncommitted;
 
@@ -542,7 +545,7 @@ public class PboChain
 			if ( nextIndex >= bufSize )
 				throw new NoSuchElementException();
 
-			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, this );
+			final PboUploadBuffer b = new PboUploadBuffer( buffer, nextIndex * blockSize, blockSize, this );
 			buffers.add( b );
 			++uncommitted;
 			++nextIndex;
@@ -620,7 +623,7 @@ public class PboChain
 				final int x = blockDimensions[ 0 ] * prevTile.x;
 				final int y = blockDimensions[ 1 ] * prevTile.y;
 				final int z = blockDimensions[ 2 ] * prevTile.z;
-				final long pixels_buffer_offset = buf0.getOffset();
+				final long pixels_buffer_offset = buf0.offset;
 
 				final int remainingBlocks = buffers.size() - bi;
 				int nb = 1;

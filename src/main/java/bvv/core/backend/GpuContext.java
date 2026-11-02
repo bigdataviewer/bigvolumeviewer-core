@@ -30,6 +30,7 @@ package bvv.core.backend;
 
 import bvv.core.shadergen.Shader;
 import java.nio.Buffer;
+import java.nio.ByteBuffer;
 
 public interface GpuContext
 {
@@ -72,7 +73,7 @@ public interface GpuContext
 
 	// map staging buffer, initialize and cache if necessary
 	// previous staging buffer binding is restored when done
-	Buffer map( StagingBuffer stagingBuffer );
+	ByteBuffer map( StagingBuffer stagingBuffer );
 
 	// unmap a (mapped) staging buffer
 	// previous staging buffer binding is restored when done

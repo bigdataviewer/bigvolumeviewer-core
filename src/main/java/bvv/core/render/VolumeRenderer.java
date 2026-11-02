@@ -28,7 +28,6 @@
  */
 package bvv.core.render;
 
-import static bvv.core.blocks.TileAccess.getPrimitiveType;
 import static com.jogamp.opengl.GL.GL_ALWAYS;
 import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
@@ -65,6 +64,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
+import net.imglib2.type.NativeType;
 import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -528,7 +528,7 @@ public class VolumeRenderer
 		{
 			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
 			final VolumeBlocks volume = volumes.get( i );
-			final PrimitiveType primitiveType = getPrimitiveType( stack.getType() );
+			final PrimitiveType primitiveType = getPrimitiveType( stack );
 			if ( primitiveType == BYTE )
 			{
 				multiResStacksR8.add( stack );
@@ -550,5 +550,11 @@ public class VolumeRenderer
 		complete &= updateBlocks( context, multiResStacksR16, volumesR16, cacheR16, forkJoinPool, renderWidth, pv );
 		if ( !complete )
 			nextRequestedRepaint.request( LOAD );
+	}
+
+	private static PrimitiveType getPrimitiveType( final MultiResolutionStack3D< ? > stack )
+	{
+		// safe: VolumeRenderer only gets here for stacks that passed TileAccess.isSupportedType
+		return ( ( NativeType< ? > ) stack.getType() ).getNativeTypeFactory().getPrimitiveType();
 	}
 }
