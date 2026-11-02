@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,6 +27,8 @@
  * #L%
  */
 package bvv.core.cache;
+
+import java.util.Arrays;
 
 import bvv.core.backend.Texture.InternalFormat;
 
@@ -103,5 +105,26 @@ public class CacheSpec
 	public InternalFormat format()
 	{
 		return format;
+	}
+
+	@Override
+	public final boolean equals( final Object o )
+	{
+		if ( !( o instanceof CacheSpec ) )
+			return false;
+
+		final CacheSpec cacheSpec = ( CacheSpec ) o;
+		return Arrays.equals( blockSize, cacheSpec.blockSize ) && Arrays.equals( paddedBlockSize, cacheSpec.paddedBlockSize ) && Arrays.equals( padOffset,
+				cacheSpec.padOffset ) && format == cacheSpec.format;
+	}
+
+	@Override
+	public int hashCode()
+	{
+		int result = Arrays.hashCode( blockSize );
+		result = 31 * result + Arrays.hashCode( paddedBlockSize );
+		result = 31 * result + Arrays.hashCode( padOffset );
+		result = 31 * result + format.hashCode();
+		return result;
 	}
 }
