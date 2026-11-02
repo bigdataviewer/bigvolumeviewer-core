@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>44.0.0</version>
+		<version>45.1.0</version>
 	</parent>
 
 	<groupId>sc.fiji</groupId>
@@ -72,7 +72,6 @@
 	</ciManagement>
 
 	<properties>
-		<scijava.jvm.version>11</scijava.jvm.version>
 		<scijava.javadoc.url.java>https://javadoc.scijava.org/Java11/</scijava.javadoc.url.java>
 		<package-name>bvv</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
