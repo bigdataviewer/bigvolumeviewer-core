@@ -18,7 +18,15 @@ uniform int cacheLutZOffset;
 float sampleVolume( vec4 wpos )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
-	vec3 q = floor( pos / cacheBlockSize ) - lutOffset + 0.5;
+	
+	vec3 q = floor( pos / cacheBlockSize ) - lutOffset;
+	
+	// Prevent spillage into other volumes' LUT slices
+    if ( any( lessThan( q, vec3( 0.0 ) ) ) || any( greaterThanEqual( q, lutSize ) ) )
+    {
+        return 0.0;
+    }
+    q += 0.5;
 	q.z += cacheLutZOffset; 
 
 	uvec4 lutv = texture( globalCacheLut, q / globalCacheLutSize );
