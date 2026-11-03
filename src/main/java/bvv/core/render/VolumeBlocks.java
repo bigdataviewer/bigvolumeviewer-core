@@ -259,7 +259,7 @@ public class VolumeBlocks
 	public Vector3f getSourceLevelMin()
 	{
 		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
-		final Vector3f sourceLevelMin = new Vector3f( lbb.min( 0 ), lbb.min( 1 ), lbb.min( 2 ) );
+		final Vector3f sourceLevelMin = new Vector3f( lbb.min( 0 ) - 0.5f, lbb.min( 1 ) - 0.5f, lbb.min( 2 ) - 0.5f);
 		return sourceLevelMin;
 	}
 
@@ -267,7 +267,7 @@ public class VolumeBlocks
 	public Vector3f getSourceLevelMax()
 	{
 		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
-		final Vector3f sourceLevelMax = new Vector3f( lbb.max( 0 ), lbb.max( 1 ), lbb.max( 2 ) );
+		final Vector3f sourceLevelMax = new Vector3f( lbb.max( 0 ) + 0.5f, lbb.max( 1 ) + 0.5f, lbb.max( 2 ) + 0.5f);
 		return sourceLevelMax;
 	}
 

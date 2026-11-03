@@ -145,6 +145,10 @@ public class VolumeRenderer
 	private final TextureCacheAndPboChain cacheR8;
 
 	private final TextureCacheAndPboChain cacheR16;
+	
+	/**	 global 3D texture containing all separate multires level luts per volume (LookupTextureARGB),
+		each has an offset along z-axis. **/
+	private final GlobalCacheLutTexture globalCacheLutTexture;
 
 	private final ForkJoinPool forkJoinPool;
 
@@ -208,6 +212,10 @@ public class VolumeRenderer
 		// used for the first time.
 		cacheR8 = new TextureCacheAndPboChain( R8, cacheBlockSize, maxCacheSizeInMB );
 		cacheR16 = new TextureCacheAndPboChain( R16, cacheBlockSize, maxCacheSizeInMB );
+		
+		//global texture containing all separate multires level luts per volume
+		//offset along z-axis
+		globalCacheLutTexture = new GlobalCacheLutTexture();
 
 		final int parallelism = Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 );
 		forkJoinPool = new ForkJoinPool( parallelism );
@@ -247,7 +255,10 @@ public class VolumeRenderer
 
 	private MultiVolumeShaderMip createMultiVolumeShader( final VolumeShaderSignature signature )
 	{
-		return new MultiVolumeShaderMip( signature, true, 1.0 );
+		List<TextureCache> caches = new ArrayList<>();
+		caches.add( cacheR8.textureCache() );
+		caches.add( cacheR16.textureCache() );
+		return new MultiVolumeShaderMip( signature, true, 1.0, caches );
 	}
 
 	public void init( final GL3 gl )
@@ -338,7 +349,7 @@ public class VolumeRenderer
 					if ( volumeSignatures.get( i ).getSourceStackType() == MULTIRESOLUTION )
 					{
 						final VolumeBlocks volume = volumes.get( mri++ );
-						progvol.setVolume( i, volume );
+						progvol.setVolume( i, volume, globalCacheLutTexture.getGlobalCacheLutZOffset( mri - 1 ) );
 						minWorldVoxelSize = Math.min( minWorldVoxelSize, volume.getBaseLevelVoxelSizeInWorldCoordinates() );
 					}
 					else
@@ -350,6 +361,7 @@ public class VolumeRenderer
 					}
 				}
 				progvol.setDepthTexture( sceneBuf.getDepthTexture() );
+				progvol.setGlobalCacheLutTexture( globalCacheLutTexture );
 				progvol.setViewportWidth( renderWidth );
 				progvol.setProjectionViewMatrix( pv, maxAllowedStepInVoxels * minWorldVoxelSize );
 			}
@@ -506,7 +518,6 @@ public class VolumeRenderer
 		{
 			final VolumeBlocks volume = volumes.get( i );
 			complete &= volume.makeLut( timestamp );
-			volume.getLookupTexture().upload( context );
 		}
 
 		return complete;
@@ -523,7 +534,7 @@ public class VolumeRenderer
 
 		final List< MultiResolutionStack3D< ? > > multiResStacksR16 = new ArrayList<>();
 		final List< VolumeBlocks > volumesR16 = new ArrayList<>();
-
+		
 		for ( int i = 0; i < multiResStacks.size(); i++ )
 		{
 			final MultiResolutionStack3D< ? > stack = multiResStacks.get( i );
@@ -543,11 +554,21 @@ public class VolumeRenderer
 			{
 				throw new IllegalArgumentException();
 			}
+			
 		}
 
 		boolean complete = true;
 		complete &= updateBlocks( context, multiResStacksR8, volumesR8, cacheR8, forkJoinPool, renderWidth, pv );
 		complete &= updateBlocks( context, multiResStacksR16, volumesR16, cacheR16, forkJoinPool, renderWidth, pv );
+		
+		//fill and global cache lut
+		globalCacheLutTexture.init( context );
+		for ( int i = 0; i < multiResStacks.size(); i++ )
+		{
+			 volumes.get( i ).getLookupTexture().addToGlobalLut( globalCacheLutTexture );
+		}
+		globalCacheLutTexture.upload( context );
+		
 		if ( !complete )
 			nextRequestedRepaint.request( LOAD );
 	}

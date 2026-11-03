@@ -88,4 +88,7 @@ public interface GpuContext
 
 	// upload texture block from Buffer
 	void texSubImage3D( Texture3D texture, int xoffset, int yoffset, int zoffset, int width, int height, int depth, Buffer pixels );
+	
+	//for uploading local luts to the  global lut cache texture
+	void glPixelStorei( final int pname, final int param );
 }

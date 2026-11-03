@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,6 +46,28 @@ public class StringTemplateUtils
 			final String resourceName,
 			final List< String > keys )
 			throws IOException
+	{
+		
+		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
+		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
+		return patchSnippet(reader, keys);
+	}
+	
+	public static ST patchSnippet( final String glslCode, final List< String > keys )
+	{
+		try ( final BufferedReader reader = new BufferedReader( new StringReader( glslCode ) ) )
+		{
+			return patchSnippet( reader, keys );
+		}
+		catch ( final IOException e )
+		{
+			throw new RuntimeException( e ); // StringReader won't actually throw IOException
+		}
+	}
+	
+	public static ST patchSnippet( final BufferedReader reader, 
+								   final List< String > keys ) 
+								   throws IOException
 	{
 		final ArrayList< String > searchList = new ArrayList<>();
 		final ArrayList< String > replacementList = new ArrayList<>();
@@ -70,8 +93,6 @@ public class StringTemplateUtils
 		final int INSERT_START = PAT_INSERT.length();
 		final char PAT_INSERT_END = '}';
 
-		final InputStream stream = resourceContext.getResourceAsStream( resourceName );
-		final BufferedReader reader = new BufferedReader( new InputStreamReader( stream ) );
 		final StringBuilder builder = new StringBuilder();
 		String line;
 		boolean inRepeatBlock = false;

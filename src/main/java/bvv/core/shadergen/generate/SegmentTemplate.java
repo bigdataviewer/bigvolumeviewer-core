@@ -83,6 +83,32 @@ public class SegmentTemplate
 			throw new RuntimeException( e );
 		}
 	}
+	
+	public static SegmentTemplate fromCode( final String glslCode, final String ... keys )
+	{
+	    return new SegmentTemplate( glslCode, Arrays.asList( keys ), true );
+	}
+
+	public static SegmentTemplate fromCode( final String glslCode, final List< String > keys )
+	{
+	    return new SegmentTemplate( glslCode, keys, true );
+	}
+	
+	// constructor executing the direct string parsing
+	private SegmentTemplate( final String glslCode, final List< String > keys, @SuppressWarnings( "unused" ) final boolean isRawCode )
+	{
+		this.keys = keys;
+		
+		if(!keys.isEmpty())
+		{
+			this.st = StringTemplateUtils.patchSnippet( glslCode, keys );
+		}
+		else
+		{
+			this.st = new ST( glslCode, '$', '$' );
+		}
+	    
+	}
 
 	static class Identifier
 	{

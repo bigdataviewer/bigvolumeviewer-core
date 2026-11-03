@@ -1,5 +1,3 @@
-#define NUM_BLOCK_SCALES 10
-
 uniform mat4 im;
 uniform vec3 sourcemin;
 uniform vec3 sourcemax;
@@ -11,33 +9,31 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 	intersectBox( mfront.xyz, (mback - mfront).xyz, sourcemin, sourcemax, tnear, tfar );
 }
 
-uniform sampler3D volumeCache;
-
-// -- comes from CacheSpec -----
-uniform vec3 blockSize;
-uniform vec3 paddedBlockSize;
-uniform vec3 cachePadOffset;
-
-// -- comes from TextureCache --
-uniform vec3 cacheSize;// TODO: get from texture!?
-
-
-uniform usampler3D lutSampler;
 uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
-uniform vec3 lutSize;
 uniform vec3 lutOffset;
+uniform vec3 lutSize; // Local volume LUT size (in tiles)
+uniform int cacheType;
+uniform int cacheLutZOffset;
 
 float sampleVolume( vec4 wpos )
 {
 	vec3 pos = (im * wpos).xyz + 0.5;
-	vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
+	
+	vec3 q = floor( pos / cacheBlockSize ) - lutOffset;
+	
+	// Prevent spillage into other volumes' LUT slices
+    if ( any( lessThan( q, vec3( 0.0 ) ) ) || any( greaterThanEqual( q, lutSize ) ) )
+    {
+        return 0.0;
+    }
+    q += 0.5;
+	q.z += cacheLutZOffset; 
 
-	uvec4 lutv = texture( lutSampler, q / lutSize );
+	uvec4 lutv = texture( globalCacheLut, q / globalCacheLutSize );
 	vec3 B0 = lutv.xyz * paddedBlockSize + cachePadOffset;
 	vec3 sj = blockScales[ lutv.w ];
-
-	vec3 c0 = B0 + mod( pos * sj, blockSize ) + 0.5 * sj;
-	                                       // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
-
-	return texture( volumeCache, c0 / cacheSize ).r;
+	
+	vec3 c0 = B0 + mod(pos * sj, cacheBlockSize);
+	
+	return texture( u_Caches[cacheType], c0/ cacheSize[cacheType]  ).r;	
 }

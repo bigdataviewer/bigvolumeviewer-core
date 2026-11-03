@@ -256,6 +256,12 @@ public class JoglGpuContext implements GpuContext
 		if ( restoreTextureId != textureId )
 			gl.glBindTexture( GL_TEXTURE_3D, restoreTextureId );
 	}
+	
+	@Override
+	public void glPixelStorei( final int pname, final int param )
+	{
+	    gl.glPixelStorei( pname, param );
+	}
 
 	public static JoglGpuContext get( final GL3 gl )
 	{
