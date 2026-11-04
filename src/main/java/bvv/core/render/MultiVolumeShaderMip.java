@@ -442,18 +442,19 @@ public class MultiVolumeShaderMip
 	public void setProjectionViewMatrix( final Matrix4fc pv, final double minWorldVoxelSize )
 	{
 		final Matrix4f ipv = pv.invert( new Matrix4f() );
-		final float dx = ( float ) ( 2.0 / viewportWidth );
 
-		final Vector4f a = ipv.transform( new Vector4f( 0, 0, -1, 1 ) );
-		final Vector4f c = ipv.transform( new Vector4f( 0, 0,  1, 1 ) );
-		final Vector4f b = ipv.transform( new Vector4f( 0, 0,  0, 1 ) );
-		final Vector4f adx = ipv.transform( new Vector4f( dx, 0, -1, 1 ) );
-		final Vector4f cdx = ipv.transform( new Vector4f( dx, 0,  1, 1 ) );
-		a.div( a.w() );
-		b.div( b.w() );
-		c.div( c.w() );
-		adx.div( adx.w() );
-		cdx.div( cdx.w() );
+		final float dx = ( float ) ( 2.0 / viewportWidth ); // width of one render pixel, in NDC
+
+		final Vector4f a = ipv.transform( new Vector4f( 0, 0, -1, 1 ) ); // NDC center, near plane (homogeneous world coordinates)
+		final Vector4f adx = ipv.transform( new Vector4f( dx, 0, -1, 1 ) ); // one render pixel to the right of that (homogeneous world coordinates)
+		final Vector4f c = ipv.transform( new Vector4f( 0, 0,  1, 1 ) ); // NDC center, far plane (homogeneous world coordinates)
+		final Vector4f cdx = ipv.transform( new Vector4f( dx, 0,  1, 1 ) ); // one render pixel to the right of that (homogeneous world coordinates)
+		final Vector4f b = ipv.transform( new Vector4f( 0, 0,  0, 1 ) ); // NDC center, midpoint of depth range (homogeneous world coordinates)
+		a.div( a.w() ); // to cartesian
+		b.div( b.w() ); // to cartesian
+		c.div( c.w() ); // to cartesian
+		adx.div( adx.w() ); // to cartesian
+		cdx.div( cdx.w() ); // to cartesian
 
 		final double sNear = Math.max( adx.sub( a ).length(), minWorldVoxelSize );
 		final double sFar = Math.max( cdx.sub( c ).length(), minWorldVoxelSize );
@@ -463,6 +464,10 @@ public class MultiVolumeShaderMip
 		final double fw = degrade * sFar * scale;
 		final double ab = b.sub( a, new Vector4f() ).length();
 		final double f = ab / ac;
+
+//		System.out.printf( "step [world]: near %.4f, screen plane %.4f, far %.4f  (pixel-based near %.4f, floor %.4f)%n",
+//				nw * ac, ( nw + f * ( fw - nw ) ) * ac, fw * ac,
+//				adx.length(), minWorldVoxelSize );
 
 		uniformIpv.set( ipv );
 		uniformNw.set( ( float ) nw );
@@ -646,7 +651,7 @@ public class MultiVolumeShaderMip
 		{
 			uniformVolumeSampler.set( volume.getVolumeTexture() );
 			uniformIm.set( volume.getIms() );
-			uniformSourcemax.set( volume.getSourceMax() );
+			uniformSourcemax.set( volume.getSourceDimensions() );
 		}
 	}
 }

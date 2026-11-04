@@ -247,26 +247,78 @@ public class VolumeBlocks
 		return lutBlockScales;
 	}
 
-	// TODO: revise / remove
+	/**
+	 * Get the transformation from world coordinates to voxel coordinates of
+	 * the {@link #getBaseLevel() base level}, in OpenGL convention (integer
+	 * coordinates at voxel min corners, see the NB in {@code getUpscale()}).
+	 * <p>
+	 * This is the shader uniform {@code im}: used to intersect rays with the
+	 * source bounding box and to locate samples in the LUT and texture cache.
+	 *
+	 * @return world to base-level voxel coordinates (OpenGL convention)
+	 */
 	public Matrix4f getIms()
 	{
 		return MatrixMath.affine( multiResolutionStack.getSourceTransform(), new Matrix4f() ).mul( getUpscale( baseLevel ) ).invert();
 	}
 
-	// TODO: revise / remove
+	/**
+	 * Get the min corner of the source bounding box, in voxel coordinates of
+	 * the {@link #getBaseLevel() base level} in OpenGL convention (the
+	 * coordinates {@link #getIms()} maps to). This is shader uniform
+	 * {@code sourcemin}; together with {@link #getSourceLevelMax()} it clips
+	 * rays to the source.
+	 * <p>
+	 * The box is the extent of the <em>full-resolution</em> image (level 0),
+	 * not that of the base level image. With OpenGL convention, voxel
+	 * coordinates of different levels differ by a pure scale, {@code p_b = p_0
+	 * / r_b} (see the NB in {@code getUpscale()}), so the level-0 box
+	 * {@code [min_0, max_0 + 1]} becomes {@code [min_0 / r_b, (max_0 + 1) /
+	 * r_b]}.
+	 * <p>
+	 * Why not the base level's own extent: Downsampled sizes are rounded
+	 * (up in current BDV export, down in some older pyramids), so unless the
+	 * full-resolution size is divisible by {@code r_b}, the base level image
+	 * sticks out past the source or falls short of it, by up to {@code r_b - 1}
+	 * full-resolution voxels at the max faces. Since the base level changes
+	 * with zoom, the rendered extent would then jump while zooming, and would
+	 * differ from rendering the same image as a {@code SIMPLE} stack. Using the
+	 * full-resolution extent gives the source one fixed spatial extent. Where
+	 * the base level falls short, rays sample the zero padding of the cache
+	 * tiles over the missing fraction of a voxel.
+	 *
+	 * @return min corner of the full-resolution source extent, in base-level
+	 *         voxel coordinates (OpenGL convention)
+	 */
 	public Vector3f getSourceLevelMin()
 	{
-		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
-		final Vector3f sourceLevelMin = new Vector3f( lbb.min( 0 ), lbb.min( 1 ), lbb.min( 2 ) );
-		return sourceLevelMin;
+		final Interval full = multiResolutionStack.resolutions().get( 0 ).getImage();
+		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+		final float min_x = full.min( 0 ) / ( float ) r[ 0 ];
+		final float min_y = full.min( 1 ) / ( float ) r[ 1 ];
+		final float min_z = full.min( 2 ) / ( float ) r[ 2 ];
+		return new Vector3f( min_x, min_y, min_z );
 	}
 
-	// TODO: revise / remove
+	/**
+	 * Get the max corner (exclusive) of the source bounding box, in voxel
+	 * coordinates of the {@link #getBaseLevel() base level} in OpenGL convention (the
+	 * coordinates {@link #getIms()} maps to). This is shader uniform
+	 * {@code sourcemax}.
+	 * <p>
+	 * See {@link #getSourceLevelMin()}.
+	 *
+	 * @return max corner of the full-resolution source extent, in base-level
+	 *         voxel coordinates (OpenGL convention)
+	 */
 	public Vector3f getSourceLevelMax()
 	{
-		final Interval lbb = multiResolutionStack.resolutions().get( baseLevel ).getImage();
-		final Vector3f sourceLevelMax = new Vector3f( lbb.max( 0 ), lbb.max( 1 ), lbb.max( 2 ) );
-		return sourceLevelMax;
+		final Interval full = multiResolutionStack.resolutions().get( 0 ).getImage();
+		final int[] r = multiResolutionStack.resolutions().get( baseLevel ).getR();
+		final float max_x = ( full.max( 0 ) + 1 ) / ( float ) r[ 0 ];
+		final float max_y = ( full.max( 1 ) + 1 ) / ( float ) r[ 1 ];
+		final float max_z = ( full.max( 2 ) + 1 ) / ( float ) r[ 2 ];
+		return new Vector3f( max_x, max_y, max_z );
 	}
 
 	public LookupTextureARGB getLookupTexture()
@@ -315,9 +367,9 @@ public class VolumeBlocks
 		{
 			final int[] g0 = block.getGridPos();
 			blockCenter.set(
-					( g0[ 0 ] + 0.5f ) * scale[ 0 ],
-					( g0[ 1 ] + 0.5f ) * scale[ 1 ],
-					( g0[ 2 ] + 0.5f ) * scale[ 2 ] );
+					( g0[ 0 ] + 0.5f ) * scale[ 0 ] - 0.5f,
+					( g0[ 1 ] + 0.5f ) * scale[ 1 ] - 0.5f,
+					( g0[ 2 ] + 0.5f ) * scale[ 2 ] - 0.5f);
 			final int bestLevel = Math.max( minLevel, sizes.bestLevel( blockCenter, tmp ) );
 			block.setBestLevel( bestLevel );
 		}
@@ -397,16 +449,30 @@ public class VolumeBlocks
 	{
 		final Matrix4fc ipvms = pvm.mul( getUpscale( level ), new Matrix4f() ).invert();
 
+		// NB: The grid range is clamped to the *level* image lbb, not to the
+		// full-resolution extent used as the ray clipping box (see
+		// getSourceLevelMin()). The two differ when the full-resolution size
+		// is not divisible by r. If the level image is rounded up, it is
+		// larger by less than one voxel. The box then ends inside the last
+		// level voxel, so both select the same blocks. If it is rounded down,
+		// it is smaller, and the box reaches up to (r - 1) / r voxels past the
+		// last level voxel.
+		// If that sliver falls into a block beyond gridMax (when max + 1 is a
+		// multiple of blockSize), the block is never required, its LUT entry
+		// stays 0 (out of bounds), and rays sample 0 there. Otherwise it lies
+		// in the last required block, whose tile has zeros there from
+		// extendZero padding. Either way the result is 0, so this is
+		// accepted rather than clamping to the box.
 		final Interval lbb = multiResolutionStack.resolutions().get( level ).getImage();
 		final Vector3f fbbmin = new Vector3f();
 		final Vector3f fbbmax = new Vector3f();
 		ipvms.frustumAabb( fbbmin, fbbmax );
 		for ( int d = 0; d < 3; ++d )
 		{
-			final float lbbmin = lbb.min( d ); // TODO -0.5 offset?
-			final float lbbmax = lbb.max( d ); // TODO -0.5 offset?
-			gridMin[ d ] = ( long ) ( Math.max( fbbmin.get( d ), lbbmin ) / cacheSpec.blockSize()[ d ] );
-			gridMax[ d ] = ( long ) ( Math.min( fbbmax.get( d ), lbbmax ) / cacheSpec.blockSize()[ d ] );
+			final float lbbmin = lbb.min( d );
+			final float lbbmax = lbb.max( d );
+			gridMin[ d ] = ( long ) Math.floor( Math.max( fbbmin.get( d ), lbbmin ) / cacheSpec.blockSize()[ d ] );
+			gridMax[ d ] = ( long ) Math.floor( Math.min( fbbmax.get( d ), lbbmax ) / cacheSpec.blockSize()[ d ] );
 		}
 	}
 
@@ -421,10 +487,28 @@ public class VolumeBlocks
 		final int bsx = r[ 0 ];
 		final int bsy = r[ 1 ];
 		final int bsz = r[ 2 ];
+
+		// NB: Level coordinates here are in OpenGL convention (integer
+		// coordinates at voxel min corner), full-resolution coordinates in
+		// ImgLib2 convention (integer coordinates at voxel centre).
+		//
+		// In ImgLib2 convention, the default mipmap convention maps level
+		// coordinate x to full-resolution x_0 = r * x + (r - 1) / 2.
+		// (See DownSamplingScheme.DEFAULT_BLOCK_AVERAGE and
+		// bdv.util.MipmapTransforms.getMipmapTransformDefault().)
+		//
+		// With OpenGL-convention level coordinate p = x + 0.5 this becomes
+		// x_0 = r * p - 0.5: a pure scale between levels, plus a fixed
+		// half-voxel shift into ImgLib2 convention at full resolution.
+		// (E.g., r = 2: p = 0 -> x_0 = -0.5, the min corner of full-res voxel 0.)
+		//
+		// The result is in full-resolution source coordinates; the source
+		// transform to world is applied separately (see getIms()).
+
 		return dest.set(
 				bsx, 0, 0, 0,
 				0, bsy, 0, 0,
 				0, 0, bsz, 0,
-				0.5f * ( bsx - 1 ), 0.5f * ( bsy - 1 ), 0.5f * ( bsz - 1 ), 1 );
+				-0.5f, -0.5f, -0.5f, 1 );
 	}
 }

@@ -29,6 +29,7 @@
 package bvv.core.render;
 
 import bvv.core.util.MatrixMath;
+import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
@@ -46,24 +47,29 @@ public class SimpleVolume
 
 	private final AffineTransform3D sourceToWorld;
 
-	private final Vector3f sourceMax;
+	private final Vector3f sourceDimensions;
 
 	private final Matrix4f ims;
 
 	/**
 	 * @param texture with source data
 	 * @param sourceTransform transforms source coordinates to world coordinates
-	 * @param sourceMin minimum source coordinates
-	 * @param sourceMax maximum source coordinates
+	 * @param interval the source interval
 	 */
-	public SimpleVolume( final Texture3D texture, final AffineTransform3D sourceTransform, final Vector3f sourceMin, final Vector3f sourceMax )
+	public SimpleVolume( final Texture3D texture, final AffineTransform3D sourceTransform, final Interval interval )
 	{
 		this.texture = texture;
 		this.sourceToWorld = sourceTransform;
-		this.sourceMax = sourceMax.sub( sourceMin, new Vector3f() );
+		this.sourceDimensions = new Vector3f( interval.dimension( 0 ), interval.dimension( 1 ), interval.dimension( 2 ) );
 
 		AffineTransform3D t = new AffineTransform3D();
-		t.translate( sourceMin.x(), sourceMin.y(), sourceMin.z() );
+		// NB: The interval is in ImgLib2 convention: integers at voxel centers.
+		// The additional (-0.5, -0.5, -0.5) translation converts that to OpenGL
+		// conventions: integers are voxel min corners.
+		t.translate(
+				interval.min( 0 ) - 0.5,
+				interval.min( 1 ) - 0.5,
+				interval.min( 2 ) - 0.5 );
 		t.preConcatenate( sourceTransform );
 		this.ims = MatrixMath.affine( t, new Matrix4f() ).invert();
 	}
@@ -102,8 +108,8 @@ public class SimpleVolume
 		return voxelSize;
 	}
 
-	public Vector3f getSourceMax()
+	public Vector3f getSourceDimensions()
 	{
-		return sourceMax;
+		return sourceDimensions;
 	}
 }

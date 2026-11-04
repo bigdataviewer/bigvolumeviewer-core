@@ -75,6 +75,8 @@ public interface ResolutionLevel3D< T > extends EuclideanSpace, Typed< T >
 	 *      0  ry   0  (ry-1)/2
 	 *      0   0  rz  (rz-1)/2
 	 * </pre>
+	 * <p>
+	 * <em>TODO: This is currently unused! DEFAULT_BLOCK_AVERAGE equivalent transform is hard-coded in VolumeBlocks.getUpscale.</em>
 	 *
 	 * @return transformation from image coordinates of this level to image coordinates of level 0 (full resolution).
 	 */

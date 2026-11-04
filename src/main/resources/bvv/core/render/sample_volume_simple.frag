@@ -12,6 +12,6 @@ uniform sampler3D volume;
 
 float sampleVolume( vec4 wpos )
 {
-	vec3 pos = (im * wpos).xyz + 0.5;
+	vec3 pos = (im * wpos).xyz;
 	return texture( volume, pos / textureSize( volume, 0 ) ).r;
 }

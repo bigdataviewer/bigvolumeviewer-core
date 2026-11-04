@@ -47,7 +47,7 @@ public class FindRequiredBlocks
 	 * such that we only have to check the (0, 0) corner of cells.
 	 * <p>
 	 * <em>(0, 0)</em> is contained in the created polytope, if and only if the
-	 * block <em>(-0.5, -0.5) .. (blockSize[0]-0.5, blockSize[1]-0.5)</em>
+	 * block <em>(0, 0) .. (blockSize[0], blockSize[1])</em>
 	 * overlaps the original clipping polytope {@code clip}.
 	 * <p>
 	 * Works for arbitrary number of dimensions.
@@ -66,8 +66,8 @@ public class FindRequiredBlocks
 		final double[] cellBBMax = new double[ n ];
 		for ( int d = 0; d < n; ++d )
 		{
-			cellBBMin[ d ] = -0.5;
-			cellBBMax[ d ] = blockSize[ d ] - 0.5;
+			cellBBMin[ d ] = 0;
+			cellBBMax[ d ] = blockSize[ d ];
 		}
 		final double[] offset = new double[ n ];
 
@@ -156,12 +156,17 @@ public class FindRequiredBlocks
 
 	/**
 	 * Backproject NDC {@code (-1,-1,-1) ... (1,1,1)} to source image and find overlapping blocks.
+	 * <p>
+	 * Each block in {@code [gridMin, gridMax]} is tested against the frustum polytope.
 	 *
 	 * @param levelToNDC
 	 * 		Projection * View * Model * Upscale matrix
 	 * @param blockSize
+	 * 		cache block size (unpadded)
 	 * @param gridMin
+	 * 		Min corner of source bbox intersected with the frustum's AABB (in grid units, i.e., divided by blockSize)
 	 * @param gridMax
+	 * 		Max corner (inclusive)
 	 *
 	 * @return
 	 */
